@@ -1007,14 +1007,14 @@ async function completeSetup() {
 async function initPersonalSheet(sheetId) {
   // Check if headers already exist
   const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:N1`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/My%20Collection!A1:N1`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   const data = await res.json();
   // Only write headers if row 1 is empty
   if (!data.values || !data.values[0] || data.values[0].length === 0) {
-    await sheetsUpdate(sheetId, 'Sheet1!A1:N1', [PERSONAL_HEADERS]);
-    console.log('Personal sheet headers written to Sheet1');
+    await sheetsUpdate(sheetId, 'My Collection!A1:N1', [PERSONAL_HEADERS]);
+    console.log('Personal sheet headers written to My Collection tab');
   }
 }
 
@@ -1115,7 +1115,7 @@ async function loadMasterData() {
 
 async function loadPersonalData() {
   if (!state.personalSheetId) return;
-  const res = await sheetsGet(state.personalSheetId, 'Sheet1!A2:N');
+  const res = await sheetsGet(state.personalSheetId, 'My Collection!A2:N');
   const rows = res.values || [];
   state.personalData = {};
   rows.forEach((r, idx) => {
@@ -1415,10 +1415,10 @@ async function saveItem() {
 
   const existing = state.personalData[key];
   if (existing && existing.row) {
-    const range = `Sheet1!A${existing.row}:N${existing.row}`;
+    const range = `My Collection!A${existing.row}:N${existing.row}`;
     await sheetsUpdate(state.personalSheetId, range, [row]);
   } else {
-    await sheetsAppend(state.personalSheetId, 'Sheet1!A:N', [row]);
+    await sheetsAppend(state.personalSheetId, 'My Collection!A:N', [row]);
     await loadPersonalData();
   }
 
@@ -1559,4 +1559,3 @@ window.onload = () => {
 <script src="https://apis.google.com/js/api.js"></script>
 </body>
 </html>
-
