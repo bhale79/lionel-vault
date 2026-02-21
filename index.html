@@ -815,6 +815,26 @@
             </div>
           </div>
         </div>
+        <div id="want-fields" style="display:none;margin-bottom:0.75rem">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Priority</label>
+              <select id="fc-want-priority">
+                <option value="High">High</option>
+                <option value="Medium" selected>Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Expected Price ($)</label>
+              <input type="number" id="fc-want-price" placeholder="0.00" min="0" step="0.01">
+            </div>
+          </div>
+          <div class="form-field full" style="margin-top:0.5rem">
+            <label>Notes</label>
+            <input type="text" id="fc-want-notes" placeholder="Why you want it, where to find it…">
+          </div>
+        </div>
         <div id="collection-form" style="display:none">
           <div class="form-grid">
             <div class="form-field">
@@ -929,9 +949,16 @@ const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googlea
 const API_KEY = 'AIzaSyBjwyQ7qvqrH0goUVidOO0Da9hVQWOzvI8'; // Replace with your Google Cloud API key
 const PERSONAL_SHEET_NAME = 'Lionel Vault — My Collection';
 const PERSONAL_HEADERS = [
-  'Item Number','Variation','Copy #','Status','Condition (1-10)','All Original',
+  'Item Number','Variation','Copy #','Condition (1-10)','All Original',
   'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
-  'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes','Sale Price','Date Sold'
+  'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes'
+];
+const SOLD_HEADERS = [
+  'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
+  'Sale Price','Date Sold','Notes'
+];
+const WANT_HEADERS = [
+  'Item Number','Variation','Priority','Expected Price','Notes'
 ];
 
 // ── STATE ───────────────────────────────────────────────────────
@@ -940,11 +967,13 @@ let state = {
   masterSheetId: null,
   personalSheetId: null,
   masterData: [],      // all rows from master sheet
-  personalData: {},    // keyed by "itemNum|variation" -> personal row
+  personalData: {},    // keyed by "itemNum|variation" -> personal row (owned items)
+  soldData: {},        // keyed by "itemNum|variation" -> sold row
+  wantData: {},        // keyed by "itemNum|variation" -> want list row
   filteredData: [],
   currentPage: 1,
   pageSize: 50,
-  filters: { owned: false, unowned: false, boxed: false, type: '', road: '', search: '' },
+  filters: { owned: false, unowned: false, boxed: false, wantList: false, type: '', road: '', search: '' },
   currentItem: null,
 };
 
@@ -1077,17 +1106,37 @@ async function completeSetup() {
 }
 
 async function initPersonalSheet(sheetId) {
-  // Check if headers already exist
+  // Write My Collection headers if empty
   const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/My%20Collection!A1:N1`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/My%20Collection!A1:M1`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   const data = await res.json();
-  // Only write headers if row 1 is empty
   if (!data.values || !data.values[0] || data.values[0].length === 0) {
-    await sheetsUpdate(sheetId, 'My Collection!A1:N1', [PERSONAL_HEADERS]);
-    console.log('Personal sheet headers written to My Collection tab');
+    await sheetsUpdate(sheetId, 'My Collection!A1:M1', [PERSONAL_HEADERS]);
   }
+  // Create Sold tab by writing headers there too
+  try {
+    await sheetsUpdate(sheetId, 'Sold!A1:H1', [SOLD_HEADERS]);
+  } catch(e) {
+    // Tab may not exist yet - create it via batch update
+    await createSoldTab(sheetId);
+    await sheetsUpdate(sheetId, 'Sold!A1:H1', [SOLD_HEADERS]);
+  }
+}
+
+async function createSoldTab(sheetId) {
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      requests: [
+        { addSheet: { properties: { title: 'Sold' } } },
+        { addSheet: { properties: { title: 'Want List' } } }
+      ]
+    })
+  });
+  await sheetsUpdate(sheetId, 'Want List!A1:E1', [WANT_HEADERS]);
 }
 
 // ── SHEETS API ──────────────────────────────────────────────────
@@ -1263,11 +1312,12 @@ function buildDashboard() {
   document.getElementById('stat-boxed').textContent = owned > 0 ? `${boxedCount} / ${owned}` : '—';
   document.getElementById('stat-orig').textContent = owned > 0 ? `${origCount} / ${owned}` : '—';
 
-  const soldCount = Object.values(state.personalData).filter(pd => pd.status === 'Sold').length;
+  const soldCount = Object.keys(state.soldData).length;
   const wantCount = total - owned - soldCount;
   document.getElementById('nav-total').textContent = total.toLocaleString();
   document.getElementById('nav-owned').textContent = owned.toLocaleString();
-  document.getElementById('nav-wanted').textContent = wantCount.toLocaleString();
+  const wantListCount = Object.keys(state.wantData).length;
+  document.getElementById('nav-wanted').textContent = wantListCount.toLocaleString();
   if (document.getElementById('nav-sold')) document.getElementById('nav-sold').textContent = soldCount;
 
   // Category breakdown
@@ -1301,7 +1351,7 @@ function buildDashboard() {
   document.getElementById('cat-grid').innerHTML = catHtml || '<div class="empty-state"><p>No data yet</p></div>';
 
   // Want list preview (first 6 unowned)
-  const wants = state.masterData.filter(i => !state.personalData[`${i.itemNum}|${i.variation}`]?.owned).slice(0, 6);
+  const wants = state.masterData.filter(i => state.wantData[`${i.itemNum}|${i.variation}`]).slice(0, 6);
   document.getElementById('want-preview').innerHTML = wants.length ? wants.map(i => `
     <div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openItem(${state.masterData.indexOf(i)})">
       <span class="item-num">${i.itemNum}</span>
@@ -1326,6 +1376,7 @@ function populateFilters() {
 function applyFilters() {
   state.filters.type = document.getElementById('filter-type').value;
   state.filters.road = document.getElementById('filter-road').value;
+  state.filters.wantList = false;
   state.currentPage = 1;
   renderBrowse();
 }
@@ -1338,7 +1389,13 @@ function toggleFilter(name) {
 }
 
 function filterOwned() { state.filters.owned = true; state.filters.unowned = false; document.getElementById('toggle-owned').classList.add('on'); renderBrowse(); }
-function filterWanted() { state.filters.unowned = true; state.filters.owned = false; document.getElementById('toggle-unowned').classList.add('on'); renderBrowse(); }
+function filterWanted() { 
+  state.filters.unowned = false; 
+  state.filters.owned = false; 
+  // Show only want list items
+  state.filters.wantList = true;
+  renderBrowse(); 
+}
 function filterByType(type) { document.getElementById('filter-type').value = type; showPage('browse'); applyFilters(); }
 
 function onGlobalSearch(val) {
@@ -1356,10 +1413,12 @@ function renderBrowse() {
     const pd = state.personalData[key];
     const isOwned = pd?.owned || false;
     const hasBox = pd?.hasBox === 'Yes';
-    const itemSt = state.personalData[`${item.itemNum}|${item.variation}`]?.status || '';
-    if (itemSt === 'Sold') return false; // sold items go to sold tab
-    if (owned && itemSt !== 'Owned') return false;
-    if (unowned && itemSt === 'Owned') return false;
+    const isSold = !!state.soldData[`${item.itemNum}|${item.variation}`];
+    if (isSold) return false;
+    const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
+    if (state.filters.wantList && !isWanted) return false;
+    if (owned && !isOwned) return false;
+    if (unowned && (isOwned || isWanted)) return false;
     if (boxed && !hasBox) return false;
     if (type && item.itemType !== type) return false;
     if (road && item.roadName !== road) return false;
@@ -1394,7 +1453,7 @@ function renderBrowse() {
       <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
       <td>${item.variation || '<span class="text-dim">—</span>'}</td>
       <td class="text-dim">${item.yearProd || '—'}</td>
-      <td><span class="owned-badge ${itemStatus === 'Owned' ? 'yes' : itemStatus === 'Want' ? 'want' : 'no'}">${itemStatus === 'Owned' ? '✓ Owned' : itemStatus === 'Want' ? '★ Want' : itemStatus === 'Sold' ? '' : '—'}</span></td>
+      <td><span class="owned-badge ${isOwned ? 'yes' : isWanted ? 'want' : 'no'}">${isOwned ? '✓ Owned' : isWanted ? '★ Want' : '—'}</span></td>
       <td>${cond ? `<span class="condition-pip ${condClass}"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
       <td class="market-val">${item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '<span class="text-dim">—</span>'}</td>
     </tr>`;
@@ -1436,12 +1495,17 @@ function openItem(idx) {
   if (item.varDesc) { document.getElementById('mi-varDesc').textContent = item.varDesc; vd.style.display = 'block'; }
   else { vd.style.display = 'none'; }
 
-  // Personal data
-  const itemStatus = pd.status || (pd.owned ? 'Owned' : 'Want');
-  currentStatus = itemStatus;
-  setStatus(itemStatus);
-  document.getElementById('fc-sale-price').value = pd.salePrice || '';
-  document.getElementById('fc-date-sold').value = pd.dateSold || '';
+  // Personal data - check owned and sold
+  const sd = state.soldData[key] || {};
+  const wd = state.wantData[key] || {};
+  const itemStatus = pd.owned ? 'Owned' : sd.itemNum ? 'Sold' : wd.itemNum ? 'Want' : '';
+  currentStatus = itemStatus || '';
+  setStatus(itemStatus || 'Want');
+  document.getElementById('fc-sale-price').value = sd.salePrice || '';
+  document.getElementById('fc-date-sold').value = sd.dateSold || '';
+  document.getElementById('fc-want-priority').value = wd.priority || 'Medium';
+  document.getElementById('fc-want-price').value = wd.expectedPrice || '';
+  document.getElementById('fc-want-notes').value = wd.notes || '';
 
   document.getElementById('fc-copy').value = pd.copy || '1';
   document.getElementById('fc-original').value = pd.allOriginal || 'Unknown';
@@ -1489,7 +1553,10 @@ function setStatus(status) {
     }
   });
   document.getElementById('collection-form').style.display = (status === 'Owned' || status === 'Sold') ? 'block' : 'none';
-  document.getElementById('sold-fields').style.display = status === 'Sold' ? 'block' : 'none';
+  const soldFields = document.getElementById('sold-fields');
+  if (soldFields) soldFields.style.display = status === 'Sold' ? 'block' : 'none';
+  const wantFields = document.getElementById('want-fields');
+  if (wantFields) wantFields.style.display = status === 'Want' ? 'block' : 'none';
 }
 
 async function saveItem() {
@@ -1497,51 +1564,79 @@ async function saveItem() {
   const { item } = state.currentItem;
   const key = `${item.itemNum}|${item.variation}`;
 
-  const hasData = currentStatus === 'Owned' || currentStatus === 'Sold';
-  const row = [
-    item.itemNum,
-    item.variation || '',
-    document.getElementById('fc-copy').value,
-    currentStatus,
-    hasData ? document.getElementById('fc-condition').value : '',
-    hasData ? document.getElementById('fc-original').value : '',
-    hasData ? document.getElementById('fc-price-item').value : '',
-    hasData ? document.getElementById('fc-price-box').value : '',
-    hasData ? document.getElementById('fc-price-complete').value : '',
-    hasData ? document.getElementById('fc-has-box').value : '',
-    hasData ? document.getElementById('fc-box-cond').value : '',
-    hasData ? document.getElementById('fc-photo-item').value : '',
-    hasData ? document.getElementById('fc-photo-box').value : '',
-    hasData ? document.getElementById('fc-notes').value : '',
-    currentStatus === 'Sold' ? document.getElementById('fc-sale-price').value : '',
-    currentStatus === 'Sold' ? document.getElementById('fc-date-sold').value : '',
-  ];
+  const copy = document.getElementById('fc-copy').value;
+  const condition = document.getElementById('fc-condition').value;
 
-  const existing = state.personalData[key];
-  console.log('Saving item:', key, 'existing:', existing, 'personalSheetId:', state.personalSheetId);
-  console.log('Row data:', row);
-  if (existing && existing.row) {
-    const range = `My Collection!A${existing.row}:N${existing.row}`;
-    console.log('Updating range:', range);
-    const updateRes = await sheetsUpdate(state.personalSheetId, range, [row]);
-    console.log('Update response:', updateRes);
-  } else {
-    console.log('Appending new row to My Collection');
-    const appendRes = await sheetsAppend(state.personalSheetId, 'My Collection!A:N', [row]);
-    console.log('Append response:', appendRes);
-    await loadPersonalData();
+  if (currentStatus === 'Owned') {
+    // Write/update in My Collection tab
+    const ownedRow = [
+      item.itemNum, item.variation || '', copy, condition,
+      document.getElementById('fc-original').value,
+      document.getElementById('fc-price-item').value,
+      document.getElementById('fc-price-box').value,
+      document.getElementById('fc-price-complete').value,
+      document.getElementById('fc-has-box').value,
+      document.getElementById('fc-box-cond').value,
+      document.getElementById('fc-photo-item').value,
+      document.getElementById('fc-photo-box').value,
+      document.getElementById('fc-notes').value,
+    ];
+    const existing = state.personalData[key];
+    if (existing && existing.row) {
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:M${existing.row}`, [ownedRow]);
+    } else {
+      await sheetsAppend(state.personalSheetId, 'My Collection!A:M', [ownedRow]);
+    }
+    // Remove from Sold tab if it was there
+    const soldEntry = state.soldData[key];
+    if (soldEntry && soldEntry.row) {
+      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:H${soldEntry.row}`, [['','','','','','','','']]);
+    }
+
+  } else if (currentStatus === 'Sold') {
+    // Remove from My Collection
+    const existing = state.personalData[key];
+    if (existing && existing.row) {
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:M${existing.row}`, [['','','','','','','','','','','','','']]);
+    }
+    // Write to Sold tab
+    const soldRow = [
+      item.itemNum, item.variation || '', copy, condition,
+      existing?.priceItem || document.getElementById('fc-price-item').value,
+      document.getElementById('fc-sale-price').value,
+      document.getElementById('fc-date-sold').value,
+      document.getElementById('fc-notes').value,
+    ];
+    const soldEntry = state.soldData[key];
+    if (soldEntry && soldEntry.row) {
+      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:H${soldEntry.row}`, [soldRow]);
+    } else {
+      await sheetsAppend(state.personalSheetId, 'Sold!A:H', [soldRow]);
+    }
+
+  } else if (currentStatus === 'Want') {
+    // Remove from My Collection if present
+    const existing = state.personalData[key];
+    if (existing && existing.row) {
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:M${existing.row}`, [['','','','','','','','','','','','','']]);
+    }
+    // Write/update Want List tab
+    const wantRow = [
+      item.itemNum,
+      item.variation || '',
+      document.getElementById('fc-want-priority').value,
+      document.getElementById('fc-want-price').value,
+      document.getElementById('fc-want-notes').value,
+    ];
+    const wantEntry = state.wantData[key];
+    if (wantEntry && wantEntry.row) {
+      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:E${wantEntry.row}`, [wantRow]);
+    } else {
+      await sheetsAppend(state.personalSheetId, 'Want List!A:E', [wantRow]);
+    }
   }
 
-  // Update local state
-  state.personalData[key] = {
-    row: existing?.row,
-    itemNum: item.itemNum, variation: item.variation,
-    copy: row[2], status: row[3], owned: row[3] === 'Owned',
-    condition: row[4], allOriginal: row[5],
-    priceItem: row[6], priceBox: row[7], priceComplete: row[8],
-    hasBox: row[9], boxCond: row[10], photoItem: row[11], photoBox: row[12], notes: row[13],
-    salePrice: row[14], dateSold: row[15],
-  };
+  await loadPersonalData();
 
   closeModal();
   buildDashboard();
@@ -1645,20 +1740,19 @@ function exportReport() {
 // ── NAVIGATION ──────────────────────────────────────────────────
 function buildSoldPage() {
   const soldItems = state.masterData.filter(i => {
-    const pd = state.personalData[`${i.itemNum}|${i.variation}`];
-    return pd?.status === 'Sold';
+    return state.soldData[`${i.itemNum}|${i.variation}`];
   });
   const tbody = document.getElementById('sold-tbody');
   tbody.innerHTML = soldItems.length ? soldItems.map(i => {
-    const pd = state.personalData[`${i.itemNum}|${i.variation}`];
+    const sd = state.soldData[`${i.itemNum}|${i.variation}`];
     return `<tr>
       <td><span class="item-num">${i.itemNum}</span></td>
       <td><span class="tag">${i.itemType || '—'}</span></td>
       <td>${i.roadName || '—'}</td>
       <td>${i.variation || '—'}</td>
-      <td>${pd.condition || '—'}</td>
-      <td class="market-val">${pd.salePrice ? '$' + parseFloat(pd.salePrice).toLocaleString() : '—'}</td>
-      <td class="text-dim">${pd.dateSold || '—'}</td>
+      <td>${sd.condition || '—'}</td>
+      <td class="market-val">${sd.salePrice ? '$' + parseFloat(sd.salePrice).toLocaleString() : '—'}</td>
+      <td class="text-dim">${sd.dateSold || '—'}</td>
     </tr>`;
   }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">💰</div><p>No sold items yet</p></div></td></tr>';
 
