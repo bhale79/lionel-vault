@@ -849,7 +849,7 @@
 // ── CONFIG ─────────────────────────────────────────────────────
 // Replace with your actual Google OAuth Client ID after setup
 const CLIENT_ID = '161569968813-vrhet7p68vkthkunare60nqr34li5uuh.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
 const PERSONAL_SHEET_NAME = 'Lionel Vault — My Collection';
 const PERSONAL_HEADERS = [
   'Item Number','Variation','Copy #','Owned','Condition (1-10)','All Original',
@@ -875,11 +875,6 @@ let state = {
 let tokenClient;
 
 function initGoogle() {
-  google.accounts.id.initialize({
-    client_id: CLIENT_ID,
-    callback: onGoogleSignIn,
-  });
-
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
     scope: SCOPES,
@@ -901,22 +896,35 @@ function initGoogle() {
 }
 
 function handleSignIn() {
-  google.accounts.id.prompt();
+  tokenClient.requestAccessToken({ prompt: 'consent' });
 }
 
 function onGoogleSignIn(response) {
   const payload = parseJwt(response.credential);
   state.user = { name: payload.given_name, email: payload.email, picture: payload.picture };
   localStorage.setItem('lv_user', JSON.stringify(state.user));
-  tokenClient.requestAccessToken();
 }
 
 let accessToken = null;
 
 function onTokenReceived(resp) {
-  if (resp.error) { console.error(resp); return; }
+  if (resp.error) { console.error('Token error:', resp); return; }
   accessToken = resp.access_token;
-  updateUserUI();
+
+  // Fetch user info from Google if we don't have it yet
+  if (!state.user) {
+    fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: 'Bearer ' + accessToken }
+    })
+    .then(r => r.json())
+    .then(info => {
+      state.user = { name: info.given_name || info.name || 'User', email: info.email };
+      localStorage.setItem('lv_user', JSON.stringify(state.user));
+      updateUserUI();
+    });
+  } else {
+    updateUserUI();
+  }
 
   const savedMasterId = localStorage.getItem('lv_master_id');
   if (!savedMasterId) {
@@ -1520,4 +1528,3 @@ window.onload = () => {
 <script src="https://apis.google.com/js/api.js"></script>
 </body>
 </html>
-
