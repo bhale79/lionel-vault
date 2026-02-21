@@ -850,6 +850,7 @@
 // Replace with your actual Google OAuth Client ID after setup
 const CLIENT_ID = '161569968813-vrhet7p68vkthkunare60nqr34li5uuh.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+const API_KEY = 'AIzaSyBjwyQ7qvqrH0goUVidOO0Da9hVQWOzvI8'; // Replace with your Google Cloud API key
 const PERSONAL_SHEET_NAME = 'Lionel Vault — My Collection';
 const PERSONAL_HEADERS = [
   'Item Number','Variation','Copy #','Owned','Condition (1-10)','All Original',
@@ -994,10 +995,15 @@ async function completeSetup() {
 
 // ── SHEETS API ──────────────────────────────────────────────────
 async function sheetsGet(spreadsheetId, range) {
-  const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
+  // Use API key for master sheet (public), OAuth token for personal sheet
+  const isMaster = spreadsheetId === state.masterSheetId;
+  const url = isMaster && API_KEY !== 'YOUR_API_KEY'
+    ? `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?key=${API_KEY}`
+    : `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`;
+  const headers = isMaster && API_KEY !== 'YOUR_API_KEY'
+    ? {}
+    : { Authorization: `Bearer ${accessToken}` };
+  const res = await fetch(url, { headers });
   return res.json();
 }
 
