@@ -1154,7 +1154,7 @@ async function sheetsGet(spreadsheetId, range) {
 }
 
 async function sheetsUpdate(spreadsheetId, range, values) {
-  await fetch(
+  const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
     {
       method: 'PUT',
@@ -1162,9 +1162,7 @@ async function sheetsUpdate(spreadsheetId, range, values) {
       body: JSON.stringify({ range, majorDimension: 'ROWS', values }),
     }
   );
-  const result = await updateResult.json();
-  console.log('sheetsUpdate result:', result);
-  return result;
+  return res.json();
 }
 
 async function sheetsAppend(spreadsheetId, range, values) {
@@ -1512,11 +1510,12 @@ function openItem(idx) {
   const cond = pd.condition || 7;
   document.getElementById('fc-condition').value = cond;
   document.getElementById('cond-display').textContent = cond;
-  document.getElementById('fc-price-item').value = pd.priceItem || '';
-  document.getElementById('fc-price-box').value = pd.priceBox || '';
-  document.getElementById('fc-price-complete').value = pd.priceComplete || '';
-  document.getElementById('fc-has-box').value = pd.hasBox || 'No';
-  document.getElementById('fc-box-cond').value = pd.boxCond || '';
+  const toNum = v => (v && !isNaN(parseFloat(v))) ? v : '';
+  document.getElementById('fc-price-item').value = toNum(pd.priceItem);
+  document.getElementById('fc-price-box').value = toNum(pd.priceBox);
+  document.getElementById('fc-price-complete').value = toNum(pd.priceComplete);
+  document.getElementById('fc-has-box').value = ['Yes','No'].includes(pd.hasBox) ? pd.hasBox : 'No';
+  document.getElementById('fc-box-cond').value = toNum(pd.boxCond);
   document.getElementById('fc-photo-item').value = pd.photoItem || '';
   document.getElementById('fc-photo-box').value = pd.photoBox || '';
   document.getElementById('fc-notes').value = pd.notes || '';
