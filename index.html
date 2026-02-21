@@ -1041,6 +1041,9 @@ async function sheetsUpdate(spreadsheetId, range, values) {
       body: JSON.stringify({ range, majorDimension: 'ROWS', values }),
     }
   );
+  const result = await updateResult.json();
+  console.log('sheetsUpdate result:', result);
+  return result;
 }
 
 async function sheetsAppend(spreadsheetId, range, values) {
@@ -1414,11 +1417,17 @@ async function saveItem() {
   ];
 
   const existing = state.personalData[key];
+  console.log('Saving item:', key, 'existing:', existing, 'personalSheetId:', state.personalSheetId);
+  console.log('Row data:', row);
   if (existing && existing.row) {
     const range = `My Collection!A${existing.row}:N${existing.row}`;
-    await sheetsUpdate(state.personalSheetId, range, [row]);
+    console.log('Updating range:', range);
+    const updateRes = await sheetsUpdate(state.personalSheetId, range, [row]);
+    console.log('Update response:', updateRes);
   } else {
-    await sheetsAppend(state.personalSheetId, 'My Collection!A:N', [row]);
+    console.log('Appending new row to My Collection');
+    const appendRes = await sheetsAppend(state.personalSheetId, 'My Collection!A:N', [row]);
+    console.log('Append response:', appendRes);
     await loadPersonalData();
   }
 
