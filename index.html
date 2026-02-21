@@ -240,8 +240,9 @@
     display: inline-flex; align-items: center; gap: 0.3rem;
     padding: 0.2rem 0.55rem; border-radius: 12px; font-size: 0.72rem; font-weight: 500;
   }
-  .owned-badge.yes { background: rgba(46,204,113,0.12); color: var(--green); }
-  .owned-badge.no  { background: var(--surface2); color: var(--text-dim); }
+  .owned-badge.yes  { background: rgba(46,204,113,0.12); color: var(--green); }
+  .owned-badge.no   { background: var(--surface2); color: var(--text-dim); }
+  .owned-badge.want { background: rgba(245,166,35,0.12); color: var(--accent2); }
   .condition-pip {
     display: inline-block; width: 8px; height: 8px; border-radius: 50%;
     margin-right: 0.25rem;
@@ -564,6 +565,11 @@
           Want List
           <span class="nav-badge" id="nav-wanted" style="background:var(--accent2);color:#000">—</span>
         </button>
+        <button class="nav-item" onclick="showPage('sold', this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Sold Items
+          <span class="nav-badge" id="nav-sold" style="background:#9b59b6">—</span>
+        </button>
       </div>
       <div class="nav-section">
         <div class="nav-label">Reports</div>
@@ -675,6 +681,27 @@
         </div>
       </div>
 
+      <!-- ── Sold ── -->
+      <div class="page" id="page-sold">
+        <div class="page-title">Sold Items</div>
+        <div class="table-wrap">
+          <table class="item-table">
+            <thead>
+              <tr>
+                <th>Item #</th>
+                <th>Type</th>
+                <th>Road / Name</th>
+                <th>Variation</th>
+                <th>Condition</th>
+                <th>Sale Price</th>
+                <th>Date Sold</th>
+              </tr>
+            </thead>
+            <tbody id="sold-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- ── Reports ── -->
       <div class="page" id="page-reports">
         <div class="page-title">Reports</div>
@@ -717,6 +744,10 @@
       <button class="mobile-nav-item" onclick="showPage('browse', this)">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         Browse
+      </button>
+      <button class="mobile-nav-item" onclick="showPage('sold', this)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Sold
       </button>
       <button class="mobile-nav-item" onclick="showPage('reports', this)">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
@@ -764,12 +795,26 @@
         <div class="form-section-title" style="margin-bottom:0.75rem">Your Collection Data</div>
 
         <div style="margin-bottom:0.85rem">
-          <div class="toggle-row">
-            <div class="toggle" id="toggle-owned-modal" onclick="toggleOwned()"></div>
-            <span class="toggle-label" id="toggle-owned-label">Not in my collection</span>
+          <label style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);display:block;margin-bottom:0.4rem">Status</label>
+          <div style="display:flex;gap:0.5rem">
+            <button class="status-btn" id="status-want" onclick="setStatus('Want')" style="flex:1;padding:0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s">Want</button>
+            <button class="status-btn" id="status-owned" onclick="setStatus('Owned')" style="flex:1;padding:0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s">Owned</button>
+            <button class="status-btn" id="status-sold" onclick="setStatus('Sold')" style="flex:1;padding:0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s">Sold</button>
           </div>
         </div>
 
+        <div id="sold-fields" style="display:none;margin-bottom:0.75rem">
+          <div class="price-row">
+            <div class="form-field">
+              <label>Sale Price ($)</label>
+              <input type="number" id="fc-sale-price" placeholder="0.00" min="0" step="0.01">
+            </div>
+            <div class="form-field">
+              <label>Date Sold</label>
+              <input type="date" id="fc-date-sold">
+            </div>
+          </div>
+        </div>
         <div id="collection-form" style="display:none">
           <div class="form-grid">
             <div class="form-field">
@@ -848,6 +893,33 @@
   </div>
 </div>
 
+<!-- ══ SOLD MODAL ══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="sold-modal" onclick="closeSoldModalOnOverlay(event)">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Mark as Sold?</div>
+        <div class="modal-subtitle" id="sold-modal-subtitle"></div>
+      </div>
+      <button class="btn-close" onclick="closeSoldModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label>Sale Price ($)</label>
+        <input type="number" id="sold-price" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div class="form-field" style="margin-top:0.75rem">
+        <label>Date Sold</label>
+        <input type="date" id="sold-date">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeSoldModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmSold()">Mark as Sold</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ SCRIPTS ══════════════════════════════════════════════════ -->
 <script>
 // ── CONFIG ─────────────────────────────────────────────────────
@@ -857,9 +929,9 @@ const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googlea
 const API_KEY = 'AIzaSyBjwyQ7qvqrH0goUVidOO0Da9hVQWOzvI8'; // Replace with your Google Cloud API key
 const PERSONAL_SHEET_NAME = 'Lionel Vault — My Collection';
 const PERSONAL_HEADERS = [
-  'Item Number','Variation','Copy #','Owned','Condition (1-10)','All Original',
+  'Item Number','Variation','Copy #','Status','Condition (1-10)','All Original',
   'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
-  'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes'
+  'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes','Sale Price','Date Sold'
 ];
 
 // ── STATE ───────────────────────────────────────────────────────
@@ -1132,7 +1204,8 @@ async function loadPersonalData() {
       itemNum:    r[0]  || '',
       variation:  r[1]  || '',
       copy:       r[2]  || '1',
-      owned:      r[3]  === 'Yes',
+      status:     r[3]  || 'Want',
+      owned:      r[3]  === 'Owned', // backwards compat
       condition:  r[4]  || '',
       allOriginal:r[5]  || '',
       priceItem:  r[6]  || '',
@@ -1143,6 +1216,8 @@ async function loadPersonalData() {
       photoItem:  r[11] || '',
       photoBox:   r[12] || '',
       notes:      r[13] || '',
+      salePrice:  r[14] || '',
+      dateSold:   r[15] || '',
     };
   });
 }
@@ -1165,7 +1240,7 @@ function buildDashboard() {
   const total = state.masterData.length;
   const ownedItems = state.masterData.filter(item => {
     const key = `${item.itemNum}|${item.variation}`;
-    return state.personalData[key]?.owned;
+    return state.personalData[key]?.status === 'Owned';
   });
   const owned = ownedItems.length;
   const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
@@ -1188,9 +1263,12 @@ function buildDashboard() {
   document.getElementById('stat-boxed').textContent = owned > 0 ? `${boxedCount} / ${owned}` : '—';
   document.getElementById('stat-orig').textContent = owned > 0 ? `${origCount} / ${owned}` : '—';
 
+  const soldCount = Object.values(state.personalData).filter(pd => pd.status === 'Sold').length;
+  const wantCount = total - owned - soldCount;
   document.getElementById('nav-total').textContent = total.toLocaleString();
   document.getElementById('nav-owned').textContent = owned.toLocaleString();
-  document.getElementById('nav-wanted').textContent = (total - owned).toLocaleString();
+  document.getElementById('nav-wanted').textContent = wantCount.toLocaleString();
+  if (document.getElementById('nav-sold')) document.getElementById('nav-sold').textContent = soldCount;
 
   // Category breakdown
   const cats = {};
@@ -1278,8 +1356,10 @@ function renderBrowse() {
     const pd = state.personalData[key];
     const isOwned = pd?.owned || false;
     const hasBox = pd?.hasBox === 'Yes';
-    if (owned && !isOwned) return false;
-    if (unowned && isOwned) return false;
+    const itemSt = state.personalData[`${item.itemNum}|${item.variation}`]?.status || '';
+    if (itemSt === 'Sold') return false; // sold items go to sold tab
+    if (owned && itemSt !== 'Owned') return false;
+    if (unowned && itemSt === 'Owned') return false;
     if (boxed && !hasBox) return false;
     if (type && item.itemType !== type) return false;
     if (road && item.roadName !== road) return false;
@@ -1303,7 +1383,8 @@ function renderBrowse() {
   tbody.innerHTML = pageData.map((item, i) => {
     const key = `${item.itemNum}|${item.variation}`;
     const pd = state.personalData[key];
-    const isOwned = pd?.owned;
+    const itemStatus = pd?.status || '';
+    const isOwned = itemStatus === 'Owned';
     const cond = pd?.condition ? parseInt(pd.condition) : null;
     const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
     const globalIdx = state.masterData.indexOf(item);
@@ -1313,7 +1394,7 @@ function renderBrowse() {
       <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
       <td>${item.variation || '<span class="text-dim">—</span>'}</td>
       <td class="text-dim">${item.yearProd || '—'}</td>
-      <td><span class="owned-badge ${isOwned ? 'yes' : 'no'}">${isOwned ? '✓ Owned' : 'Not owned'}</span></td>
+      <td><span class="owned-badge ${itemStatus === 'Owned' ? 'yes' : itemStatus === 'Want' ? 'want' : 'no'}">${itemStatus === 'Owned' ? '✓ Owned' : itemStatus === 'Want' ? '★ Want' : itemStatus === 'Sold' ? '' : '—'}</span></td>
       <td>${cond ? `<span class="condition-pip ${condClass}"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
       <td class="market-val">${item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '<span class="text-dim">—</span>'}</td>
     </tr>`;
@@ -1356,11 +1437,11 @@ function openItem(idx) {
   else { vd.style.display = 'none'; }
 
   // Personal data
-  const isOwned = pd.owned || false;
-  const toggle = document.getElementById('toggle-owned-modal');
-  toggle.classList.toggle('on', isOwned);
-  document.getElementById('toggle-owned-label').textContent = isOwned ? 'In my collection' : 'Not in my collection';
-  document.getElementById('collection-form').style.display = isOwned ? 'block' : 'none';
+  const itemStatus = pd.status || (pd.owned ? 'Owned' : 'Want');
+  currentStatus = itemStatus;
+  setStatus(itemStatus);
+  document.getElementById('fc-sale-price').value = pd.salePrice || '';
+  document.getElementById('fc-date-sold').value = pd.dateSold || '';
 
   document.getElementById('fc-copy').value = pd.copy || '1';
   document.getElementById('fc-original').value = pd.allOriginal || 'Unknown';
@@ -1388,35 +1469,52 @@ function closeModal() {
 
 function closeModalOnOverlay(e) { if (e.target === document.getElementById('item-modal')) closeModal(); }
 
-function toggleOwned() {
-  const toggle = document.getElementById('toggle-owned-modal');
-  const isNowOn = !toggle.classList.contains('on');
-  toggle.classList.toggle('on', isNowOn);
-  document.getElementById('toggle-owned-label').textContent = isNowOn ? 'In my collection' : 'Not in my collection';
-  document.getElementById('collection-form').style.display = isNowOn ? 'block' : 'none';
+let currentStatus = 'Want';
+
+function setStatus(status) {
+  currentStatus = status;
+  // Update button styles
+  ['Want','Owned','Sold'].forEach(s => {
+    const btn = document.getElementById('status-' + s.toLowerCase());
+    if (!btn) return;
+    if (s === status) {
+      const colors = { Want: 'var(--accent2)', Owned: 'var(--green)', Sold: '#9b59b6' };
+      btn.style.background = colors[s] + '22';
+      btn.style.borderColor = colors[s];
+      btn.style.color = colors[s];
+    } else {
+      btn.style.background = 'var(--surface2)';
+      btn.style.borderColor = 'var(--border)';
+      btn.style.color = 'var(--text-mid)';
+    }
+  });
+  document.getElementById('collection-form').style.display = (status === 'Owned' || status === 'Sold') ? 'block' : 'none';
+  document.getElementById('sold-fields').style.display = status === 'Sold' ? 'block' : 'none';
 }
 
 async function saveItem() {
   if (!state.currentItem) return;
   const { item } = state.currentItem;
-  const isOwned = document.getElementById('toggle-owned-modal').classList.contains('on');
   const key = `${item.itemNum}|${item.variation}`;
 
+  const hasData = currentStatus === 'Owned' || currentStatus === 'Sold';
   const row = [
     item.itemNum,
     item.variation || '',
     document.getElementById('fc-copy').value,
-    isOwned ? 'Yes' : 'No',
-    isOwned ? document.getElementById('fc-condition').value : '',
-    isOwned ? document.getElementById('fc-original').value : '',
-    isOwned ? document.getElementById('fc-price-item').value : '',
-    isOwned ? document.getElementById('fc-price-box').value : '',
-    isOwned ? document.getElementById('fc-price-complete').value : '',
-    isOwned ? document.getElementById('fc-has-box').value : '',
-    isOwned ? document.getElementById('fc-box-cond').value : '',
-    isOwned ? document.getElementById('fc-photo-item').value : '',
-    isOwned ? document.getElementById('fc-photo-box').value : '',
-    isOwned ? document.getElementById('fc-notes').value : '',
+    currentStatus,
+    hasData ? document.getElementById('fc-condition').value : '',
+    hasData ? document.getElementById('fc-original').value : '',
+    hasData ? document.getElementById('fc-price-item').value : '',
+    hasData ? document.getElementById('fc-price-box').value : '',
+    hasData ? document.getElementById('fc-price-complete').value : '',
+    hasData ? document.getElementById('fc-has-box').value : '',
+    hasData ? document.getElementById('fc-box-cond').value : '',
+    hasData ? document.getElementById('fc-photo-item').value : '',
+    hasData ? document.getElementById('fc-photo-box').value : '',
+    hasData ? document.getElementById('fc-notes').value : '',
+    currentStatus === 'Sold' ? document.getElementById('fc-sale-price').value : '',
+    currentStatus === 'Sold' ? document.getElementById('fc-date-sold').value : '',
   ];
 
   const existing = state.personalData[key];
@@ -1438,9 +1536,11 @@ async function saveItem() {
   state.personalData[key] = {
     row: existing?.row,
     itemNum: item.itemNum, variation: item.variation,
-    copy: row[2], owned: isOwned, condition: row[4], allOriginal: row[5],
+    copy: row[2], status: row[3], owned: row[3] === 'Owned',
+    condition: row[4], allOriginal: row[5],
     priceItem: row[6], priceBox: row[7], priceComplete: row[8],
     hasBox: row[9], boxCond: row[10], photoItem: row[11], photoBox: row[12], notes: row[13],
+    salePrice: row[14], dateSold: row[15],
   };
 
   closeModal();
@@ -1543,6 +1643,29 @@ function exportReport() {
 }
 
 // ── NAVIGATION ──────────────────────────────────────────────────
+function buildSoldPage() {
+  const soldItems = state.masterData.filter(i => {
+    const pd = state.personalData[`${i.itemNum}|${i.variation}`];
+    return pd?.status === 'Sold';
+  });
+  const tbody = document.getElementById('sold-tbody');
+  tbody.innerHTML = soldItems.length ? soldItems.map(i => {
+    const pd = state.personalData[`${i.itemNum}|${i.variation}`];
+    return `<tr>
+      <td><span class="item-num">${i.itemNum}</span></td>
+      <td><span class="tag">${i.itemType || '—'}</span></td>
+      <td>${i.roadName || '—'}</td>
+      <td>${i.variation || '—'}</td>
+      <td>${pd.condition || '—'}</td>
+      <td class="market-val">${pd.salePrice ? '$' + parseFloat(pd.salePrice).toLocaleString() : '—'}</td>
+      <td class="text-dim">${pd.dateSold || '—'}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">💰</div><p>No sold items yet</p></div></td></tr>';
+
+  // Update nav badge
+  document.getElementById('nav-sold').textContent = soldItems.length;
+}
+
 function showPage(name, clickedEl) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -1551,6 +1674,7 @@ function showPage(name, clickedEl) {
   if (clickedEl) clickedEl.classList.add('active');
   if (name === 'browse') renderBrowse();
   if (name === 'reports') buildReport();
+  if (name === 'sold') buildSoldPage();
   document.getElementById('main-content').scrollTop = 0;
 }
 
