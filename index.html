@@ -1442,8 +1442,8 @@ function renderBrowse() {
   tbody.innerHTML = pageData.map((item, i) => {
     const key = `${item.itemNum}|${item.variation}`;
     const pd = state.personalData[key];
-    const itemStatus = pd?.status || '';
-    const isOwned = itemStatus === 'Owned';
+    const isOwned = pd?.owned || false;
+    const isWanted = !!state.wantData[key];
     const cond = pd?.condition ? parseInt(pd.condition) : null;
     const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
     const globalIdx = state.masterData.indexOf(item);
