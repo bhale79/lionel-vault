@@ -964,13 +964,24 @@ function updateUserUI() {
 }
 
 async function completeSetup() {
-  const id = document.getElementById('master-sheet-input').value.trim();
-  if (!id) { alert('Please enter the Master Sheet ID.'); return; }
+  let raw = document.getElementById('master-sheet-input').value.trim();
+  if (!raw) { alert('Please enter the Master Sheet ID.'); return; }
+
+  // Extract ID if user pasted a full URL
+  const urlMatch = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  const id = urlMatch ? urlMatch[1] : raw;
+
   state.masterSheetId = id;
   localStorage.setItem('lv_master_id', id);
-  await createPersonalSheet();
-  showApp();
-  loadAllData();
+
+  try {
+    await createPersonalSheet();
+    showApp();
+    loadAllData();
+  } catch(e) {
+    console.error('Setup error:', e);
+    alert('Setup failed: ' + e.message + '\n\nMake sure the Master Sheet is shared as \'Anyone with the link can view\'.');
+  }
 }
 
 // ── SHEETS API ──────────────────────────────────────────────────
@@ -1027,15 +1038,22 @@ async function createPersonalSheet() {
 async function loadAllData() {
   showLoading();
   try {
-    await Promise.all([loadMasterData(), loadPersonalData()]);
+    await loadMasterData();
+    await loadPersonalData();
     buildApp();
   } catch(e) {
     console.error('Load error:', e);
+    document.getElementById('browse-tbody').innerHTML = 
+      '<tr><td colspan="8" style="padding:2rem;color:var(--red);text-align:center">Error loading data: ' + e.message + '<br><small>Check that your Master Sheet is shared as \'Anyone with the link can view\'</small></td></tr>';
   }
 }
 
 async function loadMasterData() {
-  const res = await sheetsGet(state.masterSheetId, 'Master Inventory!A3:O');
+  // Try 'Master Inventory' tab first, fall back to 'Sheet1' if renamed during import
+  let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A3:O');
+  if (!res.values) {
+    res = await sheetsGet(state.masterSheetId, 'Sheet1!A3:O');
+  }
   const rows = res.values || [];
   state.masterData = rows.map(r => ({
     itemNum:    r[0]  || '',
@@ -1502,3 +1520,4 @@ window.onload = () => {
 <script src="https://apis.google.com/js/api.js"></script>
 </body>
 </html>
+
