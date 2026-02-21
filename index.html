@@ -1240,31 +1240,29 @@ async function loadMasterData() {
 
 async function loadPersonalData() {
   if (!state.personalSheetId) return;
-  const res = await sheetsGet(state.personalSheetId, 'My Collection!A2:N');
+  const res = await sheetsGet(state.personalSheetId, 'My Collection!A2:M');
   const rows = res.values || [];
   state.personalData = {};
   rows.forEach((r, idx) => {
     if (!r[0]) return;
     const key = `${r[0]}|${r[1] || ''}`;
     state.personalData[key] = {
-      row: idx + 2, // 1-indexed, row 1 is header so data starts at row 2
-      itemNum:    r[0]  || '',
-      variation:  r[1]  || '',
-      copy:       r[2]  || '1',
-      status:     r[3]  || 'Want',
-      owned:      r[3]  === 'Owned', // backwards compat
-      condition:  r[4]  || '',
-      allOriginal:r[5]  || '',
-      priceItem:  r[6]  || '',
-      priceBox:   r[7]  || '',
-      priceComplete: r[8] || '',
-      hasBox:     r[9]  || '',
-      boxCond:    r[10] || '',
-      photoItem:  r[11] || '',
-      photoBox:   r[12] || '',
-      notes:      r[13] || '',
-      salePrice:  r[14] || '',
-      dateSold:   r[15] || '',
+      row:          idx + 2,
+      itemNum:      r[0]  || '',
+      variation:    r[1]  || '',
+      copy:         r[2]  || '1',
+      status:       'Owned',
+      owned:        true,
+      condition:    r[3]  || '',
+      allOriginal:  r[4]  || '',
+      priceItem:    r[5]  || '',
+      priceBox:     r[6]  || '',
+      priceComplete:r[7]  || '',
+      hasBox:       r[8]  || '',
+      boxCond:      r[9]  || '',
+      photoItem:    r[10] || '',
+      photoBox:     r[11] || '',
+      notes:        r[12] || '',
     };
   });
 }
@@ -1287,7 +1285,7 @@ function buildDashboard() {
   const total = state.masterData.length;
   const ownedItems = state.masterData.filter(item => {
     const key = `${item.itemNum}|${item.variation}`;
-    return state.personalData[key]?.status === 'Owned';
+    return !!state.personalData[key];
   });
   const owned = ownedItems.length;
   const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
