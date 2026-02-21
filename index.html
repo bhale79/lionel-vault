@@ -494,18 +494,22 @@
 <div id="setup-screen">
   <div class="setup-card">
     <h2>Welcome!</h2>
-    <p>We need to connect to the master inventory. This is a one-time setup.</p>
+    <p>One-time setup — just two steps to connect your inventory.</p>
     <div class="setup-step">
       <div class="setup-num">1</div>
-      <p>Enter the Master Sheet ID below. You'll get this from the person who shared the inventory with you (it's in the Google Sheets URL).</p>
+      <p>Enter the Master Inventory Sheet ID (get this from whoever shared the app with you).</p>
     </div>
     <div class="setup-step">
       <div class="setup-num">2</div>
-      <p>We'll automatically create your personal collection sheet in your Google Drive.</p>
+      <p>Create a blank Google Sheet for your personal collection, then paste its ID below. Go to <a href="https://sheets.google.com" target="_blank" style="color:var(--accent2)">sheets.google.com</a>, create a blank sheet, name it "My Lionel Collection", and copy the ID from the URL.</p>
     </div>
     <div class="input-group">
       <label>Master Sheet ID</label>
       <input id="master-sheet-input" type="text" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" />
+    </div>
+    <div class="input-group" style="margin-top:0.75rem">
+      <label>Your Personal Collection Sheet ID</label>
+      <input id="personal-sheet-input" type="text" placeholder="Paste your blank sheet ID here" />
     </div>
     <div style="margin-top:1.25rem">
       <button class="btn btn-primary" style="width:100%" onclick="completeSetup()">Set Up My Collection</button>
@@ -973,23 +977,44 @@ function updateUserUI() {
 }
 
 async function completeSetup() {
-  let raw = document.getElementById('master-sheet-input').value.trim();
-  if (!raw) { alert('Please enter the Master Sheet ID.'); return; }
+  let rawMaster = document.getElementById('master-sheet-input').value.trim();
+  let rawPersonal = document.getElementById('personal-sheet-input').value.trim();
+  if (!rawMaster) { alert('Please enter the Master Sheet ID.'); return; }
+  if (!rawPersonal) { alert('Please enter your Personal Collection Sheet ID.'); return; }
 
-  // Extract ID if user pasted a full URL
-  const urlMatch = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-  const id = urlMatch ? urlMatch[1] : raw;
+  // Extract IDs if full URLs were pasted
+  const masterMatch = rawMaster.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  const personalMatch = rawPersonal.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  const masterId = masterMatch ? masterMatch[1] : rawMaster;
+  const personalId = personalMatch ? personalMatch[1] : rawPersonal;
 
-  state.masterSheetId = id;
-  localStorage.setItem('lv_master_id', id);
+  state.masterSheetId = masterId;
+  state.personalSheetId = personalId;
+  localStorage.setItem('lv_master_id', masterId);
+  localStorage.setItem('lv_personal_id', personalId);
 
+  // Initialize personal sheet headers
   try {
-    await createPersonalSheet();
+    await initPersonalSheet(personalId);
     showApp();
     loadAllData();
   } catch(e) {
     console.error('Setup error:', e);
-    alert('Setup failed: ' + e.message + '\n\nMake sure the Master Sheet is shared as \'Anyone with the link can view\'.');
+    alert('Error connecting to your personal sheet: ' + e.message + '\n\nMake sure the sheet exists and you are signed in with the account that owns it.');
+  }
+}
+
+async function initPersonalSheet(sheetId) {
+  // Check if headers already exist
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:N1`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const data = await res.json();
+  // Only write headers if row 1 is empty
+  if (!data.values || !data.values[0] || data.values[0].length === 0) {
+    await sheetsUpdate(sheetId, 'Sheet1!A1:N1', [PERSONAL_HEADERS]);
+    console.log('Personal sheet headers written to Sheet1');
   }
 }
 
@@ -1090,14 +1115,14 @@ async function loadMasterData() {
 
 async function loadPersonalData() {
   if (!state.personalSheetId) return;
-  const res = await sheetsGet(state.personalSheetId, 'My Collection!A2:N');
+  const res = await sheetsGet(state.personalSheetId, 'Sheet1!A2:N');
   const rows = res.values || [];
   state.personalData = {};
   rows.forEach((r, idx) => {
     if (!r[0]) return;
     const key = `${r[0]}|${r[1] || ''}`;
     state.personalData[key] = {
-      row: idx + 2, // 1-indexed, +1 for header
+      row: idx + 2, // 1-indexed, row 1 is header so data starts at row 2
       itemNum:    r[0]  || '',
       variation:  r[1]  || '',
       copy:       r[2]  || '1',
@@ -1389,11 +1414,11 @@ async function saveItem() {
   ];
 
   const existing = state.personalData[key];
-  if (existing) {
-    const range = `My Collection!A${existing.row}:N${existing.row}`;
+  if (existing && existing.row) {
+    const range = `Sheet1!A${existing.row}:N${existing.row}`;
     await sheetsUpdate(state.personalSheetId, range, [row]);
   } else {
-    await sheetsAppend(state.personalSheetId, 'My Collection!A:N', [row]);
+    await sheetsAppend(state.personalSheetId, 'Sheet1!A:N', [row]);
     await loadPersonalData();
   }
 
@@ -1534,3 +1559,4 @@ window.onload = () => {
 <script src="https://apis.google.com/js/api.js"></script>
 </body>
 </html>
+
