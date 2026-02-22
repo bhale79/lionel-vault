@@ -774,6 +774,15 @@
     </div>
     <div class="modal-body">
 
+      <!-- Box-only prompt banner -->
+      <div id="box-only-prompt" style="display:none;background:rgba(245,166,35,0.1);border:1px solid var(--accent2);border-radius:10px;padding:0.85rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem">
+        <div>
+          <div style="font-weight:600;font-size:0.875rem;color:var(--accent2)">📦 Box without item info</div>
+          <div style="font-size:0.8rem;color:var(--text-mid);margin-top:0.2rem">This entry has a box but no item details. Want to add the item info?</div>
+        </div>
+        <button onclick="fillItemFromBoxRow()" class="btn btn-primary" style="font-size:0.8rem;padding:0.5rem 0.9rem;white-space:nowrap">Add Item Info</button>
+      </div>
+
       <!-- Reference Info -->
       <div>
         <div class="section-title" style="margin-bottom:0.75rem">Reference Information</div>
@@ -1614,8 +1623,40 @@ function openItem(idx) {
   document.getElementById('fc-photo-box').value = pd.photoBox || '';
   document.getElementById('fc-notes').value = pd.notes || '';
 
+  // Show box-only prompt if row has box but no item info
+  const isBoxOnly = pd.owned && pd.hasBox === 'Yes' && 
+    (!pd.condition || pd.condition === 'N/A') && 
+    (!pd.priceItem || pd.priceItem === 'N/A');
+  const prompt = document.getElementById('box-only-prompt');
+  if (prompt) prompt.style.display = isBoxOnly ? 'flex' : 'none';
+
   document.getElementById('item-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
+}
+
+function fillItemFromBoxRow() {
+  if (!state.currentItem) return;
+  const { item } = state.currentItem;
+  closeModal();
+  // Start wizard in collection mode, pre-filled with item number, skip to item-info steps
+  wizard = {
+    step: 0,
+    tab: 'collection',
+    data: {
+      tab: 'collection',
+      itemNum: item.itemNum,
+      variation: item.variation || '',
+      boxOnly: false,
+      _fillItemMode: true, // flag so we can pre-set item number
+    },
+    steps: getSteps('collection'),
+    matchedItem: state.masterData.find(i => i.itemNum === item.itemNum) || null,
+  };
+  // Advance past tab and itemNum steps since we already know them
+  wizard.step = 2; // start at condition step
+  document.getElementById('wizard-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderWizardStep();
 }
 
 function closeModal() {
@@ -1917,6 +1958,10 @@ function getSteps(tab) {
       return [
         { id: 'tab',           title: 'What would you like to add?',       type: 'choice' },
         { id: 'itemNum',       title: 'What is the Lionel item number?',    type: 'text',     placeholder: 'e.g. 726, 2046, 6464-1' },
+        { id: 'pickRow',       title: 'Which item is this box for?',        type: 'pickRow',  skipIf: (d) => {
+          const matches = Object.keys(state.personalData).filter(k => k.startsWith((d.itemNum||'').trim() + '|'));
+          return matches.length <= 1; // skip if 0 or 1 match — no choice needed
+        }},
         { id: 'boxCond',       title: 'What condition is the box?',         type: 'slider',   min:1, max:10 },
         { id: 'priceBox',      title: 'What did you pay for the box?',      type: 'money',    placeholder: '0.00', optional: true },
         { id: 'purchaseDate',  title: 'When did you buy the box?',          type: 'date',     optional: true },
@@ -2212,6 +2257,37 @@ function renderWizardStep() {
       </div>`;
     setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
 
+  } else if (s.type === 'pickRow') {
+    const itemNum = (wizard.data.itemNum || '').trim();
+    const matchKeys = Object.keys(state.personalData).filter(k => k.startsWith(itemNum + '|'));
+    const selected = wizard.data.selectedRowKey || '';
+    body.innerHTML = `
+      <div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.5rem">
+        ${matchKeys.map(k => {
+          const pd = state.personalData[k];
+          const hasBoxAlready = pd.hasBox === 'Yes';
+          const isSelected = selected === k;
+          return `<button onclick="wizardPickRow('${k}')" style="
+            display:flex;align-items:center;gap:0.75rem;padding:0.85rem 1rem;
+            border-radius:10px;text-align:left;width:100%;cursor:pointer;
+            font-family:var(--font-body);transition:all 0.15s;
+            border:2px solid ${isSelected ? 'var(--accent)' : 'var(--border)'};
+            background:${isSelected ? 'rgba(232,64,28,0.12)' : 'var(--surface2)'};
+          ">
+            <div style="flex:1">
+              <div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.85rem">${pd.itemNum} ${pd.variation ? '— Var ' + pd.variation : ''}</div>
+              <div style="font-size:0.8rem;color:var(--text-mid);margin-top:0.2rem">
+                Condition: ${pd.condition || '—'} · 
+                ${hasBoxAlready
+                  ? '<span style="color:var(--accent2)">Already has a box — will add new row</span>'
+                  : '<span style="color:var(--green)">No box yet — will update this row</span>'}
+              </div>
+            </div>
+            ${isSelected ? '<span style="color:var(--accent);font-size:1rem">✓</span>' : ''}
+          </button>`;
+        }).join('')}
+      </div>`;
+
   } else if (s.type === 'confirm') {
     const item = wizard.matchedItem;
     body.innerHTML = `
@@ -2260,6 +2336,11 @@ function toggleBoxOnly() {
 function wizardChooseAndAdvance(field, val) {
   wizard.data[field] = val;
   // Brief visual flash then advance
+  setTimeout(() => wizardNext(), 150);
+}
+
+function wizardPickRow(key) {
+  wizard.data.selectedRowKey = key;
   setTimeout(() => wizardNext(), 150);
 }
 
@@ -2378,7 +2459,17 @@ async function saveWizardItem() {
 
   try {
     if (tab === 'collection') {
-      const existing = state.personalData[key];
+      let existing = state.personalData[key];
+      if (d.boxOnly) {
+        // Use explicitly selected row if user picked one
+        if (d.selectedRowKey && state.personalData[d.selectedRowKey]) {
+          existing = state.personalData[d.selectedRowKey];
+        } else if (!existing) {
+          // Fall back to first match by item number
+          const matchKey = Object.keys(state.personalData).find(k => k.startsWith(itemNum + '|'));
+          if (matchKey) existing = state.personalData[matchKey];
+        }
+      }
       let row;
       if (d.boxOnly) {
         const ex = existing || {};
@@ -2419,7 +2510,18 @@ async function saveWizardItem() {
           d.notes || '',
         ];
       }
-      if (existing?.row) {
+      if (d._fillItemMode && existing?.row) {
+        // Filling item info into a box-only row — preserve box fields, update item fields
+        row[6] = existing.priceBox || row[6];      // keep box price
+        row[7] = existing.priceComplete || row[7]; // keep complete price
+        row[8] = 'Yes';                            // keep has box
+        row[9] = existing.boxCond || row[9];       // keep box condition
+        row[11] = existing.photoBox || row[11];    // keep box photo
+        await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:M${existing.row}`, [row]);
+      } else if (d.boxOnly && existing?.hasBox === 'Yes') {
+        // Already has a box — append as a new row
+        await sheetsAppend(state.personalSheetId, 'My Collection!A:M', [row]);
+      } else if (existing?.row) {
         await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:M${existing.row}`, [row]);
       } else {
         await sheetsAppend(state.personalSheetId, 'My Collection!A:M', [row]);
