@@ -1195,6 +1195,141 @@ async function createSoldTab(sheetId) {
   await sheetsUpdate(sheetId, 'Want List!A2:E2', [WANT_HEADERS]);
 }
 
+
+// ── GOOGLE DRIVE HELPERS ────────────────────────────────────────
+
+const ITEM_VIEWS = [
+  { key: 'RSV',     label: 'Right Side View',  abbr: 'RSV'    },
+  { key: 'TV',      label: 'Top View',          abbr: 'TV'     },
+  { key: 'BV',      label: 'Bottom View',       abbr: 'BV'     },
+  { key: 'BKV',     label: 'Back View',         abbr: 'BKV'    },
+  { key: 'FV',      label: 'Front View',        abbr: 'FV'     },
+  { key: 'LSV',     label: 'Left Side View',    abbr: 'LSV'    },
+];
+const BOX_VIEWS = [
+  { key: 'BOX-RSV', label: 'Box Right Side View', abbr: 'BOX-RSV' },
+  { key: 'BOX-TV',  label: 'Box Top View',         abbr: 'BOX-TV'  },
+  { key: 'BOX-BV',  label: 'Box Bottom View',      abbr: 'BOX-BV'  },
+  { key: 'BOX-BKV', label: 'Box Back View',        abbr: 'BOX-BKV' },
+  { key: 'BOX-FV',  label: 'Box Front View',       abbr: 'BOX-FV'  },
+  { key: 'BOX-LSV', label: 'Box Left Side View',   abbr: 'BOX-LSV' },
+];
+
+// Cache folder IDs so we don't recreate them
+const driveCache = { rootId: null, collectionId: null, soldId: null, itemFolders: {} };
+
+async function driveRequest(method, endpoint, body, extraHeaders = {}) {
+  const res = await fetch('https://www.googleapis.com/drive/v3' + endpoint, {
+    method,
+    headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json', ...extraHeaders },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return res.json();
+}
+
+async function driveUpload(file, name, folderId) {
+  // Step 1: initiate resumable upload
+  const initRes = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + accessToken,
+        'Content-Type': 'multipart/related; boundary=lv_boundary',
+      },
+      body: buildMultipart(file, name, folderId),
+    }
+  );
+  return initRes.json();
+}
+
+function buildMultipart(file, name, folderId) {
+  // Build multipart body for Drive upload
+  const boundary = 'lv_boundary';
+  const metadata = JSON.stringify({ name, parents: [folderId], mimeType: file.type });
+  // We'll use FormData approach instead
+  return null; // handled separately
+}
+
+async function driveUploadFile(file, name, folderId) {
+  const metadata = { name, parents: [folderId], mimeType: file.type };
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', file);
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + accessToken },
+    body: form,
+  });
+  return res.json();
+}
+
+async function driveFindOrCreateFolder(name, parentId) {
+  // Search for existing folder
+  const q = encodeURIComponent(`name='${name}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`);
+  const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&spaces=drive`);
+  if (res.files && res.files.length > 0) return res.files[0].id;
+  // Create it
+  const created = await driveRequest('POST', '/files?fields=id', {
+    name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId],
+  });
+  return created.id;
+}
+
+async function driveGetRootId() {
+  if (driveCache.rootId) return driveCache.rootId;
+  const res = await driveRequest('GET', '/files/root?fields=id');
+  driveCache.rootId = res.id;
+  return res.id;
+}
+
+async function driveEnsureCollectionFolder() {
+  if (driveCache.collectionId) return driveCache.collectionId;
+  const rootId = await driveGetRootId();
+  driveCache.collectionId = await driveFindOrCreateFolder('Lionel Vault - My Collection', rootId);
+  return driveCache.collectionId;
+}
+
+async function driveEnsureSoldFolder() {
+  if (driveCache.soldId) return driveCache.soldId;
+  const rootId = await driveGetRootId();
+  driveCache.soldId = await driveFindOrCreateFolder('Lionel Vault - Sold', rootId);
+  return driveCache.soldId;
+}
+
+async function driveEnsureItemFolder(itemNum, variation) {
+  const folderName = variation ? `${itemNum}-${variation}` : `${itemNum}`;
+  const cacheKey = folderName;
+  if (driveCache.itemFolders[cacheKey]) return driveCache.itemFolders[cacheKey];
+  const collectionId = await driveEnsureCollectionFolder();
+  const folderId = await driveFindOrCreateFolder(folderName, collectionId);
+  driveCache.itemFolders[cacheKey] = folderId;
+  return folderId;
+}
+
+async function driveMoveToSold(itemNum, variation) {
+  // Find item folder in My Collection, move it to Sold
+  const folderName = variation ? `${itemNum}-${variation}` : `${itemNum}`;
+  const collectionId = await driveEnsureCollectionFolder();
+  const soldId = await driveEnsureSoldFolder();
+  const q = encodeURIComponent(`name='${folderName}' and mimeType='application/vnd.google-apps.folder' and '${collectionId}' in parents and trashed=false`);
+  const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)`);
+  if (res.files && res.files.length > 0) {
+    const fId = res.files[0].id;
+    await driveRequest('PATCH', `/files/${fId}?addParents=${soldId}&removeParents=${collectionId}&fields=id`, {});
+    driveCache.itemFolders[folderName] = null; // invalidate cache
+  }
+}
+
+async function driveUploadItemPhoto(file, itemNum, variation, viewAbbr) {
+  const ext = file.name.split('.').pop() || 'jpg';
+  const itemStr = variation ? `${itemNum}-${variation}` : itemNum;
+  const fileName = `${itemStr}-${viewAbbr}.${ext}`;
+  const folderId = await driveEnsureItemFolder(itemNum, variation);
+  const result = await driveUploadFile(file, fileName, folderId);
+  return result.webViewLink || null;
+}
+
 // ── SHEETS API ──────────────────────────────────────────────────
 async function sheetsGet(spreadsheetId, range) {
   // Use API key for master sheet (public), OAuth token for personal sheet
@@ -2034,8 +2169,8 @@ function getSteps(tab) {
       { id: 'boxCond',     title: 'What condition is the box?',           type: 'slider',   min:1, max:10, skipIf: (d) => d.hasBox !== 'Yes' && !d._attachToBox || !!d._attachToBox },
       { id: 'pricePaid',   title: 'What did you pay?',                    type: 'pricePaid' },
       { id: 'datePurchased', title: 'When did you purchase it?',          type: 'date',     optional: true },
-      { id: 'photosItem',  title: 'Add photos of the item',               type: 'photos',   label: 'Item', max: 6 },
-      { id: 'photosBox',   title: 'Add photos of the box',                type: 'photos',   label: 'Box',  max: 6, skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox },
+      { id: 'photosItem',  title: 'Add photos of the item',               type: 'drivePhotos', label: 'Item' },
+      { id: 'photosBox',   title: 'Add photos of the box',                type: 'drivePhotos', label: 'Box',  skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox },
       { id: 'userEstWorth', title: 'What do you estimate it is worth?',     type: 'money', placeholder: '0.00', optional: true, note: (d) => (d._attachToBox || d._fillItemMode || d.hasBox === 'Yes') ? 'Include the value of both the item and the box in your estimate' : '' },
       { id: 'notes',       title: 'Any notes about this item?',           type: 'textarea', optional: true },
       { id: 'confirm',     title: 'Ready to save!',                       type: 'confirm' },
@@ -2289,25 +2424,46 @@ function renderWizardStep() {
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
       </div>`;
 
-  } else if (s.type === 'photos') {
-    const photos = wizard.data[s.id] || ['','','','','',''];
+  } else if (s.type === 'drivePhotos') {
+    const views = s.label === 'Box' ? BOX_VIEWS : ITEM_VIEWS;
+    const stored = wizard.data[s.id] || {};
     body.innerHTML = `
-      <div style="padding-top:0.5rem">
-        <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.75rem">
-          Paste Google Photos links (up to ${s.max}). Leave blank to skip.
+      <div style="padding-top:0.25rem">
+        <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:0.75rem">
+          Drag & drop or click each slot to upload. Photos save to Google Drive automatically.
         </div>
-        <div style="display:flex;flex-direction:column;gap:0.5rem" id="photo-inputs">
-          ${photos.slice(0, s.max).map((p, i) => `
-            <div style="display:flex;align-items:center;gap:0.5rem">
-              <span style="color:var(--text-dim);font-size:0.8rem;width:20px">${i+1}</span>
-              <input type="url" value="${p}" placeholder="https://photos.google.com/…"
-                style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:7px;
-                padding:0.5rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.82rem;outline:none"
-                oninput="updateWizardPhoto('${s.id}',${i},this.value)">
-            </div>`).join('')}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem" id="photo-grid">
+          ${views.map(v => {
+            const url = stored[v.key] || '';
+            return `<div class="photo-drop-zone" data-view="${v.key}" data-sid="${s.id}"
+              ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+              ondragleave="this.style.borderColor='var(--border)'"
+              ondrop="handlePhotoDrop(event,'${s.id}','${v.key}')"
+              onclick="document.getElementById('file-${s.id}-${v.key}').click()"
+              style="border:2px dashed var(--border);border-radius:10px;min-height:90px;
+              display:flex;flex-direction:column;align-items:center;justify-content:center;
+              cursor:pointer;transition:border-color 0.2s;position:relative;overflow:hidden;
+              background:var(--surface2)">
+              ${url
+                ? `<img src="${url}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0" onerror="this.style.display='none'">
+                   <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);
+                   font-size:0.62rem;color:#fff;padding:2px 4px;text-align:center">${v.abbr} ✓</div>`
+                : `<div style="font-size:0.7rem;color:var(--text-dim);text-align:center;padding:0.5rem">
+                   <div style="font-size:1.4rem;margin-bottom:0.2rem">📷</div>
+                   <div style="font-weight:600;color:var(--text-mid)">${v.abbr}</div>
+                   <div style="font-size:0.62rem">${v.label}</div>
+                   </div>`
+              }
+              <div id="prog-${s.id}-${v.key}" style="display:none;position:absolute;inset:0;
+                background:rgba(0,0,0,0.7);align-items:center;justify-content:center;flex-direction:column">
+                <div style="color:white;font-size:0.75rem">Uploading…</div>
+              </div>
+            </div>
+            <input type="file" id="file-${s.id}-${v.key}" accept="image/*" style="display:none"
+              onchange="handlePhotoFile(event,'${s.id}','${v.key}')">`;
+          }).join('')}
         </div>
-        ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(245,166,35,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
-        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.6rem">Optional — press Next to skip any views</div>
       </div>`;
 
   } else if (s.type === 'textarea') {
@@ -2449,6 +2605,51 @@ function findPDKey(itemNum, variation) {
   return Object.keys(state.personalData).find(k => k.startsWith(prefix)) || null;
 }
 
+// ── PHOTO UPLOAD HANDLERS ───────────────────────────────────────
+
+async function handlePhotoDrop(event, stepId, viewKey) {
+  event.preventDefault();
+  event.currentTarget.style.borderColor = 'var(--border)';
+  const file = event.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    await uploadWizardPhoto(file, stepId, viewKey);
+  }
+}
+
+async function handlePhotoFile(event, stepId, viewKey) {
+  const file = event.target.files[0];
+  if (file) await uploadWizardPhoto(file, stepId, viewKey);
+}
+
+async function uploadWizardPhoto(file, stepId, viewKey) {
+  const d = wizard.data;
+  const itemNum = (d.itemNum || 'unknown').trim();
+  const variation = (d.variation || '').trim();
+
+  // Show progress overlay
+  const prog = document.getElementById('prog-' + stepId + '-' + viewKey);
+  if (prog) { prog.style.display = 'flex'; }
+
+  try {
+    const url = await driveUploadItemPhoto(file, itemNum, variation, viewKey);
+    if (!wizard.data[stepId]) wizard.data[stepId] = {};
+    wizard.data[stepId][viewKey] = url;
+    // Re-render just this zone
+    const zone = document.querySelector(`.photo-drop-zone[data-view="${viewKey}"][data-sid="${stepId}"]`);
+    if (zone && url) {
+      zone.innerHTML = `
+        <img src="${url}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0" onerror="this.style.display='none'">
+        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);
+          font-size:0.62rem;color:#fff;padding:2px 4px;text-align:center">${viewKey} ✓</div>`;
+    }
+  } catch(e) {
+    console.error('Photo upload failed:', e);
+    showToast('Photo upload failed: ' + e.message);
+  } finally {
+    if (prog) prog.style.display = 'none';
+  }
+}
+
 function toggleBoxOnly() {
   wizard.data.boxOnly = !wizard.data.boxOnly;
   // Reset the step list so it picks up new boxOnly steps
@@ -2492,8 +2693,8 @@ function wizardChooseVariation(variation) {
 }
 
 function updateWizardPhoto(field, idx, val) {
-  if (!wizard.data[field]) wizard.data[field] = ['','','','','',''];
-  wizard.data[field][idx] = val;
+  // Legacy handler
+  if (!wizard.data[field]) wizard.data[field] = {};
 }
 
 let itemLookupTimer;
@@ -2640,8 +2841,13 @@ async function saveWizardItem() {
   const itemNum = (d.itemNum || '').trim();
   const variation = (d.variation || '').trim();
   const key = `${itemNum}|${variation}`;
-  const photos = (d.photosItem || []).filter(p => p.trim());
-  const boxPhotos = (d.photosBox || []).filter(p => p.trim());
+  // Photos are now Drive URL objects keyed by view
+  const photoObj = d.photosItem || {};
+  const boxPhotoObj = d.photosBox || {};
+  // Primary display photo = Front View, fallback to first available
+  const primaryViews = ['FV','RSV','TV','BV','BKV','LSV'];
+  const photos = [primaryViews.find(k => photoObj[k]) ? photoObj[primaryViews.find(k => photoObj[k])] : ''];
+  const boxPhotos = [primaryViews.find(k => boxPhotoObj['BOX-'+k]) ? boxPhotoObj['BOX-'+primaryViews.find(k => boxPhotoObj['BOX-'+k])] : ''];
 
   try {
     if (tab === 'collection') {
@@ -2780,6 +2986,10 @@ async function saveWizardItem() {
       // Delete the row from My Collection
       if (collectionEntry?.row) {
         await sheetsDeleteRow(state.personalSheetId, 'My Collection', collectionEntry.row);
+      }
+      // Move photo folder to Sold in Drive
+      if (collectionEntry?.itemNum) {
+        try { await driveMoveToSold(collectionEntry.itemNum, collectionEntry.variation || ''); } catch(e) { console.warn('Drive move failed:', e); }
       }
 
     } else if (tab === 'want') {
