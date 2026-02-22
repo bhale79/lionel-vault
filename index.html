@@ -1338,9 +1338,10 @@ async function loadPersonalData() {
   console.log('My Collection rows:', rows.length);
   rows.forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return; // skip header row if present
-    const key = `${r[0]}|${r[1] || ''}`;
+    const rowNum = idx + 3;
+    const key = `${r[0]}|${r[1] || ''}|${rowNum}`;
     state.personalData[key] = {
-      row:          idx + 3,
+      row:          rowNum,
       itemNum:      r[0]  || '',
       variation:    r[1]  || '',
       status:       'Owned',
@@ -1421,7 +1422,14 @@ function showLoading() {
 function buildDashboard() {
   const total = state.masterData.length;
   // Count ALL owned entries including box-only rows
-  const allOwned = Object.values(state.personalData).filter(pd => pd.owned);
+  const allOwned = Object.values(state.personalData).filter(pd => {
+    if (!pd.owned) return false;
+    // Exclude pure box-only rows from item count
+    const noCondition = !pd.condition || pd.condition === '' || pd.condition === 'N/A';
+    const noItemPrice = !pd.priceItem || pd.priceItem === '' || pd.priceItem === 'N/A';
+    const isBoxOnly = pd.hasBox === 'Yes' && noCondition && noItemPrice;
+    return !isBoxOnly;
+  });
   const owned = allOwned.length;
   const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
 
@@ -1456,7 +1464,7 @@ function buildDashboard() {
     const t = item.itemType || 'Other';
     if (!cats[t]) cats[t] = { total: 0, owned: 0 };
     cats[t].total++;
-    if (state.personalData[`${item.itemNum}|${item.variation}`]?.owned) cats[t].owned++;
+    if (findPD(item.itemNum, item.variation)?.owned) cats[t].owned++;
   });
 
   const catIcons = {
@@ -1550,8 +1558,7 @@ function buildBrowse() { renderBrowse(); }
 function renderBrowse() {
   const { type, road, owned, unowned, boxed, search } = state.filters;
   state.filteredData = state.masterData.filter(item => {
-    const key = `${item.itemNum}|${item.variation}`;
-    const pd = state.personalData[key];
+    const pd = findPD(item.itemNum, item.variation);
     const isOwned = pd?.owned || false;
     const hasBox = pd?.hasBox === 'Yes';
     const isSold = !!state.soldData[`${item.itemNum}|${item.variation}`];
@@ -1581,10 +1588,9 @@ function renderBrowse() {
   // Rows
   const tbody = document.getElementById('browse-tbody');
   tbody.innerHTML = pageData.map((item, i) => {
-    const key = `${item.itemNum}|${item.variation}`;
-    const pd = state.personalData[key];
+    const pd = findPD(item.itemNum, item.variation);
     const isOwned = pd?.owned || false;
-    const isWanted = !!state.wantData[key];
+    const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
     const cond = pd?.condition ? parseInt(pd.condition) : null;
     const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
     const globalIdx = state.masterData.indexOf(item);
@@ -1619,8 +1625,10 @@ function goPage(p) { state.currentPage = p; renderBrowse(); document.getElementB
 function openItem(idx) {
   const item = state.masterData[idx];
   state.currentItem = { item, idx };
-  const key = `${item.itemNum}|${item.variation}`;
-  const pd = state.personalData[key] || {};
+  // Find by prefix since key now includes row number
+  const keyPrefix = `${item.itemNum}|${item.variation}|`;
+  const pdKey = Object.keys(state.personalData).find(k => k.startsWith(keyPrefix));
+  const pd = pdKey ? state.personalData[pdKey] : {};
 
   document.getElementById('modal-item-num').textContent = `No. ${item.itemNum}${item.variation ? ' — Variation ' + item.variation : ''}`;
   document.getElementById('modal-title').textContent = item.roadName || item.itemType || item.description.substring(0, 60);
@@ -1999,7 +2007,7 @@ function getSteps(tab) {
         { id: 'tab',           title: 'What would you like to add?',       type: 'choice' },
         { id: 'itemNum',       title: 'What is the Lionel item number?',    type: 'text',     placeholder: 'e.g. 726, 2046, 6464-1' },
         { id: 'pickRow',       title: 'Which item is this box for?',        type: 'pickRow',  skipIf: (d) => {
-          const matches = Object.keys(state.personalData).filter(k => k.startsWith((d.itemNum||'').trim() + '|'));
+          const matches = Object.keys(state.personalData).filter(k => k.split('|')[0] === (d.itemNum||'').trim());
           return matches.length <= 1; // skip if 0 or 1 match — no choice needed
         }},
         { id: 'boxCond',       title: 'What condition is the box?',         type: 'slider',   min:1, max:10 },
@@ -2019,7 +2027,7 @@ function getSteps(tab) {
       { id: 'datePurchased', title: 'When did you purchase it?',          type: 'date',     optional: true },
       { id: 'photosItem',  title: 'Add photos of the item',               type: 'photos',   label: 'Item', max: 6 },
       { id: 'photosBox',   title: 'Add photos of the box',                type: 'photos',   label: 'Box',  max: 6, skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox },
-      { id: 'userEstWorth', title: 'What do you estimate it is worth?',     type: 'money', placeholder: '0.00', optional: true },
+      { id: 'userEstWorth', title: 'What do you estimate it is worth?',     type: 'money', placeholder: '0.00', optional: true, note: (d) => d._attachToBox ? 'Remember: this should reflect the combined value of the item and the box' : '' },
       { id: 'notes',       title: 'Any notes about this item?',           type: 'textarea', optional: true },
       { id: 'confirm',     title: 'Ready to save!',                       type: 'confirm' },
     ];
@@ -2029,7 +2037,7 @@ function getSteps(tab) {
       { id: 'itemNum',      title: 'What is the Lionel item number?',      type: 'text',        placeholder: 'e.g. 726, 2046, 6464-1' },
       { id: 'pickSoldItem', title: 'Which item are you selling?',          type: 'pickSoldItem',
         skipIf: (d) => {
-          const matches = Object.keys(state.personalData).filter(k => k.startsWith((d.itemNum||'').trim() + '|'));
+          const matches = Object.keys(state.personalData).filter(k => k.split('|')[0] === (d.itemNum||'').trim());
           return matches.length === 0; // not in collection — skip picker
         }
       },
@@ -2129,7 +2137,8 @@ function renderWizardStep() {
             padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none"
             oninput="wizard.data.variation=this.value"
             onkeydown="if(event.key==='Enter')wizardNext()">
-          <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
+          ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(245,166,35,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
         </div>`;
       setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
     } else {
@@ -2236,6 +2245,7 @@ function renderWizardStep() {
             oninput="wizard.data.priceItem=this.value"
             onkeydown="if(event.key==='Enter')wizardNext()">
         </div>
+        ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(245,166,35,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
       </div>`;
     setTimeout(() => { const i = document.getElementById('wiz-price-item'); if(i) i.focus(); }, 50);
@@ -2263,6 +2273,7 @@ function renderWizardStep() {
           style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
           padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none"
           oninput="wizard.data['${s.id}']=this.value">
+        ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(245,166,35,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
       </div>`;
 
@@ -2283,6 +2294,7 @@ function renderWizardStep() {
                 oninput="updateWizardPhoto('${s.id}',${i},this.value)">
             </div>`).join('')}
         </div>
+        ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(245,166,35,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
       </div>`;
 
@@ -2295,6 +2307,7 @@ function renderWizardStep() {
           padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;
           outline:none;resize:vertical;min-height:100px"
           oninput="wizard.data['${s.id}']=this.value">${val}</textarea>
+        ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(245,166,35,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
       </div>`;
     setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
@@ -2305,7 +2318,7 @@ function renderWizardStep() {
       const pd = state.personalData[k];
       // Show all owned rows for this item number
       // Include rows with real item info (condition not N/A or empty)
-      return k.startsWith(itemNum + '|') && pd.owned;
+      return k.split('|')[0] === itemNum && pd.owned;
     });
     console.log('pickSoldItem matchKeys for', itemNum, ':', matchKeys, 'personalData keys:', Object.keys(state.personalData).filter(k => k.startsWith(itemNum + '|')));
     const selected = wizard.data.selectedSoldKey || '';
@@ -2346,7 +2359,7 @@ function renderWizardStep() {
 
   } else if (s.type === 'pickRow') {
     const itemNum = (wizard.data.itemNum || '').trim();
-    const matchKeys = Object.keys(state.personalData).filter(k => k.startsWith(itemNum + '|'));
+    const matchKeys = Object.keys(state.personalData).filter(k => k.split('|')[0] === itemNum);
     const selected = wizard.data.selectedRowKey || '';
     body.innerHTML = `
       <div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.5rem">
@@ -2413,6 +2426,17 @@ function wizardChoose(field, val) {
   renderWizardStep();
 }
 
+// Find personalData entry by itemNum|variation prefix (key includes row number)
+function findPD(itemNum, variation) {
+  const prefix = `${itemNum}|${variation || ''}|`;
+  const k = Object.keys(state.personalData).find(k => k.startsWith(prefix));
+  return k ? state.personalData[k] : null;
+}
+function findPDKey(itemNum, variation) {
+  const prefix = `${itemNum}|${variation || ''}|`;
+  return Object.keys(state.personalData).find(k => k.startsWith(prefix)) || null;
+}
+
 function toggleBoxOnly() {
   wizard.data.boxOnly = !wizard.data.boxOnly;
   // Reset the step list so it picks up new boxOnly steps
@@ -2476,7 +2500,7 @@ function lookupItem(num) {
 
   if (wizard.tab === 'sold') {
     // Sold mode: check collection first, show what they own
-    const collectionKeys = Object.keys(state.personalData).filter(k => k.startsWith(trimmed + '|'));
+    const collectionKeys = Object.keys(state.personalData).filter(k => k.split('|')[0] === trimmed);
     const inCollection = collectionKeys.length > 0;
     if (inCollection) {
       const count = collectionKeys.length;
@@ -2519,7 +2543,7 @@ function lookupItem(num) {
     // Normal mode: show catalog match + check for existing box-only row
     const boxOnlyKeys = Object.keys(state.personalData).filter(k => {
       const pd = state.personalData[k];
-      return k.startsWith(trimmed + '|') && pd.hasBox === 'Yes' &&
+      return k.split('|')[0] === trimmed && pd.hasBox === 'Yes' &&
         (!pd.condition || pd.condition === 'N/A') && (!pd.priceItem || pd.priceItem === 'N/A');
     });
     const hasBoxOnlyRow = boxOnlyKeys.length > 0;
@@ -2609,14 +2633,17 @@ async function saveWizardItem() {
 
   try {
     if (tab === 'collection') {
-      let existing = state.personalData[key];
+      // Find existing by row-keyed lookup (key includes row number now)
+      let existing = Object.keys(state.personalData)
+        .map(k => state.personalData[k])
+        .find(pd => pd.itemNum === itemNum && pd.variation === variation) || null;
       if (d.boxOnly) {
         // Use explicitly selected row if user picked one
         if (d.selectedRowKey && state.personalData[d.selectedRowKey]) {
           existing = state.personalData[d.selectedRowKey];
         } else if (!existing) {
           // Fall back to first match by item number
-          const matchKey = Object.keys(state.personalData).find(k => k.startsWith(itemNum + '|'));
+          const matchKey = Object.keys(state.personalData).find(k => k.split('|')[0] === itemNum);
           if (matchKey) existing = state.personalData[matchKey];
         }
       } else if (d._attachToBox) {
@@ -2626,7 +2653,7 @@ async function saveWizardItem() {
           const pd = state.personalData[k];
           const noCondition = !pd.condition || pd.condition === '' || pd.condition === 'N/A';
           const noItemPrice = !pd.priceItem || pd.priceItem === '' || pd.priceItem === 'N/A';
-          return k.startsWith(itemNum + '|') && pd.hasBox === 'Yes' && noCondition && noItemPrice;
+          return k.split('|')[0] === itemNum && pd.hasBox === 'Yes' && noCondition && noItemPrice;
         });
         if (boxKey) existing = state.personalData[boxKey];
         console.log('_attachToBox lookup — boxKey:', boxKey, 'existing row:', existing?.row);
@@ -2646,7 +2673,7 @@ async function saveWizardItem() {
           itemNum,
           itemExists ? (ex.variation || variation) : variation,
           ex.condition || (itemExists ? '' : 'N/A'),
-          ex.allOriginal || (itemExists ? '' : 'N/A'),
+          'Yes',  // box-only rows always set all original to Yes
           ex.priceItem || (itemExists ? '' : 'N/A'),
           d.priceBox || '',
           completePrice,
