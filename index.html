@@ -2262,6 +2262,8 @@ function renderWizardStep() {
 
   } else if (s.type === 'money') {
     const val = wizard.data[s.id] || '';
+    const moneyNote = s.note ? s.note(wizard.data) : '';
+    const moneyNoteHtml = moneyNote ? '<div style="font-size:0.82rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(245,166,35,0.12);border:1px solid rgba(245,166,35,0.4);border-radius:6px;line-height:1.4">' + moneyNote + '</div>' : '';
     body.innerHTML = `
       <div style="padding-top:0.75rem">
         <div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem">
@@ -2271,7 +2273,7 @@ function renderWizardStep() {
             oninput="wizard.data['${s.id}']=this.value"
             onkeydown="if(event.key==='Enter')wizardNext()">
         </div>
-        ${(() => { const n = s.note && s.note(wizard.data); console.log('userEstWorth note:', s.id, n, 'data:', JSON.stringify({_attachToBox:wizard.data._attachToBox,_fillItemMode:wizard.data._fillItemMode,hasBox:wizard.data.hasBox})); return n ? `<div style="font-size:0.82rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(245,166,35,0.12);border:1px solid var(--accent2);border-radius:6px;line-height:1.4">📦 ${n}</div>` : ''; })()}
+        ${moneyNoteHtml}
         ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
       </div>`;
     setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
