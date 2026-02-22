@@ -1635,6 +1635,11 @@ async function saveItem() {
     if (soldEntry && soldEntry.row) {
       await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:H${soldEntry.row}`, [['','','','','','','','']]);
     }
+    // Remove from Want List if it was there
+    const wantEntry = state.wantData[key];
+    if (wantEntry && wantEntry.row) {
+      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:E${wantEntry.row}`, [['','','','','']]);
+    }
 
   } else if (currentStatus === 'Sold') {
     // Remove from My Collection
