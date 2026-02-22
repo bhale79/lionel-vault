@@ -2037,7 +2037,7 @@ function getSteps(tab) {
       { id: 'datePurchased', title: 'When did you purchase it?',          type: 'date',     optional: true },
       { id: 'photosItem',  title: 'Add photos of the item',               type: 'photos',   label: 'Item', max: 6 },
       { id: 'photosBox',   title: 'Add photos of the box',                type: 'photos',   label: 'Box',  max: 6, skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox },
-      { id: 'userEstWorth', title: 'What do you estimate it is worth?',     type: 'money', placeholder: '0.00', optional: true, note: (d) => d._attachToBox ? 'Remember: this should reflect the combined value of the item and the box' : '' },
+      { id: 'userEstWorth', title: 'What do you estimate it is worth?',     type: 'money', placeholder: '0.00', optional: true, note: (d) => (d._attachToBox || d._fillItemMode || d.hasBox === 'Yes') ? 'Include the value of both the item and the box in your estimate' : '' },
       { id: 'notes',       title: 'Any notes about this item?',           type: 'textarea', optional: true },
       { id: 'confirm',     title: 'Ready to save!',                       type: 'confirm' },
     ];
@@ -2271,6 +2271,7 @@ function renderWizardStep() {
             oninput="wizard.data['${s.id}']=this.value"
             onkeydown="if(event.key==='Enter')wizardNext()">
         </div>
+        ${(() => { const n = s.note && s.note(wizard.data); console.log('userEstWorth note:', s.id, n, 'data:', JSON.stringify({_attachToBox:wizard.data._attachToBox,_fillItemMode:wizard.data._fillItemMode,hasBox:wizard.data.hasBox})); return n ? `<div style="font-size:0.82rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(245,166,35,0.12);border:1px solid var(--accent2);border-radius:6px;line-height:1.4">📦 ${n}</div>` : ''; })()}
         ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
       </div>`;
     setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
