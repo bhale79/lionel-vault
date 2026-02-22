@@ -1436,22 +1436,17 @@ function buildDashboard() {
   const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
 
   let totalValue = 0, condSum = 0, condCount = 0, boxedCount = 0, origCount = 0;
-  // Also tally standalone box rows for total value
-  const allBoxOnly = Object.values(state.personalData).filter(pd => {
-    if (!pd.owned) return false;
-    const condVal = pd.condition?.toString().trim();
-    const priceVal = pd.priceItem?.toString().trim();
-    const noCondition = !condVal || condVal === '' || condVal === 'N/A';
-    const noItemPrice = !priceVal || priceVal === '' || priceVal === 'N/A';
-    return pd.hasBox === 'Yes' && noCondition && noItemPrice;
-  });
-  allBoxOnly.forEach(pd => {
-    if (pd.priceBox) totalValue += parseFloat(pd.priceBox) || 0;
+  // Count value across ALL owned rows (items + boxes)
+  const allOwnedEntries = Object.values(state.personalData).filter(pd => pd.owned);
+  allOwnedEntries.forEach(pd => {
+    if (pd.priceComplete) totalValue += parseFloat(pd.priceComplete) || 0;
+    else if (pd.priceItem && pd.priceItem !== 'N/A') totalValue += parseFloat(pd.priceItem) || 0;
+    else if (pd.priceBox) totalValue += parseFloat(pd.priceBox) || 0;
   });
 
   allOwned.forEach(pd => {
-    if (pd.priceComplete) totalValue += parseFloat(pd.priceComplete) || 0;
-    else if (pd.priceItem) totalValue += parseFloat(pd.priceItem) || 0;
+    // condition/box stats — items only (allOwned already excludes box-only rows)
+    if (false) { // placeholder — stats below
     if (pd.condition && pd.condition !== 'N/A') { const c = parseInt(pd.condition); if (!isNaN(c)) { condSum += c; condCount++; } }
     if (pd.hasBox === 'Yes') boxedCount++;
     if (pd.allOriginal === 'Yes') origCount++;
