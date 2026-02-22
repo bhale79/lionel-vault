@@ -1279,8 +1279,11 @@ async function loadPersonalData() {
   state.wantData = {};
 
   // Load My Collection tab
+  try {
   const res = await sheetsGet(state.personalSheetId, 'My Collection!A3:M');
+  console.log('My Collection raw response:', JSON.stringify(res).substring(0, 200));
   const rows = res.values || [];
+  console.log('My Collection rows:', rows.length);
   rows.forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return; // skip header row if present
     const key = `${r[0]}|${r[1] || ''}`;
@@ -1303,6 +1306,7 @@ async function loadPersonalData() {
       notes:        r[12] || '',
     };
   });
+  } catch(e) { console.error('My Collection load error:', e); }
 
   // Load Sold tab
   try {
