@@ -1335,7 +1335,7 @@ async function loadPersonalData() {
   const res = await sheetsGet(state.personalSheetId, 'My Collection!A3:N');
   console.log('My Collection raw response:', JSON.stringify(res).substring(0, 200));
   const rows = res.values || [];
-  console.log('My Collection rows:', rows.length);
+  console.log('My Collection rows loaded:', rows.length, '| first row:', rows[0]);
   rows.forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return; // skip header row if present
     const rowNum = idx + 3;
@@ -1424,16 +1424,31 @@ function buildDashboard() {
   // Count ALL owned entries including box-only rows
   const allOwned = Object.values(state.personalData).filter(pd => {
     if (!pd.owned) return false;
-    // Exclude pure box-only rows from item count
-    const noCondition = !pd.condition || pd.condition === '' || pd.condition === 'N/A';
-    const noItemPrice = !pd.priceItem || pd.priceItem === '' || pd.priceItem === 'N/A';
+    // Exclude pure box-only rows (has box but NO item condition AND NO item price)
+    const condVal = pd.condition?.toString().trim();
+    const priceVal = pd.priceItem?.toString().trim();
+    const noCondition = !condVal || condVal === '' || condVal === 'N/A';
+    const noItemPrice = !priceVal || priceVal === '' || priceVal === 'N/A';
     const isBoxOnly = pd.hasBox === 'Yes' && noCondition && noItemPrice;
-    return !isBoxOnly;
+    return !isBoxOnly; // count everything except pure box-only rows
   });
   const owned = allOwned.length;
   const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
 
   let totalValue = 0, condSum = 0, condCount = 0, boxedCount = 0, origCount = 0;
+  // Also tally standalone box rows for total value
+  const allBoxOnly = Object.values(state.personalData).filter(pd => {
+    if (!pd.owned) return false;
+    const condVal = pd.condition?.toString().trim();
+    const priceVal = pd.priceItem?.toString().trim();
+    const noCondition = !condVal || condVal === '' || condVal === 'N/A';
+    const noItemPrice = !priceVal || priceVal === '' || priceVal === 'N/A';
+    return pd.hasBox === 'Yes' && noCondition && noItemPrice;
+  });
+  allBoxOnly.forEach(pd => {
+    if (pd.priceBox) totalValue += parseFloat(pd.priceBox) || 0;
+  });
+
   allOwned.forEach(pd => {
     if (pd.priceComplete) totalValue += parseFloat(pd.priceComplete) || 0;
     else if (pd.priceItem) totalValue += parseFloat(pd.priceItem) || 0;
@@ -2716,7 +2731,9 @@ async function saveWizardItem() {
         row[6] = fp > 0 && bp > 0 ? (fp + bp).toFixed(2) : (existing.priceComplete || '');
         const newNote = row[11] || '';
         const exNote  = existing.notes || '';
-        row[11] = [exNote, newNote].filter(Boolean).join(' | ');
+        const itemLabel = newNote ? `Item: ${newNote}` : '';
+        const boxLabel  = exNote  ? `Box: ${exNote}`   : '';
+        row[11] = [boxLabel, itemLabel].filter(Boolean).join(' | ');
         await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:N${existing.row}`, [row]);
       } else if (d._attachToBox && existing?.row) {
         // Attaching item to existing box row — preserve box data, merge notes
@@ -2732,7 +2749,9 @@ async function saveWizardItem() {
         row[6] = fp2 > 0 && bp2 > 0 ? (fp2 + bp2).toFixed(2) : (existing.priceComplete || '');
         const newNote2 = row[11] || '';
         const exNote2  = existing.notes || '';
-        row[11] = [exNote2, newNote2].filter(Boolean).join(' | ');
+        const itemLabel2 = newNote2 ? `Item: ${newNote2}` : '';
+        const boxLabel2  = exNote2  ? `Box: ${exNote2}`   : '';
+        row[11] = [boxLabel2, itemLabel2].filter(Boolean).join(' | ');
         await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:N${existing.row}`, [row]);
       } else {
         // Always append for a plain new collection add — never overwrite existing rows
