@@ -550,7 +550,7 @@
       </div>
       <div class="nav-section">
         <div class="nav-label">Inventory</div>
-        <button class="nav-item" onclick="showPage('browse', this)">
+        <button class="nav-item" onclick="showPage('browse', this); resetFilters(); renderBrowse();">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
           Browse All
           <span class="nav-badge" id="nav-total">—</span>
@@ -1430,13 +1430,27 @@ function toggleFilter(name) {
   renderBrowse();
 }
 
-function filterOwned() { state.filters.owned = true; state.filters.unowned = false; document.getElementById('toggle-owned').classList.add('on'); renderBrowse(); }
-function filterWanted() { 
-  state.filters.unowned = false; 
-  state.filters.owned = false; 
-  // Show only want list items
+function resetFilters() {
+  state.filters.owned = false;
+  state.filters.unowned = false;
+  state.filters.boxed = false;
+  state.filters.wantList = false;
+  state.filters.type = '';
+  state.filters.road = '';
+  state.currentPage = 1;
+  document.getElementById('filter-type').value = '';
+  document.getElementById('filter-road').value = '';
+  ['owned','unowned','boxed'].forEach(f => {
+    const el = document.getElementById('toggle-' + f);
+    if (el) el.classList.remove('on');
+  });
+}
+
+function filterOwned() { resetFilters(); state.filters.owned = true; document.getElementById('toggle-owned').classList.add('on'); renderBrowse(); }
+function filterWanted() {
+  resetFilters();
   state.filters.wantList = true;
-  renderBrowse(); 
+  renderBrowse();
 }
 function filterByType(type) { document.getElementById('filter-type').value = type; showPage('browse'); applyFilters(); }
 
