@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🚂</text></svg>">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lionel Vault — Postwar Collector's Inventory</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -2692,7 +2693,7 @@ async function saveWizardItem() {
           d.boxCond || '',
           ex.photoItem || '',
           boxPhotos[0] || '',
-          d.notes || ex.notes || '',
+          ( d.notes || ex.notes || '' ).trim(),
           d.purchaseDate || ex.datePurchased || '',
           d.userEstWorth || ex.userEstWorth || '',
         ];
@@ -2709,7 +2710,7 @@ async function saveWizardItem() {
           d.boxCond || '',
           photos[0] || '',
           boxPhotos[0] || '',
-          d.notes || '',
+          ( d.notes || '' ).trim(),
           d.datePurchased || '',
           d.userEstWorth || '',
         ];
@@ -2727,8 +2728,8 @@ async function saveWizardItem() {
         row[6] = fp > 0 && bp > 0 ? (fp + bp).toFixed(2) : (existing.priceComplete || '');
         const newNote = row[11] || '';
         const exNote  = existing.notes || '';
-        const itemLabel = newNote ? `Item: ${newNote}` : '';
-        const boxLabel  = exNote  ? `Box: ${exNote}`   : '';
+        const itemLabel = newNote.trim() ? `Item: ${newNote.trim()}` : '';
+        const boxLabel  = exNote.trim()  ? `Box: ${exNote.trim()}`   : '';
         row[11] = [boxLabel, itemLabel].filter(Boolean).join(' | ');
         await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:N${existing.row}`, [row]);
       } else if (d._attachToBox && existing?.row) {
@@ -2745,8 +2746,8 @@ async function saveWizardItem() {
         row[6] = fp2 > 0 && bp2 > 0 ? (fp2 + bp2).toFixed(2) : (existing.priceComplete || '');
         const newNote2 = row[11] || '';
         const exNote2  = existing.notes || '';
-        const itemLabel2 = newNote2 ? `Item: ${newNote2}` : '';
-        const boxLabel2  = exNote2  ? `Box: ${exNote2}`   : '';
+        const itemLabel2 = newNote2.trim() ? `Item: ${newNote2.trim()}` : '';
+        const boxLabel2  = exNote2.trim()  ? `Box: ${exNote2.trim()}`   : '';
         row[11] = [boxLabel2, itemLabel2].filter(Boolean).join(' | ');
         await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:N${existing.row}`, [row]);
       } else {
@@ -2767,7 +2768,7 @@ async function saveWizardItem() {
         soldPricePaid,
         d.salePrice || '',
         d.dateSold || '',
-        d.notes || '',
+        ( d.notes || '' ).trim(),
       ];
       const soldKey = `${itemNum}|${soldVariation}`;
       const existingSold = state.soldData[soldKey];
@@ -2786,7 +2787,7 @@ async function saveWizardItem() {
         itemNum, variation,
         d.priority || 'Medium',
         d.expectedPrice || '',
-        d.notes || '',
+        ( d.notes || '' ).trim(),
       ];
       const existing = state.wantData[key];
       if (existing?.row) {
