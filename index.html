@@ -2420,7 +2420,27 @@ function lookupItem(num) {
   const trimmed = num.trim();
   if (!trimmed) { el.innerHTML = ''; return; }
 
-  if (wizard.data.boxOnly) {
+  if (wizard.tab === 'sold') {
+    // Sold mode: check collection first, show what they own
+    const collectionKeys = Object.keys(state.personalData).filter(k => k.startsWith(trimmed + '|'));
+    const inCollection = collectionKeys.length > 0;
+    if (inCollection) {
+      const count = collectionKeys.length;
+      el.innerHTML = `<div style="background:rgba(46,204,113,0.1);border:1px solid var(--green);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
+        <span style="color:var(--green)">✓ Found in your collection</span> — ${count} item${count>1?'s':''} · select which one on the next step
+      </div>`;
+    } else {
+      // Not in collection — show master catalog info if available
+      if (match) {
+        el.innerHTML = `<div style="background:rgba(245,166,35,0.1);border:1px solid var(--accent2);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
+          <span style="color:var(--accent2)">Not in your collection</span> · ${match.roadName || match.itemType || ''} · ${match.yearProd || ''}<br>
+          <span style="color:var(--text-dim)">You can still enter sale details manually</span>
+        </div>`;
+      } else {
+        el.innerHTML = `<div style="font-size:0.8rem;color:var(--text-dim)">Not found in collection or catalog — enter details manually</div>`;
+      }
+    }
+  } else if (wizard.data.boxOnly) {
     // Box-only mode: show collection status
     const collectionKey = Object.keys(state.personalData).find(k => k.startsWith(trimmed + '|'));
     const inCollection = !!collectionKey;
