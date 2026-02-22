@@ -1916,7 +1916,7 @@ function getSteps(tab) {
       { id: 'priceBox',    title: 'What did you pay for the box only?',   type: 'money',    placeholder: '0.00', optional: true, skipIf: (d) => d.hasBox !== 'Yes' },
       { id: 'priceComplete', title: 'What did you pay for item + box together?', type: 'money', placeholder: '0.00', optional: true },
       { id: 'purchaseDate', title: 'When did you purchase it?',           type: 'date',     optional: true },
-      { id: 'estValue',    title: 'What do you think it\'s worth?',      type: 'money',    placeholder: '0.00', optional: true },
+      { id: 'estValue',    title: "What do you think it's worth?",      type: 'money',    placeholder: '0.00', optional: true },
       { id: 'photosItem',  title: 'Add photos of the item',               type: 'photos',   label: 'Item', max: 6 },
       { id: 'photosBox',   title: 'Add photos of the box',                type: 'photos',   label: 'Box',  max: 6, skipIf: (d) => d.hasBox !== 'Yes' },
       { id: 'notes',       title: 'Any notes about this item?',           type: 'textarea', optional: true },
@@ -1935,7 +1935,7 @@ function getSteps(tab) {
     return [...base,
       { id: 'priority',      title: 'How high is your priority for this item?', type: 'choice3', choices: ['High','Medium','Low'] },
       { id: 'expectedPrice', title: 'What do you expect to pay?',               type: 'money',   placeholder: '0.00', optional: true },
-      { id: 'notes',         title: 'Any notes about what you're looking for?', type: 'textarea', optional: true },
+      { id: 'notes',         title: "Any notes about what you're looking for?", type: 'textarea', optional: true },
       { id: 'confirm',       title: 'Ready to add to Want List!',               type: 'confirm' },
     ];
   }
