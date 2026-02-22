@@ -1273,6 +1273,7 @@ function buildApp() {
   populateFilters();
   buildDashboard();
   buildBrowse();
+  buildSoldPage();
   buildReport();
 }
 
@@ -1736,25 +1737,24 @@ function exportReport() {
 
 // ── NAVIGATION ──────────────────────────────────────────────────
 function buildSoldPage() {
-  const soldItems = state.masterData.filter(i => {
-    return state.soldData[`${i.itemNum}|${i.variation}`];
-  });
+  const soldEntries = Object.values(state.soldData);
   const tbody = document.getElementById('sold-tbody');
-  tbody.innerHTML = soldItems.length ? soldItems.map(i => {
-    const sd = state.soldData[`${i.itemNum}|${i.variation}`];
+
+  tbody.innerHTML = soldEntries.length ? soldEntries.map(sd => {
+    // Look up master data for type/road info
+    const master = state.masterData.find(i => i.itemNum === sd.itemNum && i.variation === sd.variation) || {};
     return `<tr>
-      <td><span class="item-num">${i.itemNum}</span></td>
-      <td><span class="tag">${i.itemType || '—'}</span></td>
-      <td>${i.roadName || '—'}</td>
-      <td>${i.variation || '—'}</td>
+      <td><span class="item-num">${sd.itemNum}</span></td>
+      <td><span class="tag">${master.itemType || '—'}</span></td>
+      <td>${master.roadName || '—'}</td>
+      <td>${sd.variation || '—'}</td>
       <td>${sd.condition || '—'}</td>
       <td class="market-val">${sd.salePrice ? '$' + parseFloat(sd.salePrice).toLocaleString() : '—'}</td>
       <td class="text-dim">${sd.dateSold || '—'}</td>
     </tr>`;
   }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">💰</div><p>No sold items yet</p></div></td></tr>';
 
-  // Update nav badge
-  document.getElementById('nav-sold').textContent = soldItems.length;
+  document.getElementById('nav-sold').textContent = soldEntries.length;
 }
 
 function showPage(name, clickedEl) {
