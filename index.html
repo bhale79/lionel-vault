@@ -2642,12 +2642,8 @@ async function saveWizardItem() {
         const exNote2  = existing.notes || '';
         row[12] = [exNote2, newNote2].filter(Boolean).join(' | ');
         await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:M${existing.row}`, [row]);
-      } else if (d.boxOnly && existing?.hasBox === 'Yes') {
-        // Already has a box — append as a new row
-        await sheetsAppend(state.personalSheetId, 'My Collection!A:M', [row]);
-      } else if (existing?.row) {
-        await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:M${existing.row}`, [row]);
       } else {
+        // Always append for a plain new collection add — never overwrite existing rows
         await sheetsAppend(state.personalSheetId, 'My Collection!A:M', [row]);
       }
 
