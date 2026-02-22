@@ -1445,8 +1445,6 @@ function buildDashboard() {
   });
 
   allOwned.forEach(pd => {
-    // condition/box stats — items only (allOwned already excludes box-only rows)
-    if (false) { // placeholder — stats below
     if (pd.condition && pd.condition !== 'N/A') { const c = parseInt(pd.condition); if (!isNaN(c)) { condSum += c; condCount++; } }
     if (pd.hasBox === 'Yes') boxedCount++;
     if (pd.allOriginal === 'Yes') origCount++;
