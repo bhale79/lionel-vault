@@ -994,7 +994,8 @@ const PERSONAL_SHEET_NAME = 'Lionel Vault — My Collection';
 const PERSONAL_HEADERS = [
   'Item Number','Variation','Condition (1-10)','All Original',
   'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
-  'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes','User Est. Worth'
+  'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes',
+  'Date Purchased','User Est. Worth'
 ];
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
@@ -1159,10 +1160,10 @@ async function initPersonalSheet(sheetId) {
   if (rows.length === 0 || !rows[0] || rows[0].length === 0) {
     // Brand new sheet — write title row 1 and headers row 2
     await sheetsUpdate(sheetId, 'My Collection!A1:A1', [['My Collection']]);
-    await sheetsUpdate(sheetId, 'My Collection!A2:M2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:N2', [PERSONAL_HEADERS]);
   } else if (rows.length === 1 || !rows[1] || rows[1].length < 13) {
     // Has title but missing/old headers — rewrite row 2
-    await sheetsUpdate(sheetId, 'My Collection!A2:M2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:N2', [PERSONAL_HEADERS]);
   }
   // Create Sold + Want List tabs and write their headers
   try {
@@ -1279,7 +1280,7 @@ async function createPersonalSheet() {
 
   // Write title row 1 and headers row 2
   await sheetsUpdate(state.personalSheetId, 'My Collection!A1:A1', [['My Collection']]);
-  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:M2', [PERSONAL_HEADERS]);
+  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:N2', [PERSONAL_HEADERS]);
   return state.personalSheetId;
 }
 
@@ -1331,7 +1332,7 @@ async function loadPersonalData() {
 
   // Load My Collection tab
   try {
-  const res = await sheetsGet(state.personalSheetId, 'My Collection!A3:M');
+  const res = await sheetsGet(state.personalSheetId, 'My Collection!A3:N');
   console.log('My Collection raw response:', JSON.stringify(res).substring(0, 200));
   const rows = res.values || [];
   console.log('My Collection rows:', rows.length);
@@ -1354,7 +1355,8 @@ async function loadPersonalData() {
       photoItem:    r[9]  || '',
       photoBox:     r[10] || '',
       notes:        r[11] || '',
-      userEstWorth: r[12] || '',
+      datePurchased:r[12] || '',
+      userEstWorth: r[13] || '',
     };
   });
   } catch(e) { console.error('My Collection load error:', e); }
@@ -1755,9 +1757,9 @@ async function saveItem() {
     ];
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:M${existing.row}`, [ownedRow]);
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:N${existing.row}`, [ownedRow]);
     } else {
-      await sheetsAppend(state.personalSheetId, 'My Collection!A:M', [ownedRow]);
+      await sheetsAppend(state.personalSheetId, 'My Collection!A:N', [ownedRow]);
     }
     // Remove from Sold tab if it was there
     const soldEntry = state.soldData[key];
@@ -1774,7 +1776,7 @@ async function saveItem() {
     // Remove from My Collection
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:M${existing.row}`, [['','','','','','','','','','','','','']]);
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:N${existing.row}`, [['','','','','','','','','','','','','']]);
     }
     // Write to Sold tab
     const soldRow = [
@@ -1795,7 +1797,7 @@ async function saveItem() {
     // Remove from My Collection if present
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:M${existing.row}`, [['','','','','','','','','','','','','']]);
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:N${existing.row}`, [['','','','','','','','','','','','','']]);
     }
     // Write/update Want List tab
     const wantRow = [
@@ -2013,6 +2015,7 @@ function getSteps(tab) {
       { id: 'hasBox',      title: 'Did it come with a box?',              type: 'choice2',  choices: ['Yes','No'], skipIf: (d) => !!d._attachToBox },
       { id: 'boxCond',     title: 'What condition is the box?',           type: 'slider',   min:1, max:10, skipIf: (d) => d.hasBox !== 'Yes' && !d._attachToBox || !!d._attachToBox },
       { id: 'pricePaid',   title: 'What did you pay?',                    type: 'pricePaid' },
+      { id: 'datePurchased', title: 'When did you purchase it?',          type: 'date',     optional: true },
       { id: 'photosItem',  title: 'Add photos of the item',               type: 'photos',   label: 'Item', max: 6 },
       { id: 'photosBox',   title: 'Add photos of the box',                type: 'photos',   label: 'Box',  max: 6, skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox },
       { id: 'userEstWorth', title: 'What do you estimate it is worth?',     type: 'money', placeholder: '0.00', optional: true },
@@ -2299,8 +2302,11 @@ function renderWizardStep() {
     const itemNum = (wizard.data.itemNum || '').trim();
     const matchKeys = Object.keys(state.personalData).filter(k => {
       const pd = state.personalData[k];
+      // Show all owned rows for this item number
+      // Include rows with real item info (condition not N/A or empty)
       return k.startsWith(itemNum + '|') && pd.owned;
     });
+    console.log('pickSoldItem matchKeys for', itemNum, ':', matchKeys, 'personalData keys:', Object.keys(state.personalData).filter(k => k.startsWith(itemNum + '|')));
     const selected = wizard.data.selectedSoldKey || '';
     body.innerHTML = `
       <div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.5rem">
@@ -2624,10 +2630,11 @@ async function saveWizardItem() {
         const ex = existing || {};
         const itemExists = !!existing;
         // Compute item+box complete price if we have both
-        const itemPrice = parseFloat(ex.priceItem) || 0;
+        const itemPrice = parseFloat(ex.priceItem && ex.priceItem !== 'N/A' ? ex.priceItem : 0) || 0;
         const boxPrice  = parseFloat(d.priceBox) || 0;
         const completePrice = (itemPrice > 0 && boxPrice > 0)
           ? (itemPrice + boxPrice).toFixed(2)
+          : boxPrice > 0 ? d.priceBox  // just the box price when no item price
           : (ex.priceComplete || '');
         row = [
           itemNum,
@@ -2642,7 +2649,8 @@ async function saveWizardItem() {
           ex.photoItem || '',
           boxPhotos[0] || '',
           d.notes || ex.notes || '',
-          d.userEstWorth || '',
+          d.purchaseDate || ex.datePurchased || '',
+          d.userEstWorth || ex.userEstWorth || '',
         ];
       } else {
         const calcComplete = (parseFloat(d.priceItem)||0) + (parseFloat(d.priceBox)||0);
@@ -2658,6 +2666,7 @@ async function saveWizardItem() {
           photos[0] || '',
           boxPhotos[0] || '',
           d.notes || '',
+          d.datePurchased || '',
           d.userEstWorth || '',
         ];
       }
@@ -2667,32 +2676,34 @@ async function saveWizardItem() {
         row[7]  = existing.hasBox      || 'Yes';
         row[8]  = existing.boxCond     || row[8];
         row[10] = existing.photoBox    || row[10];
-        // Auto-calc complete from item price + existing box price
+        row[12] = existing.datePurchased || row[12];
+        row[13] = d.userEstWorth || existing.userEstWorth || '';
         const fp = parseFloat(row[4]) || 0;
         const bp = parseFloat(row[5]) || 0;
         row[6] = fp > 0 && bp > 0 ? (fp + bp).toFixed(2) : (existing.priceComplete || '');
-        // Merge notes
         const newNote = row[11] || '';
         const exNote  = existing.notes || '';
         row[11] = [exNote, newNote].filter(Boolean).join(' | ');
-        await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:M${existing.row}`, [row]);
+        await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:N${existing.row}`, [row]);
       } else if (d._attachToBox && existing?.row) {
         // Attaching item to existing box row — preserve box data, merge notes
         row[2]  = d.condition || row[2];           // always use entered condition
-        row[5]  = existing.priceBox    || row[5];
+        row[5]  = existing.priceBox    || row[5];  // keep box price
         row[7]  = existing.hasBox      || 'Yes';
-        row[8]  = existing.boxCond     || row[8];
-        row[10] = existing.photoBox    || row[10];
+        row[8]  = existing.boxCond     || row[8];  // keep box condition
+        row[10] = existing.photoBox    || row[10]; // keep box photo
+        row[12] = existing.datePurchased || row[12]; // keep date
+        row[13] = d.userEstWorth || existing.userEstWorth || row[13];
         const fp2 = parseFloat(row[4]) || 0;
         const bp2 = parseFloat(row[5]) || 0;
         row[6] = fp2 > 0 && bp2 > 0 ? (fp2 + bp2).toFixed(2) : (existing.priceComplete || '');
         const newNote2 = row[11] || '';
         const exNote2  = existing.notes || '';
         row[11] = [exNote2, newNote2].filter(Boolean).join(' | ');
-        await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:M${existing.row}`, [row]);
+        await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:N${existing.row}`, [row]);
       } else {
         // Always append for a plain new collection add — never overwrite existing rows
-        await sheetsAppend(state.personalSheetId, 'My Collection!A:M', [row]);
+        await sheetsAppend(state.personalSheetId, 'My Collection!A:N', [row]);
       }
 
     } else if (tab === 'sold') {
