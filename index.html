@@ -1686,10 +1686,16 @@ async function saveItem() {
 
   await loadPersonalData();
 
-  // Reset any active filters so the browse view refreshes correctly
+  // Reset all filters so the browse view shows everything
   state.filters.wantList = false;
   state.filters.owned = false;
   state.filters.unowned = false;
+  state.filters.boxed = false;
+  // Reset toggle button visual states
+  ['owned','unowned','boxed'].forEach(f => {
+    const el = document.getElementById('toggle-' + f);
+    if (el) el.classList.remove('on');
+  });
 
   closeModal();
   buildDashboard();
