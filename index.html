@@ -1686,8 +1686,14 @@ async function saveItem() {
 
   await loadPersonalData();
 
+  // Reset any active filters so the browse view refreshes correctly
+  state.filters.wantList = false;
+  state.filters.owned = false;
+  state.filters.unowned = false;
+
   closeModal();
   buildDashboard();
+  buildSoldPage();
   renderBrowse();
 }
 
