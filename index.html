@@ -1149,23 +1149,34 @@ async function completeSetup() {
 }
 
 async function initPersonalSheet(sheetId) {
-  // Write My Collection headers if empty
+  // Write My Collection title + headers if empty
   const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/My%20Collection!A1:M1`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/My%20Collection!A1:M2`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   const data = await res.json();
-  if (!data.values || !data.values[0] || data.values[0].length === 0) {
+  const rows = data.values || [];
+  if (rows.length === 0 || !rows[0] || rows[0].length === 0) {
+    // Brand new sheet — write title row 1 and headers row 2
+    await sheetsUpdate(sheetId, 'My Collection!A1:A1', [['My Collection']]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:M2', [PERSONAL_HEADERS]);
+  } else if (rows.length === 1 || !rows[1] || rows[1].length < 13) {
+    // Has title but missing/old headers — rewrite row 2
     await sheetsUpdate(sheetId, 'My Collection!A2:M2', [PERSONAL_HEADERS]);
   }
-  // Create Sold tab by writing headers there too
+  // Create Sold + Want List tabs and write their headers
   try {
+    await sheetsUpdate(sheetId, 'Sold!A1:A1', [['Sold']]);
     await sheetsUpdate(sheetId, 'Sold!A2:H2', [SOLD_HEADERS]);
   } catch(e) {
-    // Tab may not exist yet - create it via batch update
     await createSoldTab(sheetId);
+    await sheetsUpdate(sheetId, 'Sold!A1:A1', [['Sold']]);
     await sheetsUpdate(sheetId, 'Sold!A2:H2', [SOLD_HEADERS]);
   }
+  try {
+    await sheetsUpdate(sheetId, 'Want List!A1:A1', [['Want List']]);
+    await sheetsUpdate(sheetId, 'Want List!A2:E2', [WANT_HEADERS]);
+  } catch(e) {}
 }
 
 async function createSoldTab(sheetId) {
@@ -1266,8 +1277,9 @@ async function createPersonalSheet() {
   state.personalSheetId = data.spreadsheetId;
   localStorage.setItem('lv_personal_id', state.personalSheetId);
 
-  // Write headers
-  await sheetsUpdate(state.personalSheetId, 'My Collection!A1:N1', [PERSONAL_HEADERS]);
+  // Write title row 1 and headers row 2
+  await sheetsUpdate(state.personalSheetId, 'My Collection!A1:A1', [['My Collection']]);
+  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:M2', [PERSONAL_HEADERS]);
   return state.personalSheetId;
 }
 
