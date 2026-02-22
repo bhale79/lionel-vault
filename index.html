@@ -2534,12 +2534,32 @@ async function saveWizardItem() {
         ];
       }
       if (d._fillItemMode && existing?.row) {
-        // Filling item info into a box-only row — preserve box fields, update item fields
-        row[6] = existing.priceBox || row[6];      // keep box price
-        row[7] = existing.priceComplete || row[7]; // keep complete price
-        row[8] = 'Yes';                            // keep has box
-        row[9] = existing.boxCond || row[9];       // keep box condition
-        row[11] = existing.photoBox || row[11];    // keep box photo
+        // Preserve ALL box fields, update only item fields
+        row[6]  = existing.priceBox    || row[6];
+        row[8]  = existing.hasBox      || 'Yes';
+        row[9]  = existing.boxCond     || row[9];
+        row[11] = existing.photoBox    || row[11];
+        // Auto-calc complete from item price + existing box price
+        const fp = parseFloat(row[5]) || 0;
+        const bp = parseFloat(row[6]) || 0;
+        row[7] = fp > 0 && bp > 0 ? (fp + bp).toFixed(2) : (existing.priceComplete || '');
+        // Merge notes
+        const newNote = row[12] || '';
+        const exNote  = existing.notes || '';
+        row[12] = [exNote, newNote].filter(Boolean).join(' | ');
+        await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:M${existing.row}`, [row]);
+      } else if (d._attachToBox && existing?.row) {
+        // Attaching item to existing box row — preserve box data, merge notes
+        row[6]  = existing.priceBox    || row[6];
+        row[8]  = existing.hasBox      || 'Yes';
+        row[9]  = existing.boxCond     || row[9];
+        row[11] = existing.photoBox    || row[11];
+        const fp2 = parseFloat(row[5]) || 0;
+        const bp2 = parseFloat(row[6]) || 0;
+        row[7] = fp2 > 0 && bp2 > 0 ? (fp2 + bp2).toFixed(2) : (existing.priceComplete || '');
+        const newNote2 = row[12] || '';
+        const exNote2  = existing.notes || '';
+        row[12] = [exNote2, newNote2].filter(Boolean).join(' | ');
         await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:M${existing.row}`, [row]);
       } else if (d.boxOnly && existing?.hasBox === 'Yes') {
         // Already has a box — append as a new row
