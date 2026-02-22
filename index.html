@@ -1248,7 +1248,7 @@ async function loadPersonalData() {
   const res = await sheetsGet(state.personalSheetId, 'My Collection!A2:M');
   const rows = res.values || [];
   rows.forEach((r, idx) => {
-    if (!r[0]) return;
+    if (!r[0] || r[0] === 'Item Number') return; // skip header row if present
     const key = `${r[0]}|${r[1] || ''}`;
     state.personalData[key] = {
       row:          idx + 2,
@@ -1276,7 +1276,7 @@ async function loadPersonalData() {
     const soldRows = soldRes.values || [];
     console.log('Sold rows loaded:', soldRows.length);
     soldRows.forEach((r, idx) => {
-      if (!r[0]) return;
+      if (!r[0] || r[0] === 'Item Number') return; // skip header row if present
       const key = `${r[0]}|${r[1] || ''}`;
       state.soldData[key] = {
         row:       idx + 2,
@@ -1298,7 +1298,7 @@ async function loadPersonalData() {
     const wantRows = wantRes.values || [];
     console.log('Want rows loaded:', wantRows.length);
     wantRows.forEach((r, idx) => {
-      if (!r[0]) return;
+      if (!r[0] || r[0] === 'Item Number') return; // skip header row if present
       const key = `${r[0]}|${r[1] || ''}`;
       state.wantData[key] = {
         row:           idx + 2,
