@@ -2282,13 +2282,13 @@ async function saveWizardItem() {
     }
 
     closeWizard();
+    // Small delay to ensure Google Sheets has committed the data
+    await new Promise(r => setTimeout(r, 800));
     await loadPersonalData();
     resetFilters();
     buildDashboard();
     buildSoldPage();
     renderBrowse();
-
-    // Show success toast
     showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
 
   } catch(e) {
