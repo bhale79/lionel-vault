@@ -1981,19 +1981,21 @@ function getSteps(tab) {
       { id: 'confirm',     title: 'Ready to save!',                       type: 'confirm' },
     ];
   } else if (tab === 'sold') {
-    return [...base,
-      { id: 'pickSoldItem', title: 'Which item are you selling?',         type: 'pickSoldItem',
+    return [
+      { id: 'tab',          title: 'What would you like to add?',         type: 'choice' },
+      { id: 'itemNum',      title: 'What is the Lionel item number?',      type: 'text',        placeholder: 'e.g. 726, 2046, 6464-1' },
+      { id: 'pickSoldItem', title: 'Which item are you selling?',          type: 'pickSoldItem',
         skipIf: (d) => {
           const matches = Object.keys(state.personalData).filter(k => k.startsWith((d.itemNum||'').trim() + '|'));
-          return matches.length === 0; // skip if not in collection
+          return matches.length === 0; // not in collection — skip picker
         }
       },
-      { id: 'condition',  title: 'What condition was the item?',          type: 'slider',  min:1, max:10 },
-      { id: 'priceItem',  title: 'What did you originally pay for it?',   type: 'money',   placeholder: '0.00', optional: true },
-      { id: 'salePrice',  title: 'What did you sell it for?',             type: 'money',   placeholder: '0.00' },
-      { id: 'dateSold',   title: 'When did you sell it?',                 type: 'date',    optional: true },
-      { id: 'notes',      title: 'Any notes about the sale?',             type: 'textarea', optional: true },
-      { id: 'confirm',    title: 'Ready to save!',                        type: 'confirm' },
+      { id: 'condition',    title: 'What condition was the item?',         type: 'slider',      min:1, max:10 },
+      { id: 'priceItem',    title: 'What did you originally pay for it?',  type: 'money',       placeholder: '0.00', optional: true },
+      { id: 'salePrice',    title: 'What did you sell it for?',            type: 'money',       placeholder: '0.00' },
+      { id: 'dateSold',     title: 'When did you sell it?',                type: 'date',        optional: true },
+      { id: 'notes',        title: 'Any notes about the sale?',            type: 'textarea',    optional: true },
+      { id: 'confirm',      title: 'Ready to save!',                       type: 'confirm' },
     ];
   } else { // want
     return [...base,
@@ -2648,19 +2650,30 @@ async function saveWizardItem() {
       }
 
     } else if (tab === 'sold') {
+      // If user picked a collection row, pull its data and clear it from My Collection
+      const collectionEntry = d.selectedSoldKey ? state.personalData[d.selectedSoldKey] : null;
+      const soldVariation = collectionEntry ? (collectionEntry.variation || '') : variation;
+      const soldCondition = d.condition || (collectionEntry?.condition !== 'N/A' ? collectionEntry?.condition : '') || '';
+      const soldPricePaid = d.priceItem || (collectionEntry?.priceItem !== 'N/A' ? collectionEntry?.priceItem : '') || '';
+
       const row = [
-        itemNum, variation, '1',
-        d.condition || '',
-        d.priceItem || '',
+        itemNum, soldVariation, '1',
+        soldCondition,
+        soldPricePaid,
         d.salePrice || '',
         d.dateSold || '',
         d.notes || '',
       ];
-      const existing = state.soldData[key];
-      if (existing?.row) {
-        await sheetsUpdate(state.personalSheetId, `Sold!A${existing.row}:H${existing.row}`, [row]);
+      const soldKey = `${itemNum}|${soldVariation}`;
+      const existingSold = state.soldData[soldKey];
+      if (existingSold?.row) {
+        await sheetsUpdate(state.personalSheetId, `Sold!A${existingSold.row}:H${existingSold.row}`, [row]);
       } else {
         await sheetsAppend(state.personalSheetId, 'Sold!A:H', [row]);
+      }
+      // Clear from My Collection if it came from there
+      if (collectionEntry?.row) {
+        await sheetsUpdate(state.personalSheetId, `My Collection!A${collectionEntry.row}:M${collectionEntry.row}`, [['','','','','','','','','','','','','']]);
       }
 
     } else if (tab === 'want') {
