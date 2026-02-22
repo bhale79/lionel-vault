@@ -2284,15 +2284,40 @@ function lookupItem(num) {
   wizard.matchedItem = match || null;
   const el = document.getElementById('wiz-match');
   if (!el) return;
-  if (match) {
-    el.innerHTML = `<div style="background:rgba(46,204,113,0.1);border:1px solid var(--green);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
-      <span style="color:var(--green)">✓ Found:</span> ${match.roadName || match.itemType || ''} · ${match.yearProd || ''} · ${match.itemType || ''}
-      ${match.variation ? '<br><span style="color:var(--text-dim)">Note: multiple variations exist — enter variation on next step</span>' : ''}
-    </div>`;
-  } else if (num.trim().length > 0) {
-    el.innerHTML = `<div style="font-size:0.8rem;color:var(--text-dim)">Not found in master inventory — will save anyway</div>`;
+  const trimmed = num.trim();
+  if (!trimmed) { el.innerHTML = ''; return; }
+
+  if (wizard.data.boxOnly) {
+    // Box-only mode: show collection status
+    const collectionKey = Object.keys(state.personalData).find(k => k.startsWith(trimmed + '|'));
+    const inCollection = !!collectionKey;
+    const pd = inCollection ? state.personalData[collectionKey] : null;
+    if (match) {
+      el.innerHTML = `<div style="border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem;
+        background:rgba(46,204,113,0.1);border:1px solid var(--green)">
+        <div><span style="color:var(--green)">✓ Found in catalog:</span> ${match.roadName || match.itemType || ''} · ${match.yearProd || ''}</div>
+        <div style="margin-top:0.4rem;padding-top:0.4rem;border-top:1px solid rgba(255,255,255,0.08)">
+          ${inCollection
+            ? `<span style="color:var(--green)">✓ In your collection</span> · Condition: ${pd.condition || '?'} · Has box: ${pd.hasBox || 'No'}`
+            : `<span style="color:var(--accent2)">⚠ Box will be listed under Lionel Number ${trimmed}</span>`}
+        </div>
+      </div>`;
+    } else {
+      el.innerHTML = `<div style="background:rgba(245,166,35,0.1);border:1px solid var(--accent2);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
+        <span style="color:var(--accent2)">⚠ Not found in catalog</span> — will save box info anyway
+        ${inCollection ? '<br><span style="color:var(--green)">✓ Found in your collection</span>' : ''}
+      </div>`;
+    }
   } else {
-    el.innerHTML = '';
+    // Normal mode: show catalog match
+    if (match) {
+      el.innerHTML = `<div style="background:rgba(46,204,113,0.1);border:1px solid var(--green);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
+        <span style="color:var(--green)">✓ Found:</span> ${match.roadName || match.itemType || ''} · ${match.yearProd || ''} · ${match.itemType || ''}
+        ${match.variation ? '<br><span style="color:var(--text-dim)">Note: multiple variations exist — select on next step</span>' : ''}
+      </div>`;
+    } else {
+      el.innerHTML = `<div style="font-size:0.8rem;color:var(--text-dim)">Not found in master inventory — will save anyway</div>`;
+    }
   }
 }
 
@@ -2358,19 +2383,25 @@ async function saveWizardItem() {
       if (d.boxOnly) {
         const ex = existing || {};
         const itemExists = !!existing;
+        // Compute item+box complete price if we have both
+        const itemPrice = parseFloat(ex.priceItem) || 0;
+        const boxPrice  = parseFloat(d.priceBox) || 0;
+        const completePrice = (itemPrice > 0 && boxPrice > 0)
+          ? (itemPrice + boxPrice).toFixed(2)
+          : (ex.priceComplete || '');
         row = [
           itemNum,
-          variation,
-          ex.copy || 'N/A',
-          ex.condition || 'N/A',        // item condition - N/A if not in collection
-          ex.allOriginal || 'N/A',
-          ex.priceItem || 'N/A',        // item price - N/A if not in collection
-          d.priceBox || '',             // box price paid
-          ex.priceComplete || '',
-          'Yes',                        // has box = Yes
-          d.boxCond || '',              // box condition
-          ex.photoItem || '',           // keep existing item photo
-          boxPhotos[0] || '',           // new box photo
+          itemExists ? (ex.variation || variation) : variation,
+          ex.copy || (itemExists ? '1' : 'N/A'),
+          ex.condition || (itemExists ? '' : 'N/A'),
+          ex.allOriginal || (itemExists ? '' : 'N/A'),
+          ex.priceItem || (itemExists ? '' : 'N/A'),
+          d.priceBox || '',
+          completePrice,
+          'Yes',
+          d.boxCond || '',
+          ex.photoItem || '',
+          boxPhotos[0] || '',
           d.notes || ex.notes || '',
         ];
       } else {
