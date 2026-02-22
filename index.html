@@ -2012,6 +2012,7 @@ function getSteps(tab) {
     }
     return [...base,
       { id: 'condition',   title: 'What condition is the item?',          type: 'slider',   min:1, max:10, skipIf: () => false },
+      { id: 'allOriginal', title: 'Is it all original parts?',             type: 'choice3',  choices: ['Yes','No','Unknown'] },
       { id: 'hasBox',      title: 'Did it come with a box?',              type: 'choice2',  choices: ['Yes','No'], skipIf: (d) => !!d._attachToBox },
       { id: 'boxCond',     title: 'What condition is the box?',           type: 'slider',   min:1, max:10, skipIf: (d) => d.hasBox !== 'Yes' && !d._attachToBox || !!d._attachToBox },
       { id: 'pricePaid',   title: 'What did you pay?',                    type: 'pricePaid' },
@@ -2581,6 +2582,11 @@ async function wizardNext() {
     return;
   }
 
+  // Commit slider default if user never moved it
+  if (s.type === 'slider' && (wizard.data[s.id] === undefined || wizard.data[s.id] === null)) {
+    wizard.data[s.id] = 7;
+  }
+
   // Advance
   wizard.step++;
 
@@ -2657,7 +2663,7 @@ async function saveWizardItem() {
         row = [
           itemNum, variation,
           d.condition || '',
-          '',
+          d.allOriginal || '',
           d.priceItem || '',
           d.priceBox || '',
           calcComplete > 0 ? calcComplete.toFixed(2) : '',
