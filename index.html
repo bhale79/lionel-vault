@@ -1915,13 +1915,15 @@ function getSteps(tab) {
     // Box-only mode: skip item condition/price, only ask box info
     if (wizard.data.boxOnly) {
       return [
-        { id: 'itemNum',    title: 'Which item is this box for?',          type: 'text',      placeholder: 'e.g. 726, 2046, 6464-1' },
-        { id: 'variation',  title: 'Which variation is it?',               type: 'variation', optional: true },
-        { id: 'boxCond',    title: 'What condition is the box?',           type: 'slider',    min:1, max:10 },
-        { id: 'priceBox',   title: 'What did you pay for the box?',        type: 'money',     placeholder: '0.00', optional: true },
-        { id: 'photosBox',  title: 'Add photos of the box',                type: 'photos',    label: 'Box', max: 6 },
-        { id: 'notes',      title: 'Any notes about this box?',            type: 'textarea',  optional: true },
-        { id: 'confirm',    title: 'Ready to save box info!',              type: 'confirm' },
+        { id: 'tab',           title: 'What would you like to add?',       type: 'choice' },
+        { id: 'itemNum',       title: 'What is the Lionel item number?',    type: 'text',     placeholder: 'e.g. 726, 2046, 6464-1' },
+        { id: 'variation',     title: 'Which variation is it?',             type: 'variation', optional: true },
+        { id: 'boxCond',       title: 'What condition is the box?',         type: 'slider',   min:1, max:10 },
+        { id: 'priceBox',      title: 'What did you pay for the box?',      type: 'money',    placeholder: '0.00', optional: true },
+        { id: 'purchaseDate',  title: 'When did you buy the box?',          type: 'date',     optional: true },
+        { id: 'estValue',      title: "What do you think the box is worth?", type: 'money',   placeholder: '0.00', optional: true },
+        { id: 'notes',         title: 'Any notes about this box?',          type: 'textarea', optional: true },
+        { id: 'confirm',       title: 'Ready to save box info!',            type: 'confirm' },
       ];
     }
     return [...base,
@@ -1995,7 +1997,6 @@ function renderWizardStep() {
 
   if (s.type === 'choice') {
     // First step - choose tab
-    const boxOnlyChecked = wizard.data.boxOnly || false;
     body.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:0.75rem;padding-top:0.5rem">
         ${[['collection','✓ My Collection','Add an item you own','var(--green)'],
@@ -2014,24 +2015,7 @@ function renderWizardStep() {
               <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.15rem">${desc}</div>
             </div>
           </button>`).join('')}
-        <label onclick="toggleBoxOnly()" style="
-          display:flex;align-items:center;gap:0.75rem;padding:0.85rem 1rem;
-          border-radius:10px;border:2px solid ${boxOnlyChecked ? 'var(--accent2)' : 'var(--border)'};
-          background:${boxOnlyChecked ? 'rgba(245,166,35,0.1)' : 'var(--surface2)'};
-          cursor:pointer;transition:all 0.15s;
-        ">
-          <div style="
-            width:20px;height:20px;border-radius:5px;flex-shrink:0;
-            border:2px solid ${boxOnlyChecked ? 'var(--accent2)' : 'var(--border)'};
-            background:${boxOnlyChecked ? 'var(--accent2)' : 'transparent'};
-            display:flex;align-items:center;justify-content:center;
-            font-size:0.75rem;color:white;transition:all 0.15s;
-          ">${boxOnlyChecked ? '✓' : ''}</div>
-          <div>
-            <div style="font-weight:600;font-size:0.9rem;color:var(--text)">Adding a box only</div>
-            <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">I bought a separate box for an item I already own</div>
-          </div>
-        </label>
+
       </div>`;
 
   } else if (s.type === 'variation') {
@@ -2079,6 +2063,8 @@ function renderWizardStep() {
 
   } else if (s.type === 'text') {
     const val = wizard.data[s.id] || '';
+    const showBoxOnly = s.id === 'itemNum' && wizard.tab === 'collection';
+    const boxOnlyChecked = wizard.data.boxOnly || false;
     body.innerHTML = `
       <div style="padding-top:0.75rem">
         <input type="text" id="wiz-input" value="${val}" placeholder="${s.placeholder || ''}"
@@ -2088,6 +2074,25 @@ function renderWizardStep() {
           onkeydown="if(event.key==='Enter')wizardNext()">
         ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
         <div id="wiz-match" style="margin-top:0.75rem"></div>
+        ${showBoxOnly ? `
+        <label onclick="toggleBoxOnly()" style="
+          display:flex;align-items:center;gap:0.75rem;padding:0.85rem 1rem;margin-top:0.75rem;
+          border-radius:10px;border:2px solid ${boxOnlyChecked ? 'var(--accent2)' : 'var(--border)'};
+          background:${boxOnlyChecked ? 'rgba(245,166,35,0.1)' : 'var(--surface2)'};
+          cursor:pointer;transition:all 0.15s;
+        ">
+          <div style="
+            width:20px;height:20px;border-radius:5px;flex-shrink:0;
+            border:2px solid ${boxOnlyChecked ? 'var(--accent2)' : 'var(--border)'};
+            background:${boxOnlyChecked ? 'var(--accent2)' : 'transparent'};
+            display:flex;align-items:center;justify-content:center;
+            font-size:0.75rem;color:white;font-weight:700;transition:all 0.15s;
+          ">${boxOnlyChecked ? '✓' : ''}</div>
+          <div>
+            <div style="font-weight:600;font-size:0.9rem;color:var(--text)">Adding box info only</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">I bought a separate box for this item</div>
+          </div>
+        </label>` : ''}
       </div>`;
     setTimeout(() => {
       const inp = document.getElementById('wiz-input');
@@ -2248,11 +2253,8 @@ function wizardChoose(field, val) {
 
 function toggleBoxOnly() {
   wizard.data.boxOnly = !wizard.data.boxOnly;
-  // If box-only selected, auto-select collection tab
-  if (wizard.data.boxOnly) {
-    wizard.tab = 'collection';
-    wizard.data.tab = 'collection';
-  }
+  // Reset the step list so it picks up new boxOnly steps
+  wizard.steps = getSteps(wizard.tab);
   renderWizardStep();
 }
 
@@ -2355,19 +2357,21 @@ async function saveWizardItem() {
       const existing = state.personalData[key];
       let row;
       if (d.boxOnly) {
-        // Box-only mode: merge box data into existing owned row, preserving item fields
         const ex = existing || {};
+        const itemExists = !!existing;
         row = [
-          itemNum, variation, ex.copy || '1',
-          ex.condition || '',
-          ex.allOriginal || '',
-          ex.priceItem || '',
-          d.priceBox || '',
+          itemNum,
+          variation,
+          ex.copy || 'N/A',
+          ex.condition || 'N/A',        // item condition - N/A if not in collection
+          ex.allOriginal || 'N/A',
+          ex.priceItem || 'N/A',        // item price - N/A if not in collection
+          d.priceBox || '',             // box price paid
           ex.priceComplete || '',
-          'Yes',
-          d.boxCond || '',
-          ex.photoItem || '',
-          boxPhotos[0] || '',
+          'Yes',                        // has box = Yes
+          d.boxCond || '',              // box condition
+          ex.photoItem || '',           // keep existing item photo
+          boxPhotos[0] || '',           // new box photo
           d.notes || ex.notes || '',
         ];
       } else {
