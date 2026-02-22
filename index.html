@@ -2003,8 +2003,7 @@ function getSteps(tab) {
         { id: 'boxCond',       title: 'What condition is the box?',         type: 'slider',   min:1, max:10 },
         { id: 'priceBox',      title: 'What did you pay for the box?',      type: 'money',    placeholder: '0.00', optional: true },
         { id: 'purchaseDate',  title: 'When did you buy the box?',          type: 'date',     optional: true },
-        { id: 'estValue',      title: "What do you think the box is worth?", type: 'money',   placeholder: '0.00', optional: true },
-        { id: 'userEstWorth',  title: 'What do you think this box is worth?', type: 'money', placeholder: '0.00', optional: true },
+        { id: 'userEstWorth',  title: 'What do you estimate it is worth?',  type: 'money',    placeholder: '0.00', optional: true },
         { id: 'notes',         title: 'Any notes about this box?',          type: 'textarea', optional: true },
         { id: 'confirm',       title: 'Ready to save box info!',            type: 'confirm' },
       ];
@@ -2016,7 +2015,7 @@ function getSteps(tab) {
       { id: 'pricePaid',   title: 'What did you pay?',                    type: 'pricePaid' },
       { id: 'photosItem',  title: 'Add photos of the item',               type: 'photos',   label: 'Item', max: 6 },
       { id: 'photosBox',   title: 'Add photos of the box',                type: 'photos',   label: 'Box',  max: 6, skipIf: (d) => d.hasBox !== 'Yes' && !d._attachToBox },
-      { id: 'userEstWorth', title: 'What do you think this item is worth?', type: 'money', placeholder: '0.00', optional: true },
+      { id: 'userEstWorth', title: 'What do you estimate it is worth?',     type: 'money', placeholder: '0.00', optional: true },
       { id: 'notes',       title: 'Any notes about this item?',           type: 'textarea', optional: true },
       { id: 'confirm',     title: 'Ready to save!',                       type: 'confirm' },
     ];
