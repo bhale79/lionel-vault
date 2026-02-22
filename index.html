@@ -652,9 +652,7 @@
           <select class="filter-select" id="filter-road" onchange="applyFilters()">
             <option value="">All Roads</option>
           </select>
-          <button class="filter-toggle" id="toggle-owned" onclick="toggleFilter('owned')">Owned Only</button>
-          <button class="filter-toggle" id="toggle-unowned" onclick="toggleFilter('unowned')">Want List</button>
-          <button class="filter-toggle" id="toggle-boxed" onclick="toggleFilter('boxed')">Has Box</button>
+
           <span style="margin-left:auto;font-size:0.8rem;color:var(--text-dim)" id="result-count"></span>
         </div>
 
@@ -1440,13 +1438,10 @@ function resetFilters() {
   state.currentPage = 1;
   document.getElementById('filter-type').value = '';
   document.getElementById('filter-road').value = '';
-  ['owned','unowned','boxed'].forEach(f => {
-    const el = document.getElementById('toggle-' + f);
-    if (el) el.classList.remove('on');
-  });
+
 }
 
-function filterOwned() { resetFilters(); state.filters.owned = true; document.getElementById('toggle-owned').classList.add('on'); renderBrowse(); }
+function filterOwned() { resetFilters(); state.filters.owned = true; renderBrowse(); }
 function filterWanted() {
   resetFilters();
   state.filters.wantList = true;
@@ -1706,10 +1701,7 @@ async function saveItem() {
   state.filters.unowned = false;
   state.filters.boxed = false;
   // Reset toggle button visual states
-  ['owned','unowned','boxed'].forEach(f => {
-    const el = document.getElementById('toggle-' + f);
-    if (el) el.classList.remove('on');
-  });
+
 
   closeModal();
   buildDashboard();
