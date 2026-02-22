@@ -1222,6 +1222,36 @@ async function sheetsAppend(spreadsheetId, range, values) {
   return result;
 }
 
+async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber) {
+  // First get the sheetId (numeric) for the named tab
+  const metaRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const meta = await metaRes.json();
+  const sheet = meta.sheets.find(s => s.properties.title === sheetName);
+  if (!sheet) return;
+  const sheetId = sheet.properties.sheetId;
+
+  // Delete the row (0-indexed, startIndex = rowNumber-1)
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      requests: [{
+        deleteDimension: {
+          range: {
+            sheetId,
+            dimension: 'ROWS',
+            startIndex: rowNumber - 1,
+            endIndex: rowNumber
+          }
+        }
+      }]
+    })
+  });
+}
+
 async function createPersonalSheet() {
   // Create new spreadsheet
   const res = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
@@ -2258,10 +2288,14 @@ function renderWizardStep() {
 
   } else if (s.type === 'pickSoldItem') {
     const itemNum = (wizard.data.itemNum || '').trim();
-    const matchKeys = Object.keys(state.personalData).filter(k => k.startsWith(itemNum + '|'));
+    const matchKeys = Object.keys(state.personalData).filter(k => {
+      const pd = state.personalData[k];
+      return k.startsWith(itemNum + '|') && pd.owned;
+    });
     const selected = wizard.data.selectedSoldKey || '';
     body.innerHTML = `
       <div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.5rem">
+        ${matchKeys.length === 0 ? '<div style="color:var(--text-dim);font-size:0.85rem">No owned items found for this number.</div>' : ''}
         ${matchKeys.map(k => {
           const pd = state.personalData[k];
           const isSelected = selected === k;
@@ -2631,6 +2665,7 @@ async function saveWizardItem() {
         await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:M${existing.row}`, [row]);
       } else if (d._attachToBox && existing?.row) {
         // Attaching item to existing box row — preserve box data, merge notes
+        row[3]  = d.condition || row[3];           // always use entered condition
         row[6]  = existing.priceBox    || row[6];
         row[8]  = existing.hasBox      || 'Yes';
         row[9]  = existing.boxCond     || row[9];
@@ -2669,9 +2704,9 @@ async function saveWizardItem() {
       } else {
         await sheetsAppend(state.personalSheetId, 'Sold!A:H', [row]);
       }
-      // Clear from My Collection if it came from there
+      // Delete the row from My Collection
       if (collectionEntry?.row) {
-        await sheetsUpdate(state.personalSheetId, `My Collection!A${collectionEntry.row}:M${collectionEntry.row}`, [['','','','','','','','','','','','','']]);
+        await sheetsDeleteRow(state.personalSheetId, 'My Collection', collectionEntry.row);
       }
 
     } else if (tab === 'want') {
