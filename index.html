@@ -1990,8 +1990,10 @@ function getSteps(tab) {
           return matches.length === 0; // not in collection — skip picker
         }
       },
-      { id: 'condition',    title: 'What condition was the item?',         type: 'slider',      min:1, max:10 },
-      { id: 'priceItem',    title: 'What did you originally pay for it?',  type: 'money',       placeholder: '0.00', optional: true },
+      { id: 'condition',    title: 'What condition was the item?',         type: 'slider',      min:1, max:10,
+        skipIf: (d) => !!d.selectedSoldKey },
+      { id: 'priceItem',    title: 'What did you originally pay for it?',  type: 'money',       placeholder: '0.00', optional: true,
+        skipIf: (d) => !!d.selectedSoldKey },
       { id: 'salePrice',    title: 'What did you sell it for?',            type: 'money',       placeholder: '0.00' },
       { id: 'dateSold',     title: 'When did you sell it?',                type: 'date',        optional: true },
       { id: 'notes',        title: 'Any notes about the sale?',            type: 'textarea',    optional: true },
