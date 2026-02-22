@@ -992,9 +992,9 @@ const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googlea
 const API_KEY = 'AIzaSyBjwyQ7qvqrH0goUVidOO0Da9hVQWOzvI8'; // Replace with your Google Cloud API key
 const PERSONAL_SHEET_NAME = 'Lionel Vault — My Collection';
 const PERSONAL_HEADERS = [
-  'Item Number','Variation','Copy #','Condition (1-10)','All Original',
+  'Item Number','Variation','Condition (1-10)','All Original',
   'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
-  'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes'
+  'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes','User Est. Worth'
 ];
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
@@ -1330,19 +1330,19 @@ async function loadPersonalData() {
       row:          idx + 3,
       itemNum:      r[0]  || '',
       variation:    r[1]  || '',
-      copy:         r[2]  || '1',
       status:       'Owned',
       owned:        true,
-      condition:    r[3]  || '',
-      allOriginal:  r[4]  || '',
-      priceItem:    r[5]  || '',
-      priceBox:     r[6]  || '',
-      priceComplete:r[7]  || '',
-      hasBox:       r[8]  || '',
-      boxCond:      r[9]  || '',
-      photoItem:    r[10] || '',
-      photoBox:     r[11] || '',
-      notes:        r[12] || '',
+      condition:    r[2]  || '',
+      allOriginal:  r[3]  || '',
+      priceItem:    r[4]  || '',
+      priceBox:     r[5]  || '',
+      priceComplete:r[6]  || '',
+      hasBox:       r[7]  || '',
+      boxCond:      r[8]  || '',
+      photoItem:    r[9]  || '',
+      photoBox:     r[10] || '',
+      notes:        r[11] || '',
+      userEstWorth: r[12] || '',
     };
   });
   } catch(e) { console.error('My Collection load error:', e); }
@@ -1406,20 +1406,16 @@ function showLoading() {
 // ── DASHBOARD ───────────────────────────────────────────────────
 function buildDashboard() {
   const total = state.masterData.length;
-  const ownedItems = state.masterData.filter(item => {
-    const key = `${item.itemNum}|${item.variation}`;
-    return !!state.personalData[key];
-  });
-  console.log('ownedItems count:', ownedItems.length, '| personalData keys:', Object.keys(state.personalData), '| sample master key:', state.masterData.length > 0 ? `${state.masterData[0].itemNum}|${state.masterData[0].variation}` : 'none');
-  const owned = ownedItems.length;
+  // Count ALL owned entries including box-only rows
+  const allOwned = Object.values(state.personalData).filter(pd => pd.owned);
+  const owned = allOwned.length;
   const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
 
   let totalValue = 0, condSum = 0, condCount = 0, boxedCount = 0, origCount = 0;
-  ownedItems.forEach(item => {
-    const pd = state.personalData[`${item.itemNum}|${item.variation}`];
+  allOwned.forEach(pd => {
     if (pd.priceComplete) totalValue += parseFloat(pd.priceComplete) || 0;
     else if (pd.priceItem) totalValue += parseFloat(pd.priceItem) || 0;
-    if (pd.condition) { condSum += parseInt(pd.condition); condCount++; }
+    if (pd.condition && pd.condition !== 'N/A') { const c = parseInt(pd.condition); if (!isNaN(c)) { condSum += c; condCount++; } }
     if (pd.hasBox === 'Yes') boxedCount++;
     if (pd.allOriginal === 'Yes') origCount++;
   });
@@ -1638,7 +1634,7 @@ function openItem(idx) {
   document.getElementById('fc-want-price').value = wd.expectedPrice || '';
   document.getElementById('fc-want-notes').value = wd.notes || '';
 
-  document.getElementById('fc-copy').value = pd.copy || '1';
+  // copy field removed
   document.getElementById('fc-original').value = pd.allOriginal || 'Unknown';
   const cond = pd.condition || 7;
   document.getElementById('fc-condition').value = cond;
@@ -1996,6 +1992,7 @@ function getSteps(tab) {
         { id: 'priceBox',      title: 'What did you pay for the box?',      type: 'money',    placeholder: '0.00', optional: true },
         { id: 'purchaseDate',  title: 'When did you buy the box?',          type: 'date',     optional: true },
         { id: 'estValue',      title: "What do you think the box is worth?", type: 'money',   placeholder: '0.00', optional: true },
+        { id: 'userEstWorth',  title: 'What do you think this box is worth?', type: 'money', placeholder: '0.00', optional: true },
         { id: 'notes',         title: 'Any notes about this box?',          type: 'textarea', optional: true },
         { id: 'confirm',       title: 'Ready to save box info!',            type: 'confirm' },
       ];
@@ -2007,6 +2004,7 @@ function getSteps(tab) {
       { id: 'pricePaid',   title: 'What did you pay?',                    type: 'pricePaid' },
       { id: 'photosItem',  title: 'Add photos of the item',               type: 'photos',   label: 'Item', max: 6 },
       { id: 'photosBox',   title: 'Add photos of the box',                type: 'photos',   label: 'Box',  max: 6, skipIf: (d) => d.hasBox !== 'Yes' && !d._attachToBox },
+      { id: 'userEstWorth', title: 'What do you think this item is worth?', type: 'money', placeholder: '0.00', optional: true },
       { id: 'notes',       title: 'Any notes about this item?',           type: 'textarea', optional: true },
       { id: 'confirm',     title: 'Ready to save!',                       type: 'confirm' },
     ];
@@ -2620,7 +2618,6 @@ async function saveWizardItem() {
         row = [
           itemNum,
           itemExists ? (ex.variation || variation) : variation,
-          ex.copy || (itemExists ? '1' : 'N/A'),
           ex.condition || (itemExists ? '' : 'N/A'),
           ex.allOriginal || (itemExists ? '' : 'N/A'),
           ex.priceItem || (itemExists ? '' : 'N/A'),
@@ -2631,11 +2628,12 @@ async function saveWizardItem() {
           ex.photoItem || '',
           boxPhotos[0] || '',
           d.notes || ex.notes || '',
+          d.userEstWorth || '',
         ];
       } else {
         const calcComplete = (parseFloat(d.priceItem)||0) + (parseFloat(d.priceBox)||0);
         row = [
-          itemNum, variation, '1',
+          itemNum, variation,
           d.condition || '',
           '',
           d.priceItem || '',
@@ -2646,36 +2644,37 @@ async function saveWizardItem() {
           photos[0] || '',
           boxPhotos[0] || '',
           d.notes || '',
+          d.userEstWorth || '',
         ];
       }
       if (d._fillItemMode && existing?.row) {
         // Preserve ALL box fields, update only item fields
-        row[6]  = existing.priceBox    || row[6];
-        row[8]  = existing.hasBox      || 'Yes';
-        row[9]  = existing.boxCond     || row[9];
-        row[11] = existing.photoBox    || row[11];
+        row[5]  = existing.priceBox    || row[5];
+        row[7]  = existing.hasBox      || 'Yes';
+        row[8]  = existing.boxCond     || row[8];
+        row[10] = existing.photoBox    || row[10];
         // Auto-calc complete from item price + existing box price
-        const fp = parseFloat(row[5]) || 0;
-        const bp = parseFloat(row[6]) || 0;
-        row[7] = fp > 0 && bp > 0 ? (fp + bp).toFixed(2) : (existing.priceComplete || '');
+        const fp = parseFloat(row[4]) || 0;
+        const bp = parseFloat(row[5]) || 0;
+        row[6] = fp > 0 && bp > 0 ? (fp + bp).toFixed(2) : (existing.priceComplete || '');
         // Merge notes
-        const newNote = row[12] || '';
+        const newNote = row[11] || '';
         const exNote  = existing.notes || '';
-        row[12] = [exNote, newNote].filter(Boolean).join(' | ');
+        row[11] = [exNote, newNote].filter(Boolean).join(' | ');
         await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:M${existing.row}`, [row]);
       } else if (d._attachToBox && existing?.row) {
         // Attaching item to existing box row — preserve box data, merge notes
-        row[3]  = d.condition || row[3];           // always use entered condition
-        row[6]  = existing.priceBox    || row[6];
-        row[8]  = existing.hasBox      || 'Yes';
-        row[9]  = existing.boxCond     || row[9];
-        row[11] = existing.photoBox    || row[11];
-        const fp2 = parseFloat(row[5]) || 0;
-        const bp2 = parseFloat(row[6]) || 0;
-        row[7] = fp2 > 0 && bp2 > 0 ? (fp2 + bp2).toFixed(2) : (existing.priceComplete || '');
-        const newNote2 = row[12] || '';
+        row[2]  = d.condition || row[2];           // always use entered condition
+        row[5]  = existing.priceBox    || row[5];
+        row[7]  = existing.hasBox      || 'Yes';
+        row[8]  = existing.boxCond     || row[8];
+        row[10] = existing.photoBox    || row[10];
+        const fp2 = parseFloat(row[4]) || 0;
+        const bp2 = parseFloat(row[5]) || 0;
+        row[6] = fp2 > 0 && bp2 > 0 ? (fp2 + bp2).toFixed(2) : (existing.priceComplete || '');
+        const newNote2 = row[11] || '';
         const exNote2  = existing.notes || '';
-        row[12] = [exNote2, newNote2].filter(Boolean).join(' | ');
+        row[11] = [exNote2, newNote2].filter(Boolean).join(' | ');
         await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:M${existing.row}`, [row]);
       } else {
         // Always append for a plain new collection add — never overwrite existing rows
