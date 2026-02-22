@@ -1972,8 +1972,8 @@ function getSteps(tab) {
     }
     return [...base,
       { id: 'condition',   title: 'What condition is the item?',          type: 'slider',   min:1, max:10 },
-      { id: 'hasBox',      title: 'Did it come with a box?',              type: 'choice2',  choices: ['Yes','No'] },
-      { id: 'boxCond',     title: 'What condition is the box?',           type: 'slider',   min:1, max:10, skipIf: (d) => d.hasBox !== 'Yes' },
+      { id: 'hasBox',      title: 'Did it come with a box?',              type: 'choice2',  choices: ['Yes','No'], skipIf: (d) => !!d._attachToBox },
+      { id: 'boxCond',     title: 'What condition is the box?',           type: 'slider',   min:1, max:10, skipIf: (d) => d.hasBox !== 'Yes' && !d._attachToBox || !!d._attachToBox },
       { id: 'pricePaid',   title: 'What did you pay?',                    type: 'pricePaid' },
       { id: 'photosItem',  title: 'Add photos of the item',               type: 'photos',   label: 'Item', max: 6 },
       { id: 'photosBox',   title: 'Add photos of the box',                type: 'photos',   label: 'Box',  max: 6, skipIf: (d) => d.hasBox !== 'Yes' },
