@@ -1240,9 +1240,13 @@ async function loadMasterData() {
 
 async function loadPersonalData() {
   if (!state.personalSheetId) return;
+  state.personalData = {};
+  state.soldData = {};
+  state.wantData = {};
+
+  // Load My Collection tab
   const res = await sheetsGet(state.personalSheetId, 'My Collection!A2:M');
   const rows = res.values || [];
-  state.personalData = {};
   rows.forEach((r, idx) => {
     if (!r[0]) return;
     const key = `${r[0]}|${r[1] || ''}`;
@@ -1265,6 +1269,47 @@ async function loadPersonalData() {
       notes:        r[12] || '',
     };
   });
+
+  // Load Sold tab
+  try {
+    const soldRes = await sheetsGet(state.personalSheetId, 'Sold!A2:H');
+    const soldRows = soldRes.values || [];
+    console.log('Sold rows loaded:', soldRows.length);
+    soldRows.forEach((r, idx) => {
+      if (!r[0]) return;
+      const key = `${r[0]}|${r[1] || ''}`;
+      state.soldData[key] = {
+        row:       idx + 2,
+        itemNum:   r[0] || '',
+        variation: r[1] || '',
+        copy:      r[2] || '1',
+        condition: r[3] || '',
+        priceItem: r[4] || '',
+        salePrice: r[5] || '',
+        dateSold:  r[6] || '',
+        notes:     r[7] || '',
+      };
+    });
+  } catch(e) { console.log('Sold tab error:', e); }
+
+  // Load Want List tab
+  try {
+    const wantRes = await sheetsGet(state.personalSheetId, 'Want List!A2:E');
+    const wantRows = wantRes.values || [];
+    console.log('Want rows loaded:', wantRows.length);
+    wantRows.forEach((r, idx) => {
+      if (!r[0]) return;
+      const key = `${r[0]}|${r[1] || ''}`;
+      state.wantData[key] = {
+        row:           idx + 2,
+        itemNum:       r[0] || '',
+        variation:     r[1] || '',
+        priority:      r[2] || 'Medium',
+        expectedPrice: r[3] || '',
+        notes:         r[4] || '',
+      };
+    });
+  } catch(e) { console.log('Want List tab error:', e); }
 }
 
 // ── BUILD APP ───────────────────────────────────────────────────
