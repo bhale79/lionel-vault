@@ -2173,28 +2173,17 @@ function renderWizardStep() {
 
   } else if (s.type === 'pricePaid') {
     const itemVal = wizard.data.priceItem || '';
-    const completeVal = wizard.data.priceComplete || '';
     body.innerHTML = `
-      <div style="padding-top:0.75rem;display:flex;flex-direction:column;gap:0.75rem">
-        <div>
-          <div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.4rem">Item only price ($)</div>
-          <div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.65rem 1rem">
-            <span style="color:var(--text-dim)">$</span>
-            <input type="number" id="wiz-price-item" value="${itemVal}" placeholder="0.00" min="0" step="0.01"
-              style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem"
-              oninput="wizard.data.priceItem=this.value">
-          </div>
+      <div style="padding-top:0.75rem">
+        <div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.4rem">What did you pay for the item? ($)</div>
+        <div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem">
+          <span style="color:var(--text-dim);font-size:1.2rem">$</span>
+          <input type="number" id="wiz-price-item" value="${itemVal}" placeholder="0.00" min="0" step="0.01"
+            style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1.1rem"
+            oninput="wizard.data.priceItem=this.value"
+            onkeydown="if(event.key==='Enter')wizardNext()">
         </div>
-        <div>
-          <div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.4rem">Item + box complete price ($) <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
-          <div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.65rem 1rem">
-            <span style="color:var(--text-dim)">$</span>
-            <input type="number" id="wiz-price-complete" value="${completeVal}" placeholder="0.00" min="0" step="0.01"
-              style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem"
-              oninput="wizard.data.priceComplete=this.value">
-          </div>
-        </div>
-        <div style="font-size:0.75rem;color:var(--text-dim)">Press Next to continue</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
       </div>`;
     setTimeout(() => { const i = document.getElementById('wiz-price-item'); if(i) i.focus(); }, 50);
 
@@ -2339,6 +2328,12 @@ function wizardChooseAndAdvance(field, val) {
   setTimeout(() => wizardNext(), 150);
 }
 
+function toggleAttachToBox(itemNum) {
+  wizard.data._attachToBox = !wizard.data._attachToBox;
+  // Re-trigger lookup to refresh the checkbox display
+  lookupItem(itemNum);
+}
+
 function wizardPickRow(key) {
   wizard.data.selectedRowKey = key;
   setTimeout(() => wizardNext(), 150);
@@ -2390,11 +2385,30 @@ function lookupItem(num) {
       </div>`;
     }
   } else {
-    // Normal mode: show catalog match
+    // Normal mode: show catalog match + check for existing box-only row
+    const boxOnlyKeys = Object.keys(state.personalData).filter(k => {
+      const pd = state.personalData[k];
+      return k.startsWith(trimmed + '|') && pd.hasBox === 'Yes' &&
+        (!pd.condition || pd.condition === 'N/A') && (!pd.priceItem || pd.priceItem === 'N/A');
+    });
+    const hasBoxOnlyRow = boxOnlyKeys.length > 0;
+
     if (match) {
       el.innerHTML = `<div style="background:rgba(46,204,113,0.1);border:1px solid var(--green);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
         <span style="color:var(--green)">✓ Found:</span> ${match.roadName || match.itemType || ''} · ${match.yearProd || ''} · ${match.itemType || ''}
         ${match.variation ? '<br><span style="color:var(--text-dim)">Note: multiple variations exist — select on next step</span>' : ''}
+        ${hasBoxOnlyRow ? `<div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.08)">
+          <span style="color:var(--accent2)">📦 A box is already logged for this item.</span>
+          <label onclick="toggleAttachToBox('${trimmed}')" style="display:inline-flex;align-items:center;gap:0.4rem;margin-left:0.5rem;cursor:pointer">
+            <span id="attach-box-check" style="
+              display:inline-flex;align-items:center;justify-content:center;
+              width:16px;height:16px;border-radius:3px;font-size:0.65rem;font-weight:700;color:white;
+              background:${wizard.data._attachToBox ? 'var(--accent2)' : 'transparent'};
+              border:2px solid ${wizard.data._attachToBox ? 'var(--accent2)' : 'var(--text-dim)'}
+            ">${wizard.data._attachToBox ? '✓' : ''}</span>
+            <span style="color:var(--text-dim);font-size:0.8rem">Add item info to that box row</span>
+          </label>
+        </div>` : ''}
       </div>`;
     } else {
       el.innerHTML = `<div style="font-size:0.8rem;color:var(--text-dim)">Not found in master inventory — will save anyway</div>`;
@@ -2469,6 +2483,14 @@ async function saveWizardItem() {
           const matchKey = Object.keys(state.personalData).find(k => k.startsWith(itemNum + '|'));
           if (matchKey) existing = state.personalData[matchKey];
         }
+      } else if (d._attachToBox && !existing) {
+        // Adding new item — attach to existing box-only row
+        const boxKey = Object.keys(state.personalData).find(k => {
+          const pd = state.personalData[k];
+          return k.startsWith(itemNum + '|') && pd.hasBox === 'Yes' &&
+            (!pd.condition || pd.condition === 'N/A') && (!pd.priceItem || pd.priceItem === 'N/A');
+        });
+        if (boxKey) existing = state.personalData[boxKey];
       }
       let row;
       if (d.boxOnly) {
@@ -2496,13 +2518,14 @@ async function saveWizardItem() {
           d.notes || ex.notes || '',
         ];
       } else {
+        const calcComplete = (parseFloat(d.priceItem)||0) + (parseFloat(d.priceBox)||0);
         row = [
           itemNum, variation, '1',
           d.condition || '',
           '',
           d.priceItem || '',
-          '',
-          d.priceComplete || '',
+          d.priceBox || '',
+          calcComplete > 0 ? calcComplete.toFixed(2) : '',
           d.hasBox || 'No',
           d.boxCond || '',
           photos[0] || '',
