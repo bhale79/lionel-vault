@@ -1371,6 +1371,7 @@ function buildDashboard() {
     const key = `${item.itemNum}|${item.variation}`;
     return !!state.personalData[key];
   });
+  console.log('ownedItems count:', ownedItems.length, '| personalData keys:', Object.keys(state.personalData), '| sample master key:', state.masterData.length > 0 ? `${state.masterData[0].itemNum}|${state.masterData[0].variation}` : 'none');
   const owned = ownedItems.length;
   const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
 
@@ -1907,7 +1908,7 @@ function getSteps(tab) {
   const base = [
     { id: 'tab',        title: 'What would you like to add?',          type: 'choice' },
     { id: 'itemNum',    title: 'What is the Lionel item number?',       type: 'text',     placeholder: 'e.g. 726, 2046, 6464-1' },
-    { id: 'variation',  title: 'What variation is it?',                 type: 'text',     placeholder: 'e.g. A, B, C  (leave blank if unknown)', optional: true },
+    { id: 'variation',  title: 'Which variation is it?',                type: 'variation', optional: true },
   ];
 
   if (tab === 'collection') {
@@ -2006,6 +2007,49 @@ function renderWizardStep() {
             </div>
           </button>`).join('')}
       </div>`;
+
+  } else if (s.type === 'variation') {
+    // Look up all variations for the entered item number
+    const itemNum = wizard.data.itemNum || '';
+    const variations = state.masterData.filter(i => i.itemNum === itemNum && i.variation);
+    const val = wizard.data.variation || '';
+    if (variations.length === 0) {
+      // No variations in master - fall back to text input
+      body.innerHTML = `
+        <div style="padding-top:0.75rem">
+          <input type="text" id="wiz-input" value="${val}" placeholder="Leave blank if no variation"
+            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
+            padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none"
+            oninput="wizard.data.variation=this.value"
+            onkeydown="if(event.key==='Enter')wizardNext()">
+          <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
+        </div>`;
+      setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
+    } else {
+      // Show variation cards with description tooltip
+      body.innerHTML = `
+        <div style="padding-top:0.5rem">
+          <div style="display:flex;flex-direction:column;gap:0.5rem" id="var-cards">
+            ${[{variation:'', varDesc:'No specific variation / not sure'}, ...variations].map(v => `
+              <button onclick="wizardChooseVariation('${v.variation}')" style="
+                display:flex;align-items:flex-start;gap:0.75rem;padding:0.85rem 1rem;
+                border-radius:10px;text-align:left;width:100%;cursor:pointer;
+                font-family:var(--font-body);transition:all 0.15s;
+                border:2px solid ${val===v.variation ? 'var(--accent)' : 'var(--border)'};
+                background:${val===v.variation ? 'rgba(232,64,28,0.12)' : 'var(--surface2)'};
+                color:var(--text);
+              ">
+                <span style="
+                  font-family:var(--font-mono);font-size:1rem;font-weight:600;
+                  color:${val===v.variation ? 'var(--accent)' : 'var(--accent2)'};
+                  min-width:2rem;padding-top:0.1rem;
+                ">${v.variation || '—'}</span>
+                <span style="font-size:0.82rem;color:var(--text-mid);line-height:1.5">${v.varDesc || v.description || 'No description available'}</span>
+              </button>`).join('')}
+          </div>
+          <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Selecting a variation will auto-advance</div>
+        </div>`;
+    }
 
   } else if (s.type === 'text') {
     const val = wizard.data[s.id] || '';
@@ -2147,6 +2191,17 @@ function wizardChooseTab(tab) {
 function wizardChoose(field, val) {
   wizard.data[field] = val;
   renderWizardStep();
+}
+
+function wizardChooseAndAdvance(field, val) {
+  wizard.data[field] = val;
+  // Brief visual flash then advance
+  setTimeout(() => wizardNext(), 150);
+}
+
+function wizardChooseVariation(variation) {
+  wizard.data.variation = variation;
+  setTimeout(() => wizardNext(), 150);
 }
 
 function updateWizardPhoto(field, idx, val) {
