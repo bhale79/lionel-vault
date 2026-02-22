@@ -1285,7 +1285,7 @@ async function loadPersonalData() {
     if (!r[0] || r[0] === 'Item Number') return; // skip header row if present
     const key = `${r[0]}|${r[1] || ''}`;
     state.personalData[key] = {
-      row:          idx + 2,
+      row:          idx + 3,
       itemNum:      r[0]  || '',
       variation:    r[1]  || '',
       copy:         r[2]  || '1',
@@ -2285,6 +2285,9 @@ async function saveWizardItem() {
     // Small delay to ensure Google Sheets has committed the data
     await new Promise(r => setTimeout(r, 800));
     await loadPersonalData();
+    console.log('After reload - personalData keys:', Object.keys(state.personalData));
+    console.log('After reload - soldData keys:', Object.keys(state.soldData));
+    console.log('After reload - wantData keys:', Object.keys(state.wantData));
     resetFilters();
     buildDashboard();
     buildSoldPage();
