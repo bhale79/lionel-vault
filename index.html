@@ -2014,7 +2014,7 @@ function getSteps(tab) {
       { id: 'boxCond',     title: 'What condition is the box?',           type: 'slider',   min:1, max:10, skipIf: (d) => d.hasBox !== 'Yes' && !d._attachToBox || !!d._attachToBox },
       { id: 'pricePaid',   title: 'What did you pay?',                    type: 'pricePaid' },
       { id: 'photosItem',  title: 'Add photos of the item',               type: 'photos',   label: 'Item', max: 6 },
-      { id: 'photosBox',   title: 'Add photos of the box',                type: 'photos',   label: 'Box',  max: 6, skipIf: (d) => d.hasBox !== 'Yes' && !d._attachToBox },
+      { id: 'photosBox',   title: 'Add photos of the box',                type: 'photos',   label: 'Box',  max: 6, skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox },
       { id: 'userEstWorth', title: 'What do you estimate it is worth?',     type: 'money', placeholder: '0.00', optional: true },
       { id: 'notes',       title: 'Any notes about this item?',           type: 'textarea', optional: true },
       { id: 'confirm',     title: 'Ready to save!',                       type: 'confirm' },
@@ -2607,14 +2607,17 @@ async function saveWizardItem() {
           const matchKey = Object.keys(state.personalData).find(k => k.startsWith(itemNum + '|'));
           if (matchKey) existing = state.personalData[matchKey];
         }
-      } else if (d._attachToBox && !existing) {
-        // Adding new item — attach to existing box-only row
+      } else if (d._attachToBox) {
+        // Adding new item — find the box-only row by item number
+        // Box-only rows have hasBox=Yes but no meaningful item condition/price
         const boxKey = Object.keys(state.personalData).find(k => {
           const pd = state.personalData[k];
-          return k.startsWith(itemNum + '|') && pd.hasBox === 'Yes' &&
-            (!pd.condition || pd.condition === 'N/A') && (!pd.priceItem || pd.priceItem === 'N/A');
+          const noCondition = !pd.condition || pd.condition === '' || pd.condition === 'N/A';
+          const noItemPrice = !pd.priceItem || pd.priceItem === '' || pd.priceItem === 'N/A';
+          return k.startsWith(itemNum + '|') && pd.hasBox === 'Yes' && noCondition && noItemPrice;
         });
         if (boxKey) existing = state.personalData[boxKey];
+        console.log('_attachToBox lookup — boxKey:', boxKey, 'existing row:', existing?.row);
       }
       let row;
       if (d.boxOnly) {
