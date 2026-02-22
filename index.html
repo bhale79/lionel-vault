@@ -1982,6 +1982,12 @@ function getSteps(tab) {
     ];
   } else if (tab === 'sold') {
     return [...base,
+      { id: 'pickSoldItem', title: 'Which item are you selling?',         type: 'pickSoldItem',
+        skipIf: (d) => {
+          const matches = Object.keys(state.personalData).filter(k => k.startsWith((d.itemNum||'').trim() + '|'));
+          return matches.length === 0; // skip if not in collection
+        }
+      },
       { id: 'condition',  title: 'What condition was the item?',          type: 'slider',  min:1, max:10 },
       { id: 'priceItem',  title: 'What did you originally pay for it?',   type: 'money',   placeholder: '0.00', optional: true },
       { id: 'salePrice',  title: 'What did you sell it for?',             type: 'money',   placeholder: '0.00' },
@@ -2246,6 +2252,44 @@ function renderWizardStep() {
       </div>`;
     setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
 
+  } else if (s.type === 'pickSoldItem') {
+    const itemNum = (wizard.data.itemNum || '').trim();
+    const matchKeys = Object.keys(state.personalData).filter(k => k.startsWith(itemNum + '|'));
+    const selected = wizard.data.selectedSoldKey || '';
+    body.innerHTML = `
+      <div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.5rem">
+        ${matchKeys.map(k => {
+          const pd = state.personalData[k];
+          const isSelected = selected === k;
+          return `<button onclick="wizardPickSoldItem('${k}')" style="
+            display:flex;align-items:flex-start;gap:0.75rem;padding:0.85rem 1rem;
+            border-radius:10px;text-align:left;width:100%;cursor:pointer;
+            font-family:var(--font-body);transition:all 0.15s;
+            border:2px solid ${isSelected ? 'var(--accent)' : 'var(--border)'};
+            background:${isSelected ? 'rgba(232,64,28,0.12)' : 'var(--surface2)'};
+          ">
+            <div style="flex:1">
+              <div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.9rem;font-weight:600">
+                ${pd.itemNum}${pd.variation ? ' — Var ' + pd.variation : ''}
+              </div>
+              <div style="font-size:0.8rem;color:var(--text-mid);margin-top:0.3rem;display:flex;gap:1rem;flex-wrap:wrap">
+                ${pd.condition ? `<span>Condition: <strong style="color:var(--text)">${pd.condition}</strong></span>` : ''}
+                ${pd.hasBox === 'Yes' ? `<span style="color:var(--green)">✓ Has box</span>` : ''}
+                ${pd.priceItem ? `<span>Paid: <strong style="color:var(--text)">$${parseFloat(pd.priceItem).toLocaleString()}</strong></span>` : ''}
+                ${pd.allOriginal === 'Yes' ? `<span style="color:var(--accent2)">All original</span>` : ''}
+              </div>
+            </div>
+            ${isSelected ? '<span style="color:var(--accent);font-size:1.1rem;align-self:center">✓</span>' : ''}
+          </button>`;
+        }).join('')}
+        <button onclick="wizardPickSoldItem('__new__')" style="
+          padding:0.75rem 1rem;border-radius:10px;text-align:left;width:100%;cursor:pointer;
+          font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s;
+          border:2px solid ${selected==='__new__' ? 'var(--border)' : 'var(--border)'};
+          background:var(--surface2);color:var(--text-dim);
+        ">Not in my collection — enter details manually</button>
+      </div>`;
+
   } else if (s.type === 'pickRow') {
     const itemNum = (wizard.data.itemNum || '').trim();
     const matchKeys = Object.keys(state.personalData).filter(k => k.startsWith(itemNum + '|'));
@@ -2332,6 +2376,19 @@ function toggleAttachToBox(itemNum) {
   wizard.data._attachToBox = !wizard.data._attachToBox;
   // Re-trigger lookup to refresh the checkbox display
   lookupItem(itemNum);
+}
+
+function wizardPickSoldItem(key) {
+  wizard.data.selectedSoldKey = key;
+  if (key !== '__new__') {
+    const pd = state.personalData[key];
+    if (pd) {
+      // Pre-fill condition and original price from collection data
+      if (pd.condition && pd.condition !== 'N/A') wizard.data.condition = parseInt(pd.condition);
+      if (pd.priceItem && pd.priceItem !== 'N/A') wizard.data.priceItem = pd.priceItem;
+    }
+  }
+  setTimeout(() => wizardNext(), 150);
 }
 
 function wizardPickRow(key) {
