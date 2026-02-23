@@ -1994,15 +1994,25 @@ function buildDashboard() {
     `).join('');
   document.getElementById('cat-grid').innerHTML = catHtml || '<div class="empty-state"><p>No data yet</p></div>';
 
-  // Want list preview (first 6 unowned)
-  const wants = state.masterData.filter(i => state.wantData[`${i.itemNum}|${i.variation}`]).slice(0, 6);
-  document.getElementById('want-preview').innerHTML = wants.length ? wants.map(i => `
-    <div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openItem(${state.masterData.indexOf(i)})">
-      <span class="item-num">${i.itemNum}</span>
-      <span style="font-size:0.8rem;color:var(--text-mid);flex:1">${i.roadName || i.itemType || '—'}</span>
-      <span class="market-val" style="font-size:0.8rem">${i.marketVal ? '$'+i.marketVal : '—'}</span>
-    </div>
-  `).join('') : '<div class="empty-state"><p>All items owned! 🎉</p></div>';
+  // Want list preview — built from wantData directly to avoid master-data duplicates
+  const _wPriOrder = { High: 0, Medium: 1, Low: 2 };
+  const _wEntries = Object.values(state.wantData)
+    .sort((a, b) => (_wPriOrder[a.priority] ?? 1) - (_wPriOrder[b.priority] ?? 1))
+    .slice(0, 6);
+  const _wPriColor = { High: 'var(--accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
+  document.getElementById('want-preview').innerHTML = _wEntries.length ? _wEntries.map(function(w) {
+    const master = state.masterData.find(function(m) { return m.itemNum === w.itemNum; });
+    const name = master ? (master.roadName || master.itemType || w.itemNum) : w.itemNum;
+    const masterIdx = master ? state.masterData.indexOf(master) : -1;
+    const pc = _wPriColor[w.priority] || 'var(--text-dim)';
+    return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:1px solid var(--border);'
+      + (masterIdx >= 0 ? 'cursor:pointer' : '') + '" '
+      + (masterIdx >= 0 ? 'onclick="openItem(' + masterIdx + ')"' : '') + '>'
+      + '<span class="item-num">' + w.itemNum + '</span>'
+      + '<span style="font-size:0.8rem;color:var(--text-mid);flex:1">' + name + '</span>'
+      + '<span style="font-size:0.65rem;font-weight:600;color:' + pc + ';border:1px solid ' + pc + ';border-radius:3px;padding:0.1rem 0.3rem;flex-shrink:0">' + (w.priority||'Med') + '</span>'
+      + '</div>';
+  }).join('') : '<div class="empty-state"><p>Want list is empty</p></div>';
 }
 
 // ── BROWSE ──────────────────────────────────────────────────────
