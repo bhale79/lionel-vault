@@ -819,6 +819,24 @@
             Record a Sale
           </button>
         </div>
+        <!-- Sold Summary Panel -->
+        <div id="sold-summary-wrap" style="margin-bottom:0.85rem">
+          <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+            <div id="sold-summary-box" style="display:flex;gap:1.25rem;background:var(--surface);border:1px solid rgba(46,204,113,0.35);border-radius:12px;padding:0.75rem 1.25rem;align-items:center">
+              <div style="text-align:center">
+                <div style="font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px">Items Sold</div>
+                <div id="sold-stat-count" style="font-family:var(--font-head);font-size:1.6rem;color:#2ecc71;line-height:1">—</div>
+              </div>
+              <div style="width:1px;height:36px;background:var(--border)"></div>
+              <div style="text-align:center">
+                <div style="font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px">Total Sold For</div>
+                <div id="sold-stat-total" style="font-family:var(--font-head);font-size:1.6rem;color:#2ecc71;line-height:1">—</div>
+              </div>
+            </div>
+            <button id="sold-summary-toggle" onclick="toggleSoldSummary()" style="font-size:0.72rem;color:var(--text-dim);background:none;border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.6rem;cursor:pointer;white-space:nowrap">Hide Summary</button>
+          </div>
+        </div>
+
         <div class="table-wrap">
           <table class="item-table">
             <thead>
@@ -2266,7 +2284,61 @@ function browseRowClick(event, idx) {
   viewBtn.className = 'btn btn-secondary';
   viewBtn.style.cssText = 'flex:1';
   viewBtn.textContent = 'View Details';
-  viewBtn.onclick = function() { overlay.remove(); openItem(idx); };
+  viewBtn.onclick = function() {
+    overlay.remove();
+    // Show description popup
+    const vdOverlay = document.createElement('div');
+    vdOverlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+    vdOverlay.onclick = function(e) { if (e.target === vdOverlay) vdOverlay.remove(); };
+    const vdBox = document.createElement('div');
+    vdBox.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.75rem;position:relative;max-height:80vh;overflow-y:auto';
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕';
+    closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
+    closeBtn.onclick = function() { vdOverlay.remove(); };
+    vdBox.appendChild(closeBtn);
+    const rows = [
+      ['Item #', item.itemNum + (item.variation ? ' — Var. ' + item.variation : '')],
+      ['Type', item.itemType || '—'],
+      ['Road / Name', item.roadName || '—'],
+      ['Year', item.yearProd || '—'],
+      ['Market Value', item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '—'],
+    ];
+    rows.forEach(function(r) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:0.75rem;margin-bottom:0.4rem;font-size:0.85rem';
+      const lbl = document.createElement('span');
+      lbl.style.cssText = 'color:var(--text-dim);min-width:90px;flex-shrink:0';
+      lbl.textContent = r[0];
+      const val = document.createElement('span');
+      val.style.cssText = 'color:var(--text)';
+      val.textContent = r[1];
+      row.appendChild(lbl);
+      row.appendChild(val);
+      vdBox.appendChild(row);
+    });
+    if (item.varDesc) {
+      const vdSec = document.createElement('div');
+      vdSec.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);font-size:0.82rem;color:var(--text-mid);line-height:1.6';
+      vdSec.innerHTML = '<span style="color:var(--accent2);font-weight:600">Variation: </span>' + item.varDesc;
+      vdBox.appendChild(vdSec);
+    }
+    if (item.description) {
+      const descSec = document.createElement('div');
+      descSec.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);font-size:0.82rem;color:var(--text-mid);line-height:1.6';
+      descSec.textContent = item.description;
+      vdBox.appendChild(descSec);
+    }
+    // Add to collection button at bottom
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn btn-primary';
+    addBtn.style.cssText = 'margin-top:1.25rem;width:100%;background:#e8401c;border-color:#e8401c';
+    addBtn.textContent = '✓ Add to My Collection';
+    addBtn.onclick = function() { vdOverlay.remove(); addFromBrowse(idx); };
+    vdBox.appendChild(addBtn);
+    vdOverlay.appendChild(vdBox);
+    document.body.appendChild(vdOverlay);
+  };
   const cancelBtn = document.createElement('button');
   cancelBtn.className = 'btn btn-secondary';
   cancelBtn.style.cssText = 'padding:0.6rem 0.9rem';
@@ -2289,7 +2361,7 @@ function addFromBrowse(idx) {
   document.body.style.overflow = 'hidden';
   // Skip the tab picker (step 0) and itemNum step — advance past any steps
   // whose id is 'itemNum' or 'variation' (already known)
-  const autoSkip = new Set(['itemNum', 'variation']);
+  const autoSkip = new Set(['tab', 'itemNum', 'variation']);
   while (wizard.step < wizard.steps.length - 1) {
     const s = wizard.steps[wizard.step];
     if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) {
@@ -2775,9 +2847,36 @@ function showWantDesc(idx) {
   document.body.appendChild(overlay);
 }
 
+function toggleSoldSummary() {
+  const box = document.getElementById('sold-summary-box');
+  const btn = document.getElementById('sold-summary-toggle');
+  if (!box || !btn) return;
+  const hidden = box.style.display === 'none';
+  box.style.display = hidden ? 'flex' : 'none';
+  btn.textContent = hidden ? 'Hide Summary' : 'Show Summary';
+  try { localStorage.setItem('soldSummaryHidden', hidden ? '0' : '1'); } catch(e) {}
+}
+
 function buildSoldPage() {
   const soldEntries = Object.values(state.soldData);
   const tbody = document.getElementById('sold-tbody');
+
+  // Populate summary stats
+  const totalRevenue = soldEntries.reduce((sum, sd) => sum + (parseFloat(sd.salePrice) || 0), 0);
+  const countEl = document.getElementById('sold-stat-count');
+  const totalEl = document.getElementById('sold-stat-total');
+  if (countEl) countEl.textContent = soldEntries.length.toLocaleString();
+  if (totalEl) totalEl.textContent = totalRevenue > 0 ? '$' + Math.round(totalRevenue).toLocaleString() : '$0';
+
+  // Restore hidden state from localStorage
+  try {
+    const box = document.getElementById('sold-summary-box');
+    const btn = document.getElementById('sold-summary-toggle');
+    if (box && btn && localStorage.getItem('soldSummaryHidden') === '1') {
+      box.style.display = 'none';
+      btn.textContent = 'Show Summary';
+    }
+  } catch(e) {}
 
   tbody.innerHTML = soldEntries.length ? soldEntries.map(sd => {
     // Look up master data for type/road info
