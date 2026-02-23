@@ -2187,15 +2187,14 @@ function renderBrowse() {
     const cond = pd?.condition ? parseInt(pd.condition) : null;
     const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
     let globalIdx = state.masterData.indexOf(item);
-    // For _personalOnly items not in masterData, store their pdKey for direct lookup
+    // For _personalOnly items not in masterData, use negative index via global array
     if (globalIdx < 0 && item._personalOnly) {
       const poKey = findPDKey(item.itemNum, item.variation);
       if (poKey) {
-        // Use a negative encoded index: store pdKey in a temp map
-        if (!window._pdKeyMap) window._pdKeyMap = {};
-        const tempIdx = 'po_' + poKey;
-        window._pdKeyMap[tempIdx] = poKey;
-        globalIdx = JSON.stringify(tempIdx);
+        if (!window._poKeys) window._poKeys = [];
+        let poIdx = window._poKeys.indexOf(poKey);
+        if (poIdx < 0) poIdx = window._poKeys.push(poKey) - 1;
+        globalIdx = -(poIdx + 1000);
       }
     }
     const badgeClass = isOwned ? 'yes' : isWanted ? 'want' : 'no';
@@ -2220,9 +2219,11 @@ function renderBrowse() {
       const vdCell = vdShort
         ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="event.stopPropagation();showVarDescPopup(${globalIdx})">${vdShort}</span>`
         : '<span class="text-dim">—</span>';
-      const _gIdxArg = typeof globalIdx === "number" ? globalIdx : JSON.stringify(globalIdx);
-      return `<tr onclick="browseRowClick(event, ${_gIdxArg})" style="cursor:pointer">
-        <td><span class="item-num">${item.itemNum}</span></td>
+      return `<tr onclick="browseRowClick(event, ${globalIdx})" style="cursor:pointer">
+        <td>
+          <span class="item-num">${item.itemNum}</span>
+          ${isOwned ? `<span onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')" title="Open photo folder" style="margin-left:5px;cursor:pointer;font-size:0.85rem">📷</span>` : ''}
+        </td>
         <td><span class="tag">${item.itemType || '—'}</span></td>
         <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
         <td>${item.variation || '<span class="text-dim">—</span>'}</td>
@@ -2261,6 +2262,14 @@ function renderBrowse() {
 function goPage(p) { state.currentPage = p; renderBrowse(); document.getElementById('main-content').scrollTop = 0; }
 
 // ── BROWSE ROW CLICK — offer to add or view ─────────────────────
+async function openPhotoFolder(itemNum, storedLink) {
+  if (storedLink) { window.open(storedLink, '_blank'); return; }
+  try {
+    const folderId = await driveEnsureItemFolder(itemNum);
+    window.open(driveFolderLink(folderId), '_blank');
+  } catch(e) { showToast('Could not open Drive folder'); }
+}
+
 function showOwnedItemMenu(idx, pdKey) {
   const pd = state.personalData[pdKey] || {};
   // For personalOnly items, build a minimal item object from pd
@@ -2415,38 +2424,54 @@ function showItemPanel(idx, pdKey, mode) {
   const photoSection = document.createElement('div');
   photoSection.id = 'item-panel-photos';
   photoSection.style.cssText = 'padding:0.75rem 0;border-bottom:1px solid var(--border);margin-bottom:0.25rem';
-  console.log('showItemPanel photoItem:', JSON.stringify(pd.photoItem), 'pdKey:', pdKey);
-  if (pd.photoItem) {
-    photoSection.innerHTML = '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:0.08em">Photos</div>'
-      + '<div id="photo-thumb-row" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">'
-      + '<div style="font-size:0.75rem;color:var(--text-dim)">Loading photos…</div></div>'
-      + '<a href="' + pd.photoItem + '" target="_blank" style="font-size:0.72rem;color:#2980b9;display:inline-block;margin-top:0.4rem">📁 Open Drive Folder ↗</a>';
-    body.appendChild(photoSection);
-    // Load thumbnails async
-    driveGetFolderPhotos(pd.photoItem).then(function(photos) {
-      const thumbRow = document.getElementById('photo-thumb-row');
-      if (!thumbRow) return;
-      if (photos.length === 0) {
-        thumbRow.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">No photos yet</span>';
-        return;
-      }
-      thumbRow.innerHTML = '';
-      photos.forEach(function(p) {
-        const a = document.createElement('a');
-        a.href = p.view; a.target = '_blank'; a.title = p.name;
-        a.style.cssText = 'display:inline-block;border-radius:8px;overflow:hidden;border:1px solid var(--border);flex-shrink:0';
-        const img = document.createElement('img');
-        img.src = p.thumb;
-        img.style.cssText = 'width:72px;height:72px;object-fit:cover;display:block';
-        img.onerror = function() { a.style.display = 'none'; };
-        a.appendChild(img);
-        thumbRow.appendChild(a);
-      });
+  // Photos: always show section — get folder link from stored link or build from itemNum
+  photoSection.innerHTML = '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:0.08em">Photos</div>'
+    + '<div id="photo-thumb-row" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">'
+    + '<div style="font-size:0.75rem;color:var(--text-dim)">Loading…</div></div>'
+    + '<div id="photo-folder-link" style="margin-top:0.4rem"></div>';
+  body.appendChild(photoSection);
+
+  // Get folder — use stored link or fetch/create folder for this item
+  (async function() {
+    let folderLink = pd.photoItem || '';
+    if (!folderLink) {
+      try {
+        const folderId = await driveEnsureItemFolder(item.itemNum);
+        folderLink = driveFolderLink(folderId);
+      } catch(e) {}
+    }
+    const linkEl = document.getElementById('photo-folder-link');
+    if (linkEl && folderLink) {
+      const a = document.createElement('a');
+      a.href = folderLink; a.target = '_blank';
+      a.style.cssText = 'font-size:0.72rem;color:#2980b9';
+      a.textContent = '📁 Open Drive Folder ↗';
+      linkEl.appendChild(a);
+    }
+    const thumbRow = document.getElementById('photo-thumb-row');
+    if (!thumbRow) return;
+    if (!folderLink) {
+      thumbRow.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">No Drive folder found</span>';
+      return;
+    }
+    const photos = await driveGetFolderPhotos(folderLink);
+    if (photos.length === 0) {
+      thumbRow.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">No photos yet — upload via the camera icon</span>';
+      return;
+    }
+    thumbRow.innerHTML = '';
+    photos.forEach(function(p) {
+      const a = document.createElement('a');
+      a.href = p.view; a.target = '_blank'; a.title = p.name;
+      a.style.cssText = 'display:inline-block;border-radius:8px;overflow:hidden;border:1px solid var(--border);flex-shrink:0';
+      const img = document.createElement('img');
+      img.src = p.thumb;
+      img.style.cssText = 'width:72px;height:72px;object-fit:cover;display:block';
+      img.onerror = function() { a.style.display = 'none'; };
+      a.appendChild(img);
+      thumbRow.appendChild(a);
     });
-  } else {
-    photoSection.innerHTML = '<div style="font-size:0.75rem;color:var(--text-dim)">No photos on file</div>';
-    body.appendChild(photoSection);
-  }
+  })();
 
   // Track which field is being edited
   let editingKey = null;
@@ -2602,9 +2627,10 @@ function showItemPanel(idx, pdKey, mode) {
 function browseRowClick(event, idx) {
   // If click was on the varDesc popup span, don't intercept
   if (event.target.closest && event.target.closest('[onclick*="showVarDescPopup"]')) return;
-  // Handle _personalOnly items (idx is a JSON string like '"po_2343-P|..."')
-  if (typeof idx === 'string' && idx.startsWith('po_')) {
-    const pdKey = (window._pdKeyMap || {})[idx];
+  // Handle _personalOnly items encoded as negative sentinel
+  if (idx <= -1000) {
+    const poIdx = Math.abs(idx) - 1000;
+    const pdKey = (window._poKeys || [])[poIdx];
     if (pdKey) { showOwnedItemMenu(-1, pdKey); }
     return;
   }
