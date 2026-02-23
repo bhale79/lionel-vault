@@ -1859,8 +1859,8 @@ async function createPersonalSheet() {
 async function loadAllData() {
   showLoading();
   try {
-    await loadMasterData();
-    await loadPersonalData();
+    // Run master and personal sheet loads in parallel
+    await Promise.all([loadMasterData(), loadPersonalData()]);
     buildApp();
 
   } catch(e) {
@@ -1872,12 +1872,42 @@ async function loadAllData() {
 }
 
 async function loadMasterData() {
+  // Use cached master data for instant load, refresh in background
+  const cached = localStorage.getItem('lv_master_cache');
+  const cachedAt = parseInt(localStorage.getItem('lv_master_cache_ts') || '0');
+  const cacheAge = Date.now() - cachedAt;
+  const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+  if (cached && cacheAge < CACHE_TTL) {
+    try {
+      state.masterData = JSON.parse(cached);
+      // Refresh in background without blocking
+      sheetsGet(state.masterSheetId, 'Master Inventory!A3:V').then(res => {
+        if (!res.values) return sheetsGet(state.masterSheetId, 'Sheet1!A3:V');
+        return res;
+      }).then(res => {
+        if (res && res.values) {
+          parseMasterRows(res.values);
+          localStorage.setItem('lv_master_cache', JSON.stringify(state.masterData));
+          localStorage.setItem('lv_master_cache_ts', Date.now().toString());
+        }
+      }).catch(() => {});
+      return;
+    } catch(e) {}
+  }
+
   // Fetch through col V to include Est. Market Value (col V = index 21)
   let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A3:V');
   if (!res.values) {
     res = await sheetsGet(state.masterSheetId, 'Sheet1!A3:V');
   }
   const rows = res.values || [];
+  parseMasterRows(rows);
+  localStorage.setItem('lv_master_cache', JSON.stringify(state.masterData));
+  localStorage.setItem('lv_master_cache_ts', Date.now().toString());
+}
+
+function parseMasterRows(rows) {
   state.masterData = rows.map(r => ({
     itemNum:    r[0]  || '',
     itemType:   r[1]  || '',
@@ -1890,11 +1920,10 @@ async function loadMasterData() {
     variation:  r[8]  || '',
     varDesc:    r[9]  || '',
     refLink:    r[10] || '',
-    // cols L-Q (11-16) = personal collection data (ignored — use personal sheet instead)
-    ebayAvg:    r[18] || '',  // col S
-    ebaySample: r[19] || '',  // col T
-    ebayUpdated:r[20] || '',  // col U
-    marketVal:  r[21] || '',  // col V = Est. Market Value
+    ebayAvg:    r[18] || '',
+    ebaySample: r[19] || '',
+    ebayUpdated:r[20] || '',
+    marketVal:  r[21] || '',
   }));
 }
 
@@ -1908,81 +1937,51 @@ async function loadPersonalData() {
   state.soldData = {};
   state.wantData = {};
 
-  // Load My Collection tab
-  try {
-  const res = await sheetsGet(state.personalSheetId, 'My Collection!A3:Q');
-  console.log('My Collection raw response:', JSON.stringify(res).substring(0, 200));
-  const rows = res.values || [];
-  console.log('My Collection rows loaded:', rows.length, '| first row:', rows[0]);
-  rows.forEach((r, idx) => {
-    if (!r[0] || r[0] === 'Item Number') return; // skip header row if present
+  // Fetch all 3 tabs in parallel
+  const [collRes, soldRes, wantRes] = await Promise.all([
+    sheetsGet(state.personalSheetId, 'My Collection!A3:Q').catch(() => ({values:[]})),
+    sheetsGet(state.personalSheetId, 'Sold!A3:H').catch(() => ({values:[]})),
+    sheetsGet(state.personalSheetId, 'Want List!A3:E').catch(() => ({values:[]})),
+  ]);
+
+  // My Collection
+  (collRes.values || []).forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Item Number') return;
     const rowNum = idx + 3;
     const key = `${r[0]}|${r[1] || ''}|${rowNum}`;
     state.personalData[key] = {
-      row:          rowNum,
-      itemNum:      r[0]  || '',
-      variation:    r[1]  || '',
-      status:       'Owned',
-      owned:        true,
-      condition:    r[2]  || '',
-      allOriginal:  r[3]  || '',
-      priceItem:    r[4]  || '',
-      priceBox:     r[5]  || '',
-      priceComplete:r[6]  || '',
-      hasBox:       r[7]  || '',
-      boxCond:      r[8]  || '',
-      photoItem:    r[9]  || '',
-      photoBox:     r[10] || '',
-      notes:        r[11] || '',
-      datePurchased:r[12] || '',
-      userEstWorth: r[13] || '',
-      matchedTo:    r[14] || '',
-      setId:        r[15] || '',
-      yearMade:     r[16] || '',
+      row: rowNum, itemNum: r[0]||'', variation: r[1]||'',
+      status: 'Owned', owned: true,
+      condition: r[2]||'', allOriginal: r[3]||'',
+      priceItem: r[4]||'', priceBox: r[5]||'', priceComplete: r[6]||'',
+      hasBox: r[7]||'', boxCond: r[8]||'',
+      photoItem: r[9]||'', photoBox: r[10]||'',
+      notes: r[11]||'', datePurchased: r[12]||'',
+      userEstWorth: r[13]||'', matchedTo: r[14]||'',
+      setId: r[15]||'', yearMade: r[16]||'',
     };
   });
-  } catch(e) { console.error('My Collection load error:', e); }
 
-  // Load Sold tab
-  try {
-    const soldRes = await sheetsGet(state.personalSheetId, 'Sold!A3:H').catch(() => ({values:[]}));
-    const soldRows = soldRes.values || [];
-    console.log('Sold rows loaded:', soldRows.length);
-    soldRows.forEach((r, idx) => {
-      if (!r[0] || r[0] === 'Item Number') return; // skip header row if present
-      const key = `${r[0]}|${r[1] || ''}`;
-      state.soldData[key] = {
-        row:       idx + 3,
-        itemNum:   r[0] || '',
-        variation: r[1] || '',
-        copy:      r[2] || '1',
-        condition: r[3] || '',
-        priceItem: r[4] || '',
-        salePrice: r[5] || '',
-        dateSold:  r[6] || '',
-        notes:     r[7] || '',
-      };
-    });
-  } catch(e) { console.log('Sold tab error:', e); }
+  // Sold
+  (soldRes.values || []).forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Item Number') return;
+    const key = `${r[0]}|${r[1]||''}`;
+    state.soldData[key] = {
+      row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
+      copy: r[2]||'1', condition: r[3]||'', priceItem: r[4]||'',
+      salePrice: r[5]||'', dateSold: r[6]||'', notes: r[7]||'',
+    };
+  });
 
-  // Load Want List tab
-  try {
-    const wantRes = await sheetsGet(state.personalSheetId, 'Want List!A3:E').catch(() => ({values:[]}));
-    const wantRows = wantRes.values || [];
-    console.log('Want rows loaded:', wantRows.length);
-    wantRows.forEach((r, idx) => {
-      if (!r[0] || r[0] === 'Item Number') return; // skip header row if present
-      const key = `${r[0]}|${r[1] || ''}`;
-      state.wantData[key] = {
-        row:           idx + 3,
-        itemNum:       r[0] || '',
-        variation:     r[1] || '',
-        priority:      r[2] || 'Medium',
-        expectedPrice: r[3] || '',
-        notes:         r[4] || '',
-      };
-    });
-  } catch(e) { console.log('Want List tab error:', e); }
+  // Want List
+  (wantRes.values || []).forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Item Number') return;
+    const key = `${r[0]}|${r[1]||''}`;
+    state.wantData[key] = {
+      row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
+      priority: r[2]||'Medium', expectedPrice: r[3]||'', notes: r[4]||'',
+    };
+  });
 }
 
 // ── BUILD APP ───────────────────────────────────────────────────
@@ -4306,8 +4305,7 @@ function renderWizardStep() {
       // Include rows with real item info (condition not N/A or empty)
       return k.split('|')[0] === itemNum && pd.owned;
     });
-    console.log('pickSoldItem matchKeys for', itemNum, ':', matchKeys, 'personalData keys:', Object.keys(state.personalData).filter(k => k.startsWith(itemNum + '|')));
-    const selected = wizard.data.selectedSoldKey || '';
+      const selected = wizard.data.selectedSoldKey || '';
     body.innerHTML = `
       <div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.5rem">
         ${matchKeys.length === 0 ? '<div style="color:var(--text-dim);font-size:0.85rem">No owned items found for this number.</div>' : ''}
