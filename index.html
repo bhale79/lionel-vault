@@ -1146,34 +1146,35 @@ const LOCO_TO_TENDERS = {"1872":["1872T"],"1882":["1882T"],"2020":["2020W","6020
 
 // ── DIESEL SET HELPERS ──────────────────────────────────────────
 function isSetUnit(itemNum) {
-  // A unit is a set unit if a corresponding C (B) unit exists in master data
-  // A B unit always ends in 'C'
-  const num = (itemNum || '').trim();
+  const num = normalizeItemNum(itemNum);
   if (num.endsWith('C')) return true;
-  return state.masterData.some(m => m.itemNum === num + 'C');
+  return state.masterData.some(m => normalizeItemNum(m.itemNum) === num + 'C');
 }
 function getBUnit(itemNum) {
-  const num = (itemNum || '').trim();
+  const num = normalizeItemNum(itemNum);
   const bNum = num + 'C';
-  return state.masterData.some(m => m.itemNum === bNum) ? bNum : null;
+  return state.masterData.some(m => normalizeItemNum(m.itemNum) === bNum) ? bNum : null;
 }
 function getAUnit(itemNum) {
-  const num = (itemNum || '').trim();
+  const num = normalizeItemNum(itemNum);
   if (!num.endsWith('C')) return null;
   const aNum = num.slice(0, -1);
-  return state.masterData.some(m => m.itemNum === aNum) ? aNum : null;
+  return state.masterData.some(m => normalizeItemNum(m.itemNum) === aNum) ? aNum : null;
 }
 function getSetPartner(itemNum) {
-  // Returns the partner item number (A->B or B->A)
-  const num = (itemNum || '').trim();
+  const num = normalizeItemNum(itemNum);
   if (num.endsWith('C')) return getAUnit(num);
   return getBUnit(num);
 }
+function normalizeItemNum(n) {
+  // Strip trailing .0 from numbers stored as floats e.g. "2343.0" -> "2343"
+  const s = (n || '').toString().trim();
+  return s.match(/^\d+\.0$/) ? s.slice(0, -2) : s;
+}
 function isF3AlcoUnit(itemNum) {
-  const num = (itemNum || '').trim();
-  const checkNum = num.endsWith('C') ? num.slice(0, -1) : num;
+  const num = normalizeItemNum(itemNum).replace(/C$/i, '');
   return state.masterData.some(m =>
-    m.itemNum === checkNum &&
+    normalizeItemNum(m.itemNum) === num &&
     m.itemType === 'Diesel Locomotive' &&
     (m.description || '').match(/F-3|F3|Alco FA|FA No\.|FA-/)
   );
