@@ -1719,6 +1719,10 @@ async function showDebugInfo() {
     const p = pd.priceItem?.toString().trim();
     return pd.hasBox === 'Yes' && (!c || c === 'N/A') && (!p || p === 'N/A');
   }).length;
+  // Force rebuild dashboard and read result
+  buildDashboard();
+  const statOwned = document.getElementById('stat-owned')?.textContent;
+  const statTotal = document.getElementById('stat-total')?.textContent;
   const info = [
     'token: ' + (accessToken ? 'YES' : 'MISSING'),
     'personalSheetId: ' + (pid || 'MISSING'),
@@ -1726,6 +1730,8 @@ async function showDebugInfo() {
     'personalKeys: ' + Object.keys(state.personalData).length,
     'owned flag: ' + owned,
     'boxOnly excluded: ' + boxOnly,
+    'stat-owned el: ' + statOwned,
+    'stat-total el: ' + statTotal,
     'sheet test: ' + sheetTest,
     'sample: ' + pdSample,
   ].join('\n');
