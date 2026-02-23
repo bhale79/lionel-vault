@@ -233,7 +233,7 @@
     background: var(--surface2); padding: 0.65rem 1rem; text-align: left;
     font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;
     color: var(--text-dim); border-bottom: 1px solid var(--border);
-    font-weight: 500; white-space: nowrap;
+    font-weight: 500; white-space: normal; word-break: break-word; line-height: 1.2;
     position: sticky; top: 0; z-index: 2;
   }
   .item-table td {
@@ -793,7 +793,7 @@
                 <th>Type</th>
                 <th>Road / Name</th>
                 <th>Var.</th>
-                <th>Var. Description</th>
+                <th>Var. Descr.</th>
                 <th>Year</th>
                 <th>Owned</th>
                 <th>Cond.</th>
@@ -2181,8 +2181,8 @@ function renderBrowse() {
   }
 
   const rowsHtml = pageData.map((item, i) => {
-    const pd = findPD(item.itemNum, item.variation);
-    const isOwned = pd?.owned || false;
+    const pd = item._personalOnly ? item : findPD(item.itemNum, item.variation);
+    const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
     const cond = pd?.condition ? parseInt(pd.condition) : null;
     const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
@@ -2217,6 +2217,7 @@ function renderBrowse() {
         <td>${vdCell}</td>
         <td class="text-dim">${item.yearProd || '—'}</td>
         <td><span class="owned-badge ${badgeClass}">${badgeText}</span></td>
+        <td>${cond ? `<span class="condition-pip ${condClass}"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
         <td class="market-val">${item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '<span class="text-dim">—</span>'}</td>
       </tr>`;
     }
