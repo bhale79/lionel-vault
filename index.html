@@ -2739,11 +2739,11 @@ function getSteps(tab) {
 
       // ── PRICING (pricePaid handles all cases; save logic splits if paired/set) ──
       { id: 'pricePaid',    title: 'What did you pay?',                    type: 'pricePaid',
-        note: (d) => isPaired(d) || d.setMatch === 'set-now' ? 'Combined price — will be split evenly between each unit.' : '' },
+        note: (d) => isPaired(d) || d.setMatch === 'set-now' ? 'Full price goes to the first unit — other units will reference it in their notes.' : '' },
       { id: 'datePurchased', title: 'When did you purchase?',               type: 'date',     optional: true },
       { id: 'userEstWorth',  title: 'What do you estimate it is worth?',
         type: 'money', placeholder: '0.00', optional: true,
-        note: (d) => (isPaired(d) || d.setMatch === 'set-now') ? 'Combined estimate — will be split evenly between each unit.' : (d.hasBox === 'Yes' ? 'Include the value of both the item and the box.' : '') },
+        note: (d) => (isPaired(d) || d.setMatch === 'set-now') ? 'Full estimated value goes to the first unit.' : (d.hasBox === 'Yes' ? 'Include the value of both the item and the box.' : '') },
 
       // ── TOGETHER photos (only when paired) ──
       { id: 'wantTogetherPhotos', title: 'Would you like to add photos of the engine and tender together?',
@@ -3149,12 +3149,16 @@ function renderWizardStep() {
       : 'Second unit item number (pre-filled from partner — edit if needed)';
     body.innerHTML = '<div style="padding-top:0.75rem">'
       + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.5rem">' + label + '</div>'
-      + '<input type="text" id="wiz-unit-num" value="' + curr + '" '
+      + '<input type="text" id="wiz-unit-num" value="' + curr + '" autocomplete="off" '
       + 'style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none" '
-      + 'oninput="wizard.data[\'' + field + '\']=this.value" '
-      + 'onkeydown="if(event.key===\'Enter\')wizardNext()">'
+      + 'oninput="wizard.data[\'' + field + '\']=this.value; updateUnitNumSuggestions(this.value,\'' + field + '\')" '
+      + 'onkeydown="handleUnitNumKey(event)">'
+      + '<div id="wiz-unit-suggestions" style="display:none;flex-direction:column;gap:2px;margin-top:4px;max-height:200px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px"></div>'
       + '</div>';
-    setTimeout(function() { const i = document.getElementById('wiz-unit-num'); if(i) i.focus(); }, 50);
+    setTimeout(function() {
+      const i = document.getElementById('wiz-unit-num');
+      if (i) { i.focus(); if (i.value) updateUnitNumSuggestions(i.value, field); }
+    }, 50);
 
   } else if (s.type === 'divider') {
     const sub = s.subtitle ? s.subtitle(wizard.data) : '';
@@ -3529,6 +3533,70 @@ function updateWizardPhoto(field, idx, val) {
 
 let itemLookupTimer;
 let _suggestionIndex = -1;
+
+function updateUnitNumSuggestions(query, field) {
+  const el = document.getElementById('wiz-unit-suggestions');
+  if (!el) return;
+  const q = (query || '').trim().toLowerCase();
+  if (q.length < 1) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+  // Search master data for matching item numbers
+  const seen = new Set();
+  const candidates = [];
+  state.masterData.forEach(function(m) {
+    const num = normalizeItemNum(m.itemNum);
+    if (!seen.has(num) && num.toLowerCase().includes(q)) {
+      seen.add(num);
+      candidates.push({ num: num, sub: (m.roadName || m.description || '').substring(0, 40) });
+    }
+  });
+
+  candidates.sort(function(a, b) {
+    const as = a.num.toLowerCase().startsWith(q);
+    const bs = b.num.toLowerCase().startsWith(q);
+    if (as && !bs) return -1;
+    if (!as && bs) return 1;
+    return a.num.localeCompare(b.num);
+  });
+
+  const top = candidates.slice(0, 10);
+  if (top.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+  el.innerHTML = '';
+  top.forEach(function(c) {
+    const btn = document.createElement('button');
+    btn.style.cssText = 'text-align:left;width:100%;padding:0.5rem 0.75rem;border:none;background:transparent;'
+      + 'border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);display:flex;align-items:baseline;gap:0.5rem';
+    btn.onmouseenter = function() { btn.style.background = 'var(--surface2)'; };
+    btn.onmouseleave = function() { btn.style.background = 'transparent'; };
+    btn.onclick = function() {
+      wizard.data[field] = c.num;
+      const inp = document.getElementById('wiz-unit-num');
+      if (inp) inp.value = c.num;
+      el.style.display = 'none';
+    };
+    const numSpan = document.createElement('span');
+    numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:600;color:var(--accent2);font-size:0.95rem';
+    numSpan.textContent = c.num;
+    btn.appendChild(numSpan);
+    if (c.sub) {
+      const sub = document.createElement('span');
+      sub.style.cssText = 'font-size:0.75rem;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      sub.textContent = c.sub;
+      btn.appendChild(sub);
+    }
+    el.appendChild(btn);
+  });
+  el.style.display = 'flex';
+}
+
+function handleUnitNumKey(e, field) {
+  if (e.key === 'Enter') { wizardNext(); }
+  else if (e.key === 'Escape') {
+    const el = document.getElementById('wiz-unit-suggestions');
+    if (el) el.style.display = 'none';
+  }
+}
 
 function updateItemSuggestions(query) {
   const el = document.getElementById('wiz-suggestions');
