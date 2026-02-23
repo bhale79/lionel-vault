@@ -2447,9 +2447,15 @@ function showItemPanel(idx, pdKey, mode) {
   const _hdrClose = header.querySelector('#item-panel-close-btn');
   if (_hdrClose) _hdrClose.onclick = function() { overlay.remove(); };
 
-  // Scrollable content
+  // Scrollable content — split into photos (permanent) + fields (re-rendered)
   const body = document.createElement('div');
   body.style.cssText = 'flex:1;overflow-y:auto;padding:0.75rem 1.5rem';
+  const photoContainer = document.createElement('div');
+  photoContainer.id = 'item-panel-photo-container';
+  body.appendChild(photoContainer);
+  const fieldsContainer = document.createElement('div');
+  fieldsContainer.id = 'item-panel-fields-container';
+  body.appendChild(fieldsContainer);
 
   const fields = [
     { label: 'Condition',     key: 'condition',     val: pd.condition || '—',     type: 'number', min:1, max:10 },
@@ -2463,7 +2469,6 @@ function showItemPanel(idx, pdKey, mode) {
     { label: 'Notes',         key: 'notes',         val: pd.notes || '—',         type: 'text' },
   ];
 
-  // ── Photos section ──
   // ── Photos section ──
   const photoSection = document.createElement('div');
   photoSection.id = 'item-panel-photos';
@@ -2497,7 +2502,7 @@ function showItemPanel(idx, pdKey, mode) {
   folderLinkEl.style.cssText = 'margin-top:0.4rem;min-height:1.2rem';
   photoSection.appendChild(folderLinkEl);
 
-  body.appendChild(photoSection);
+  photoContainer.appendChild(photoSection);
 
   // Async load
   (async function() {
@@ -2542,7 +2547,7 @@ function showItemPanel(idx, pdKey, mode) {
   let editingKey = null;
 
   function renderFields(activeKey) {
-    body.innerHTML = '';
+    fieldsContainer.innerHTML = '';
     fields.forEach(function(f) {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.65rem 0;border-bottom:1px solid var(--border);min-height:44px';
@@ -2618,7 +2623,7 @@ function showItemPanel(idx, pdKey, mode) {
 
       row.appendChild(lbl);
       row.appendChild(valWrap);
-      body.appendChild(row);
+      fieldsContainer.appendChild(row);
     });
   }
 
