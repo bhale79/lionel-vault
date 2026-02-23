@@ -583,6 +583,7 @@
     font-size: 0.7rem; font-weight: 500; background: var(--surface2); color: var(--text-dim);
   }
   .market-val { font-family: var(--font-mono); color: var(--accent2); }
+  .dash-row-hover:hover { background: var(--surface2); }
   .text-dim { color: var(--text-dim); }
   .text-accent { color: var(--accent); }
   .mt-sm { margin-top: 0.5rem; }
@@ -2058,15 +2059,19 @@ function buildDashboard() {
         return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum);
       });
       const name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
-      const masterIdx = master ? state.masterData.indexOf(master) : -1;
-      const condNum = parseInt(pd.condition);
-      const condStr = !isNaN(condNum) ? condNum + '/10' : '';
-      return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:1px solid var(--border);'
-        + (masterIdx >= 0 ? 'cursor:pointer' : '') + '" '
-        + (masterIdx >= 0 ? 'onclick="openItem(' + masterIdx + ')"' : '') + '>'
+      const price = pd.priceItem ? '$' + parseFloat(pd.priceItem).toLocaleString() : '';
+      const date = pd.datePurchased || '';
+      const meta = [date, price].filter(Boolean).join(' · ');
+      return '<div onclick="goToMyCollection()" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s" '
+        + 'class="dash-row-hover">'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="display:flex;align-items:center;gap:0.4rem">'
         + '<span class="item-num">' + pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : '') + '</span>'
-        + '<span style="font-size:0.8rem;color:var(--text-mid);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + name + '</span>'
-        + (condStr ? '<span style="font-size:0.72rem;color:var(--accent2);flex-shrink:0">' + condStr + '</span>' : '')
+        + '<span style="font-size:0.8rem;color:var(--text-mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + name + '</span>'
+        + '</div>'
+        + (meta ? '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:1px">' + meta + '</div>' : '')
+        + '</div>'
+        + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>'
         + '</div>';
     }).join('')
     : '<div class="empty-state"><div class="empty-icon">📦</div><p>No items owned yet</p></div>';
@@ -2081,14 +2086,19 @@ function buildDashboard() {
   document.getElementById('want-preview').innerHTML = _wEntries.length ? _wEntries.map(function(w) {
     const master = state.masterData.find(function(m) { return m.itemNum === w.itemNum; });
     const name = master ? (master.roadName || master.itemType || w.itemNum) : w.itemNum;
-    const masterIdx = master ? state.masterData.indexOf(master) : -1;
     const pc = _wPriColor[w.priority] || 'var(--text-dim)';
-    return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;border-bottom:1px solid var(--border);'
-      + (masterIdx >= 0 ? 'cursor:pointer' : '') + '" '
-      + (masterIdx >= 0 ? 'onclick="openItem(' + masterIdx + ')"' : '') + '>'
-      + '<span class="item-num">' + w.itemNum + '</span>'
-      + '<span style="font-size:0.8rem;color:var(--text-mid);flex:1">' + name + '</span>'
-      + '<span style="font-size:0.65rem;font-weight:600;color:' + pc + ';border:1px solid ' + pc + ';border-radius:3px;padding:0.1rem 0.3rem;flex-shrink:0">' + (w.priority||'Med') + '</span>'
+    const price = w.expectedPrice ? '$' + parseFloat(w.expectedPrice).toLocaleString() : '';
+    return '<div onclick="goToWantList()" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s" '
+      + 'class="dash-row-hover">'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="display:flex;align-items:center;gap:0.4rem">'
+      + '<span class="item-num">' + w.itemNum + (w.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + w.variation + '</span>' : '') + '</span>'
+      + '<span style="font-size:0.8rem;color:var(--text-mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">' + name + '</span>'
+      + '</div>'
+      + (price ? '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:1px">' + price + '</div>' : '')
+      + '</div>'
+      + '<span style="font-size:0.62rem;font-weight:600;color:' + pc + ';border:1px solid ' + pc + ';border-radius:3px;padding:0.1rem 0.3rem;flex-shrink:0">' + (w.priority||'Med') + '</span>'
+      + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>'
       + '</div>';
   }).join('') : '<div class="empty-state"><p>Want list is empty</p></div>';
 }
@@ -2134,6 +2144,22 @@ function resetFilters() {
 }
 
 function filterOwned() { resetFilters(); state.filters.owned = true; renderBrowse(); }
+
+function goToMyCollection() {
+  const navBtn = document.querySelector('.nav-item[onclick*="filterOwned"]');
+  showPage('browse', navBtn);
+  filterOwned();
+  // mobile
+  const mNav = document.getElementById('mnav-browse');
+  if (mNav && window.innerWidth <= 640) { showPage('browse', mNav); filterOwned(); }
+}
+function goToWantList() {
+  const navBtn = document.querySelector('.nav-item[onclick*="buildWantPage"]');
+  showPage('want', navBtn);
+  buildWantPage();
+  const mNav = document.getElementById('mnav-want');
+  if (mNav && window.innerWidth <= 640) { showPage('want', mNav); buildWantPage(); }
+}
 
 function renderOwnedItems() {
   // Build a unified list: masterData matches + personal-only items (e.g. 2343-P)
