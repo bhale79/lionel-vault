@@ -1590,6 +1590,29 @@ const ITEM_VIEWS = [
   { key: 'FV',  label: 'Front View',      abbr: 'FV'  },
   { key: 'LSV', label: 'Left Side View',  abbr: 'LSV' },
 ];
+// Error car close-up photo views
+const ERROR_VIEWS = [
+  { key: 'ERR-1', label: 'Error Close-up 1', abbr: 'ERR-1' },
+  { key: 'ERR-2', label: 'Error Close-up 2', abbr: 'ERR-2' },
+  { key: 'ERR-3', label: 'Error Close-up 3', abbr: 'ERR-3' },
+  { key: 'ERR-4', label: 'Error Close-up 4', abbr: 'ERR-4' },
+];
+
+// Returns a human-friendly label for the item type (for wizard questions)
+function getItemLabel(d) {
+  // Try master data lookup first
+  const itemNum = (d.itemNum || '').trim().replace(/-[PD]$/, '');
+  const master = state.masterData.find(m => m.itemNum === itemNum || m.itemNum === d.itemNum);
+  const t = (master && master.itemType) ? master.itemType.toLowerCase() : '';
+  if (t.includes('steam') || t.includes('diesel') || t.includes('electric')) return 'locomotive';
+  if (t.includes('freight') || t.includes('car')) return 'car';
+  if (t.includes('passenger')) return 'car';
+  if (t.includes('accessory') || t.includes('accessories')) return 'accessory';
+  if (t.includes('track')) return 'track section';
+  if (t.includes('set')) return 'set';
+  return 'item';
+}
+
 const BOX_VIEWS = [
   { key: 'BOX-RSV', label: 'Box Right Side', abbr: 'BOX-RSV' },
   { key: 'BOX-TV',  label: 'Box Top',        abbr: 'BOX-TV'  },
@@ -3877,11 +3900,11 @@ function getSteps(tab) {
           const matches = Object.keys(state.personalData).filter(k => k.split('|')[0] === (d.itemNum||'').trim());
           return matches.length <= 1; // skip if 0 or 1 match — no choice needed
         }},
-        { id: 'boxCond',       title: 'What condition is the box?',         type: 'slider',   min:1, max:10 },
+        { id: 'boxCond',       title: (d) => 'What condition is the ' + getItemLabel(d) + ' box?',         type: 'slider',   min:1, max:10 },
         { id: 'priceBox',      title: 'What did you pay for the box?',      type: 'money',    placeholder: '0.00', optional: true },
         { id: 'purchaseDate',  title: 'When did you buy the box?',          type: 'date',     optional: true },
         { id: 'userEstWorth',  title: 'What do you estimate it is worth?',  type: 'money',    placeholder: '0.00', optional: true },
-        { id: 'notes',         title: 'Any notes about this box?',          type: 'textarea', optional: true },
+        { id: 'notes',         title: (d) => 'Any notes about this ' + getItemLabel(d) + ' box?',          type: 'textarea', optional: true },
         { id: 'confirm',       title: 'Ready to save box info!',            type: 'confirm' },
       ];
     }
@@ -3892,8 +3915,8 @@ function getSteps(tab) {
 
     return [...base,
       // ── ENGINE section ──
-      { id: 'condition',    title: 'What condition is the engine?',         type: 'slider',   min:1, max:10, skipIf: () => false },
-      { id: 'allOriginal',  title: 'Is it all original parts?',             type: 'choice3',  choices: ['Yes','No','Unknown'] },
+      { id: 'condition',    title: (d) => 'What condition is the ' + getItemLabel(d) + '?',         type: 'slider',   min:1, max:10, skipIf: () => false },
+      { id: 'allOriginal',  title: (d) => 'Is the ' + getItemLabel(d) + ' all original parts?',             type: 'choice3',  choices: ['Yes','No','Unknown'] },
       { id: 'tenderMatch',  title: 'Tender / Engine matching',              type: 'tenderMatch',
         skipIf: (d) => {
           const num = (d.itemNum || '').trim();
@@ -3912,11 +3935,11 @@ function getSteps(tab) {
           return num.endsWith('C') || !isF3AlcoUnit(num);
         }
       },
-      { id: 'hasBox',       title: 'Did the engine come with a box?',       type: 'choice2',  choices: ['Yes','No'], skipIf: (d) => !!d._attachToBox },
-      { id: 'boxCond',      title: 'What condition is the engine box?',     type: 'slider',   min:1, max:10, skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox },
-      { id: 'photosItem',   title: 'Add photos of the engine',              type: 'drivePhotos', label: 'Item',
+      { id: 'hasBox',       title: (d) => 'Did the ' + getItemLabel(d) + ' come with a box?', type: 'choice2',  choices: ['Yes','No'], skipIf: (d) => !!d._attachToBox },
+      { id: 'boxCond',      title: (d) => 'What condition is the ' + getItemLabel(d) + ' box?', type: 'slider',   min:1, max:10, skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox },
+      { id: 'photosItem',   title: (d) => 'Add photos of the ' + getItemLabel(d), type: 'drivePhotos', label: 'Item',
         note: (d) => isPaired(d) ? 'Engine photos only — tender photos will be added next. Each item is filed in its own Drive folder.' : '' },
-      { id: 'photosBox',    title: 'Add photos of the engine box',          type: 'drivePhotos', label: 'Box',
+      { id: 'photosBox',    title: (d) => 'Add photos of the ' + getItemLabel(d) + ' box', type: 'drivePhotos', label: 'Box',
         skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox,
         note: (d) => isPaired(d) ? 'Engine box photos only — tender box photos will be added next.' : '' },
 
@@ -3946,19 +3969,19 @@ function getSteps(tab) {
         skipIf: (d) => d.setMatch !== 'set-now' },
       { id: 'unit2ItemNum',   title: 'Confirm second unit item number',   type: 'setUnit2Num',
         skipIf: (d) => d.setMatch !== 'set-now' },
-      { id: 'unit2Condition', title: 'What condition is the second unit?', type: 'slider', min:1, max:10,
+      { id: 'unit2Condition', title: (d) => 'What condition is the second unit (' + (d.unit2ItemNum || 'B unit') + ')?', type: 'slider', min:1, max:10,
         skipIf: (d) => d.setMatch !== 'set-now' },
-      { id: 'unit2AllOriginal', title: 'Is the second unit all original?', type: 'choice3', choices: ['Yes','No','Unknown'],
+      { id: 'unit2AllOriginal', title: (d) => 'Is the second unit (' + (d.unit2ItemNum || 'B unit') + ') all original?', type: 'choice3', choices: ['Yes','No','Unknown'],
         skipIf: (d) => d.setMatch !== 'set-now' },
-      { id: 'unit2HasBox',    title: 'Did the second unit come with a box?', type: 'choice2', choices: ['Yes','No'],
+      { id: 'unit2HasBox',    title: (d) => 'Did the second unit (' + (d.unit2ItemNum || 'B unit') + ') come with a box?', type: 'choice2', choices: ['Yes','No'],
         skipIf: (d) => d.setMatch !== 'set-now' },
-      { id: 'unit2BoxCond',   title: 'What condition is the second unit box?', type: 'slider', min:1, max:10,
+      { id: 'unit2BoxCond',   title: (d) => 'What condition is the second unit (' + (d.unit2ItemNum || 'B unit') + ') box?', type: 'slider', min:1, max:10,
         skipIf: (d) => d.setMatch !== 'set-now' || d.unit2HasBox !== 'Yes' },
-      { id: 'photosUnit2Item', title: 'Add photos of the second unit',    type: 'drivePhotos', label: 'Item',
+      { id: 'photosUnit2Item', title: (d) => 'Add photos of the second unit (' + (d.unit2ItemNum || 'B unit') + ')',    type: 'drivePhotos', label: 'Item',
         unit2Mode: true,
         note: () => 'Photos for unit 2 — filed under its own Drive folder.',
         skipIf: (d) => d.setMatch !== 'set-now' },
-      { id: 'photosUnit2Box',  title: 'Add photos of the second unit box', type: 'drivePhotos', label: 'Box',
+      { id: 'photosUnit2Box',  title: (d) => 'Add photos of the second unit (' + (d.unit2ItemNum || 'B unit') + ') box', type: 'drivePhotos', label: 'Box',
         unit2Mode: true,
         note: () => 'Unit 2 box photos.',
         skipIf: (d) => d.setMatch !== 'set-now' || d.unit2HasBox !== 'Yes' },
@@ -3974,19 +3997,19 @@ function getSteps(tab) {
         choices: ['Powered', 'Dummy'],
         note: () => 'Will be saved as e.g. 2343-P or 2343-D.',
         skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'unit3Condition', title: 'What condition is the third unit?', type: 'slider', min:1, max:10,
+      { id: 'unit3Condition', title: (d) => 'What condition is the third unit (' + (d.unit3ItemNum || 'A unit') + ')?', type: 'slider', min:1, max:10,
         skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'unit3AllOriginal', title: 'Is the third unit all original?', type: 'choice3', choices: ['Yes','No','Unknown'],
+      { id: 'unit3AllOriginal', title: (d) => 'Is the third unit (' + (d.unit3ItemNum || 'A unit') + ') all original?', type: 'choice3', choices: ['Yes','No','Unknown'],
         skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'unit3HasBox',    title: 'Did the third unit come with a box?', type: 'choice2', choices: ['Yes','No'],
+      { id: 'unit3HasBox',    title: (d) => 'Did the third unit (' + (d.unit3ItemNum || 'A unit') + ') come with a box?', type: 'choice2', choices: ['Yes','No'],
         skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'unit3BoxCond',   title: 'What condition is the third unit box?', type: 'slider', min:1, max:10,
+      { id: 'unit3BoxCond',   title: (d) => 'What condition is the third unit (' + (d.unit3ItemNum || 'A unit') + ') box?', type: 'slider', min:1, max:10,
         skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' || d.unit3HasBox !== 'Yes' },
-      { id: 'photosUnit3Item', title: 'Add photos of the third unit',    type: 'drivePhotos', label: 'Item',
+      { id: 'photosUnit3Item', title: (d) => 'Add photos of the third unit (' + (d.unit3ItemNum || 'A unit') + ')',    type: 'drivePhotos', label: 'Item',
         unit3Mode: true,
         note: () => 'Photos for unit 3 (second A unit).',
         skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'photosUnit3Box',  title: 'Add photos of the third unit box', type: 'drivePhotos', label: 'Box',
+      { id: 'photosUnit3Box',  title: (d) => 'Add photos of the third unit (' + (d.unit3ItemNum || 'A unit') + ') box', type: 'drivePhotos', label: 'Box',
         unit3Mode: true,
         note: () => 'Unit 3 box photos.',
         skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' || d.unit3HasBox !== 'Yes' },
@@ -4001,7 +4024,7 @@ function getSteps(tab) {
         note: (d) => (isPaired(d) || d.setMatch === 'set-now') ? 'Full estimated value goes to the first unit.' : (d.hasBox === 'Yes' ? 'Include the value of both the item and the box.' : '') },
 
       // ── TOGETHER photos (only when paired) ──
-      { id: 'wantTogetherPhotos', title: 'Would you like to add photos of the engine and tender together?',
+      { id: 'wantTogetherPhotos', title: (d) => 'Would you like to add photos of the ' + getItemLabel(d) + ' and tender together?',
         type: 'choice2', choices: ['Yes','No'], skipIf: (d) => !isPaired(d) },
       { id: 'photosTogether',   title: 'Add photos of the engine and tender together',
         type: 'drivePhotos', label: 'Set',
@@ -4014,6 +4037,11 @@ function getSteps(tab) {
       { id: 'errorDesc',    title: 'Describe the error',                     type: 'textarea', optional: true,
         placeholder: 'e.g. Double-stamped road name, missing decoration on left side',
         skipIf: d => d.isError !== 'Yes' },
+      { id: 'wantErrorPhotos', title: 'Add close-up photos of the error?',   type: 'choice2', choices: ['Yes','No'],
+        skipIf: d => d.isError !== 'Yes' },
+      { id: 'photosError',  title: 'Add close-up photos of the error',       type: 'drivePhotos', label: 'Error', views: ERROR_VIEWS,
+        note: () => 'Close-ups of the error — e.g. double-stamp area, missing lettering. Filed in the same Drive folder.',
+        skipIf: d => d.isError !== 'Yes' || d.wantErrorPhotos !== 'Yes' },
       { id: 'confirm',      title: 'Ready to save!',                       type: 'confirm' },
     ];
   } else if (tab === 'sold') {
@@ -4116,7 +4144,7 @@ function renderWizardStep() {
   }
 
   document.getElementById('wizard-step-label').textContent = `Step ${current} of ${total}`;
-  document.getElementById('wizard-title').textContent = s.title;
+  document.getElementById('wizard-title').textContent = typeof s.title === 'function' ? s.title(wizard.data) : s.title;
   document.getElementById('wizard-progress').style.width = pct + '%';
   document.getElementById('wizard-back-btn').style.display = step > 0 ? 'inline-flex' : 'none';
   const autoAdvanceTypes = new Set(['choice','choice2','choice3','variation','pickRow','pickSoldItem']);
@@ -4556,7 +4584,7 @@ function renderWizardStep() {
     body.appendChild(tmContainer);
 
   } else if (s.type === 'drivePhotos') {
-    const views = s.label === 'Box' ? BOX_VIEWS : s.label === 'Set' ? ITEM_VIEWS : ITEM_VIEWS;
+    const views = s.views ? s.views : s.label === 'Box' ? BOX_VIEWS : s.label === 'Error' ? ERROR_VIEWS : ITEM_VIEWS;
     const stored = wizard.data[s.id] || {};
     body.innerHTML = `
       <div style="padding-top:0.25rem">
@@ -5279,6 +5307,7 @@ async function saveWizardItem() {
   // Photos are now Drive URL objects keyed by view
   const photoObj = d.photosItem || {};
   const boxPhotoObj = d.photosBox || {};
+  const errorPhotoObj = d.photosError || {};
   // Primary display photo = Front View, fallback to first available
   // All views return the same folder link — just grab the first one found
   const anyItemLink = Object.values(photoObj).find(v => v) || '';
