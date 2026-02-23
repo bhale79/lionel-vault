@@ -1323,6 +1323,7 @@ let state = {
   user: null,
   masterSheetId: null,
   ephemeraData: {},   // keyed by tab name → { rowKey: record }
+  userDefinedTabs: [], // array of { id, label } for user-created custom tabs
   isError: false,
   personalSheetId: null,
   masterData: [],      // all rows from master sheet
@@ -1972,11 +1973,22 @@ async function createPersonalSheet() {
 }
 
 // ── LOAD DATA ───────────────────────────────────────────────────
+// Load/save user-defined tab names
+function loadUserDefinedTabs() {
+  try {
+    state.userDefinedTabs = JSON.parse(localStorage.getItem('lv_user_tabs') || '[]');
+  } catch(e) { state.userDefinedTabs = []; }
+}
+function saveUserDefinedTabs() {
+  localStorage.setItem('lv_user_tabs', JSON.stringify(state.userDefinedTabs));
+}
+
 async function loadAllData() {
   showLoading();
   try {
     // Run master and personal sheet loads in parallel
-    await Promise.all([loadMasterData(), loadPersonalData()]);
+    loadUserDefinedTabs();
+  await Promise.all([loadMasterData(), loadPersonalData()]);
     buildApp();
 
   } catch(e) {
@@ -2109,6 +2121,8 @@ async function loadPersonalData() {
 
   // Ephemera tabs
   state.ephemeraData = { catalogs:{}, paper:{}, mockups:{}, other:{} };
+  // Initialize user-defined tab buckets
+  (state.userDefinedTabs||[]).forEach(t => { state.ephemeraData[t.id] = {}; });
 
   function parseEphemeraRows(rows, bucket) {
     (rows || []).forEach((r, idx) => {
@@ -2124,6 +2138,13 @@ async function loadPersonalData() {
   parseEphemeraRows(catRes.values,   state.ephemeraData.catalogs);
   parseEphemeraRows(paperRes.values, state.ephemeraData.paper);
   parseEphemeraRows(otherRes.values, state.ephemeraData.other);
+  // User-defined tabs — load their sheet data
+  for (const ut of (state.userDefinedTabs||[])) {
+    try {
+      const utRes = await sheetsGet(state.personalSheetId, ut.label + '!A3:J').catch(() => ({values:[]}));
+      parseEphemeraRows(utRes.values, state.ephemeraData[ut.id]);
+    } catch(e) {}
+  }
 
   // Mock-ups have extra fields
   (mockRes.values || []).forEach((r, idx) => {
@@ -3474,6 +3495,20 @@ function exportReport() {
 let _ephCurrentTab = 'catalogs';
 
 function buildEphemeraPage() {
+  // Rebuild tab buttons to include user-defined tabs
+  const tabBar = document.getElementById('ephemera-tabs');
+  if (tabBar) {
+    const stdTabs = [
+      { id:'catalogs', emoji:'📒', label:'Catalogs' },
+      { id:'paper',    emoji:'📄', label:'Paper Items' },
+      { id:'mockups',  emoji:'🔩', label:'Mock-Ups' },
+      { id:'other',    emoji:'📦', label:'Other Lionel' },
+    ];
+    const allTabs = [...stdTabs, ...(state.userDefinedTabs||[]).map(t => ({ id:t.id, emoji:'⭐', label:t.label }))];
+    tabBar.innerHTML = allTabs.map(t =>
+      `<button class="eph-tab${_ephCurrentTab===t.id?' active':''}" data-eph="${t.id}" onclick="switchEphTab('${t.id}',this)">${t.emoji} ${t.label}</button>`
+    ).join('');
+  }
   switchEphTab(_ephCurrentTab, document.querySelector('.eph-tab.active'));
 }
 
@@ -3481,7 +3516,8 @@ function switchEphTab(tabId, btn) {
   _ephCurrentTab = tabId;
   document.querySelectorAll('.eph-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  const bucket = state.ephemeraData[tabId] || {};
+  if (!state.ephemeraData[tabId]) state.ephemeraData[tabId] = {};
+  const bucket = state.ephemeraData[tabId];
   const items = Object.values(bucket);
   const container = document.getElementById('ephemera-content');
   if (!container) return;
@@ -3852,12 +3888,15 @@ let wizard = {
 
 // Step definitions per tab
 function getSteps(tab) {
-  // Ephemera (non-train items)
-  if (tab && ['catalogs','paper','mockups','other'].includes(tab)) {
+  // User-defined custom tabs — same flow as ephemera
+  const _allEphTabs = ['catalogs','paper','mockups','other',
+    ...(state.userDefinedTabs||[]).map(t => t.id)];
+  if (tab && _allEphTabs.includes(tab)) {
     const isMockup = tab === 'mockups';
+    const _userTabDef = (state.userDefinedTabs||[]).find(t => t.id === tab);
+    const _tabLabel = _userTabDef ? _userTabDef.label : tab;
     const steps = [
-      { id: 'tab', title: 'What would you like to add?', type: 'choice' },
-      { id: 'eph_title', title: isMockup ? 'What is the mock-up title or name?' : 'What is the title?', type: 'text', placeholder: isMockup ? 'e.g. 2344 Santa Fe Prototype' : 'e.g. 1957 Consumer Catalog' },
+      { id: 'eph_title', title: isMockup ? 'What is the mock-up title or name?' : ('What is the title of this ' + (_userTabDef ? _userTabDef.label : 'item') + '?'), type: 'text', placeholder: isMockup ? 'e.g. 2344 Santa Fe Prototype' : 'e.g. 1957 Consumer Catalog' },
     ];
     if (isMockup) steps.push(
       { id: 'eph_itemNumRef', title: 'Related item number (if known)', type: 'text', placeholder: 'e.g. 2344', optional: true },
@@ -3885,16 +3924,21 @@ function getSteps(tab) {
   }
 
   const base = [
-    { id: 'tab',        title: 'What would you like to add?',          type: 'choice' },
     { id: 'itemNum',    title: 'What is the Lionel item number?',       type: 'text',     placeholder: 'e.g. 726, 2046, 6464-1' },
     { id: 'variation',  title: 'Which variation is it?',                type: 'variation', optional: true },
   ];
 
   if (tab === 'collection') {
+    // If a sub-category was chosen and it's not a Lionel item, redirect to ephemera steps
+    if (wizard.data.itemCategory && wizard.data.itemCategory !== 'lionel') {
+      const ephTab = wizard.data.itemCategory;
+      wizard.tab = ephTab;
+      return getSteps(ephTab);
+    }
     // Box-only mode: skip item condition/price, only ask box info
     if (wizard.data.boxOnly) {
       return [
-        { id: 'tab',           title: 'What would you like to add?',       type: 'choice' },
+        { id: 'itemCategory', title: 'What would you like to add?', type: 'itemCategory' },
         { id: 'itemNum',       title: 'What is the Lionel item number?',    type: 'text',     placeholder: 'e.g. 726, 2046, 6464-1' },
         { id: 'pickRow',       title: 'Which item is this box for?',        type: 'pickRow',  skipIf: (d) => {
           const matches = Object.keys(state.personalData).filter(k => k.split('|')[0] === (d.itemNum||'').trim());
@@ -3913,7 +3957,10 @@ function getSteps(tab) {
     const engineLabel = (d) => isPaired(d) ? ' (Engine Only — tender added next)' : '';
     const tenderLabel = (d) => ' (Tender: ' + (d.tenderMatch || '') + ')';
 
-    return [...base,
+    return [
+      { id: 'itemCategory', title: 'What would you like to add?', type: 'itemCategory',
+        skipIf: (d) => !!d.itemCategory },
+      ...base,
       // ── ENGINE section ──
       { id: 'condition',    title: (d) => 'What condition is the ' + getItemLabel(d) + '?',         type: 'slider',   min:1, max:10, skipIf: () => false },
       { id: 'allOriginal',  title: (d) => 'Is the ' + getItemLabel(d) + ' all original parts?',             type: 'choice3',  choices: ['Yes','No','Unknown'] },
@@ -4085,9 +4132,13 @@ function openWizard(tab) {
   wizard = { step: 0, tab: tab, data: { tab: tab }, steps: getSteps(tab), matchedItem: null };
   document.getElementById('wizard-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
-  // Skip the first 'choice' step since tab is already selected
+  // Skip old-style 'choice' tab picker — but NOT itemCategory (we want that shown)
   if (wizard.steps[0] && wizard.steps[0].type === 'choice') {
     wizard.step = 1;
+  }
+  // Pre-set lionel category if opening collection directly
+  if (tab === 'collection' && !wizard.data.itemCategory) {
+    // Don't pre-set — let user choose category first
   }
   renderWizardStep();
 }
@@ -4161,7 +4212,36 @@ function renderWizardStep() {
 
   const body = document.getElementById('wizard-body');
 
-  if (s.type === 'choice') {
+  if (s.type === 'itemCategory') {
+    const _userTabs = state.userDefinedTabs || [];
+    const _cats = [
+      { id: 'lionel',   label: 'Lionel Item #',  desc: 'Train, car, accessory with a Lionel catalog number', emoji: '🚂', color: 'var(--accent)' },
+      { id: 'catalogs', label: 'Catalog',         desc: 'Lionel consumer or dealer catalog',                  emoji: '📒', color: '#e67e22' },
+      { id: 'paper',    label: 'Paper Item',       desc: 'Ad, flyer, article, box insert',                    emoji: '📄', color: '#3498db' },
+      { id: 'mockups',  label: 'Mock-Up',          desc: 'Pre-production prototype',                          emoji: '🔩', color: '#9b59b6' },
+      { id: 'other',    label: 'Other Lionel',     desc: 'Accessory, display, anything else',                 emoji: '📦', color: '#27ae60' },
+      ..._userTabs.map(t => ({ id: t.id, label: t.label, desc: 'Your custom category', emoji: '⭐', color: '#f39c12' })),
+      { id: '__new__',  label: 'User Defined',     desc: 'Create your own custom category',                   emoji: '✏️', color: '#95a5a6' },
+    ];
+    const cur = wizard.data.itemCategory || '';
+    body.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:0.5rem;padding-top:0.25rem;max-height:60vh;overflow-y:auto">
+        ${_cats.map(c => `
+          <button onclick="wizardChooseCategory('${c.id}')" style="
+            display:flex;align-items:center;gap:0.85rem;padding:0.75rem 1rem;
+            border-radius:10px;border:2px solid ${cur===c.id ? c.color : 'var(--border)'};
+            background:${cur===c.id ? c.color+'22' : 'var(--surface2)'};
+            color:var(--text);cursor:pointer;text-align:left;font-family:var(--font-body);width:100%
+          ">
+            <span style="font-size:1.3rem;width:28px;text-align:center;flex-shrink:0">${c.emoji}</span>
+            <div>
+              <div style="font-weight:600;font-size:0.9rem">${c.label}</div>
+              <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.1rem">${c.desc}</div>
+            </div>
+          </button>`).join('')}
+      </div>`;
+
+  } else if (s.type === 'choice') {
     // First step - choose tab
     body.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:0.75rem;padding-top:0.5rem">
@@ -4740,6 +4820,62 @@ function renderWizardStep() {
   }
 }
 
+function wizardChooseCategory(catId) {
+  if (catId === '__new__') {
+    // Prompt for custom category name
+    const name = prompt('Enter a name for your custom category:');
+    if (!name || !name.trim()) return;
+    const label = name.trim();
+    const id = 'user_' + label.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+    // Check if already exists
+    if (!state.userDefinedTabs.find(t => t.id === id)) {
+      state.userDefinedTabs.push({ id, label });
+      saveUserDefinedTabs();
+      // Create the sheet tab
+      ensureUserDefinedSheet(id, label);
+    }
+    wizard.data.itemCategory = id;
+    wizard.tab = id;
+    wizard.steps = getSteps(id);
+    wizard.step = 0;
+    renderWizardStep();
+    return;
+  }
+  wizard.data.itemCategory = catId;
+  if (catId !== 'lionel') {
+    wizard.tab = catId;
+    wizard.steps = getSteps(catId);
+    wizard.step = 0;
+    renderWizardStep();
+  } else {
+    setTimeout(() => wizardNext(), 150);
+  }
+}
+
+async function ensureUserDefinedSheet(id, label) {
+  if (!state.personalSheetId) return;
+  try {
+    const metaRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${state.personalSheetId}?fields=sheets.properties.title`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const meta = await metaRes.json();
+    const existing = (meta.sheets || []).map(s => s.properties.title);
+    if (!existing.includes(label)) {
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${state.personalSheetId}:batchUpdate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: label } } }] }),
+      });
+      await sheetsUpdate(state.personalSheetId, `${label}!A1:A1`, [[label]]);
+      await sheetsUpdate(state.personalSheetId, `${label}!A2:J2`, [EPHEMERA_HEADERS]);
+    }
+    // Initialize in state
+    if (!state.ephemeraData[id]) state.ephemeraData[id] = {};
+    showToast('✓ Created "' + label + '" tab');
+  } catch(e) { console.error('Create user tab error:', e); }
+}
+
 function wizardChooseTab(tab) {
   wizard.tab = tab;
   wizard.data.tab = tab;
@@ -5199,7 +5335,9 @@ async function saveEphemeraItem() {
   const d = wizard.data;
   const tab = wizard.tab;
   const tabNames = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };
-  const sheetName = tabNames[tab];
+  // User-defined tabs: look up label from state
+  const _userTab = (state.userDefinedTabs||[]).find(t => t.id === tab);
+  const sheetName = tabNames[tab] || (_userTab && _userTab.label) || null;
   if (!sheetName) { closeWizard(); return; }
 
   let row;
