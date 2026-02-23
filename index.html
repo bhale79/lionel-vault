@@ -766,7 +766,13 @@
 
       <!-- ── Browse ── -->
       <div class="page" id="page-browse">
-        <div class="page-title">Postwar Item List</div>
+        <div class="page-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>Postwar Item List</span>
+          <button class="btn" onclick="startWizardFor('collection')" style="display:flex;align-items:center;gap:0.4rem;border:1.5px solid #e8401c;color:#e8401c;background:rgba(232,64,28,0.12);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            Add to Collection
+          </button>
+        </div>
 
         <div class="filter-bar">
           <select class="filter-select" id="filter-type" onchange="applyFilters()">
@@ -806,7 +812,13 @@
 
       <!-- ── Sold ── -->
       <div class="page" id="page-sold">
-        <div class="page-title">Sold Items</div>
+        <div class="page-title" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+          <span>Sold Items</span>
+          <button class="btn" onclick="startWizardFor('sold')" style="display:flex;align-items:center;gap:0.4rem;border:1.5px solid #2ecc71;color:#2ecc71;background:rgba(46,204,113,0.12);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Record a Sale
+          </button>
+        </div>
         <div class="table-wrap">
           <table class="item-table">
             <thead>
@@ -1959,13 +1971,10 @@ function buildDashboard() {
 
 
   // Recent Additions — last 5 owned items by sheet row order (highest row = most recent)
-  const _allPD = Object.values(state.personalData);
-  console.log('personalData total entries:', _allPD.length, '| owned:', _allPD.filter(p=>p.owned).length);
-  const _recentOwned = _allPD
+  const _recentOwned = Object.values(state.personalData)
     .filter(pd => pd.owned)
     .sort((a, b) => (b.row || 0) - (a.row || 0))
     .slice(0, 5);
-  console.log('Recent owned slice:', _recentOwned.map(p => p.itemNum + ' row=' + p.row));
   const _recentEl = document.getElementById('recent-list');
   if (_recentEl) {
     _recentEl.innerHTML = _recentOwned.length ? _recentOwned.map(function(pd) {
