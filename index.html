@@ -1251,6 +1251,10 @@ const EPHEMERA_HEADERS = [
   'Title','Description','Year','Manufacturer','Condition (1-10)',
   'Quantity','Est. Value','Photo Link','Notes','Date Acquired'
 ];
+const CATALOG_HEADERS = [
+  'Type','Year','Has Envelope/Mailer','Condition (1-10)',
+  'Est. Value','Date Acquired','Notes','Photo Link'
+];
 // Mock-ups get extra columns
 const MOCKUP_HEADERS = [
   'Title','Item Number Ref','Description','Year','Manufacturer',
@@ -1571,7 +1575,7 @@ async function ensureEphemeraSheets(sheetId) {
   }
   // Write headers
   await sheetsUpdate(sheetId, 'Catalogs!A1:A1',    [['Catalogs']]);
-  await sheetsUpdate(sheetId, 'Catalogs!A2:J2',    [EPHEMERA_HEADERS]);
+  await sheetsUpdate(sheetId, 'Catalogs!A2:H2',    [CATALOG_HEADERS]);
   await sheetsUpdate(sheetId, 'Paper Items!A1:A1', [['Paper Items']]);
   await sheetsUpdate(sheetId, 'Paper Items!A2:J2', [EPHEMERA_HEADERS]);
   await sheetsUpdate(sheetId, 'Mock-Ups!A1:A1',    [['Mock-Ups']]);
@@ -2135,7 +2139,18 @@ async function loadPersonalData() {
       };
     });
   }
-  parseEphemeraRows(catRes.values,   state.ephemeraData.catalogs);
+  // Catalogs have their own column layout
+  (catRes.values || []).forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Type') return;
+    const key = idx + 3;
+    const title = [r[1], r[0]].filter(Boolean).join(' '); // "Year Type"
+    state.ephemeraData.catalogs[key] = {
+      row: key, title,
+      catType: r[0]||'', year: r[1]||'', hasMailer: r[2]||'No',
+      condition: r[3]||'', estValue: r[4]||'', dateAcquired: r[5]||'',
+      notes: r[6]||'', photoLink: r[7]||'',
+    };
+  });
   parseEphemeraRows(paperRes.values, state.ephemeraData.paper);
   parseEphemeraRows(otherRes.values, state.ephemeraData.other);
   // User-defined tabs — load their sheet data
@@ -3533,11 +3548,14 @@ function switchEphTab(tabId, btn) {
   container.innerHTML = items.sort((a,b) => (b.row||0)-(a.row||0)).map(item => {
     const val = item.estValue ? '$' + parseFloat(item.estValue).toLocaleString() : '';
     const cond = item.condition ? item.condition + '/10' : '';
+    const isCatalog2 = tabId === 'catalogs';
     const subtitle = [
+      isCatalog2 && item.catType ? item.catType : '',
+      isCatalog2 && item.hasMailer === 'Yes' ? '✉ Has mailer' : '',
       isMockup && item.itemNumRef ? 'Ref: ' + item.itemNumRef : '',
       item.manufacturer && item.manufacturer !== 'Lionel' ? item.manufacturer : '',
       isMockup && item.productionStatus ? item.productionStatus : '',
-      item.quantity > 1 ? 'Qty: ' + item.quantity : '',
+      !isCatalog2 && item.quantity > 1 ? 'Qty: ' + item.quantity : '',
       cond,
     ].filter(Boolean).join(' · ');
     return `<div class="eph-row" onclick="openEphemeraDetail('${tabId}',${item.row})">
@@ -3563,7 +3581,16 @@ function openEphemeraDetail(tabId, rowKey) {
   overlay.className = 'modal-overlay open';
   overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
 
-  const fields = isMockup ? [
+  const isCatalog3 = tabId === 'catalogs';
+  const fields = isCatalog3 ? [
+    ['Type',              item.catType || '—'],
+    ['Year',              item.year || '—'],
+    ['Has Envelope/Mailer', item.hasMailer || 'No'],
+    ['Condition',         item.condition ? item.condition + '/10' : '—'],
+    ['Est. Value',        item.estValue ? '$' + parseFloat(item.estValue).toLocaleString() : '—'],
+    ['Date Acquired',     item.dateAcquired || '—'],
+    ['Notes',             item.notes || '—'],
+  ] : isMockup ? [
     ['Title', item.title],
     ['Item # Reference', item.itemNumRef],
     ['Description', item.description],
@@ -3892,9 +3919,28 @@ function getSteps(tab) {
   const _allEphTabs = ['catalogs','paper','mockups','other',
     ...(state.userDefinedTabs||[]).map(t => t.id)];
   if (tab && _allEphTabs.includes(tab)) {
-    const isMockup = tab === 'mockups';
+    const isMockup  = tab === 'mockups';
+    const isCatalog = tab === 'catalogs';
     const _userTabDef = (state.userDefinedTabs||[]).find(t => t.id === tab);
-    const _tabLabel = _userTabDef ? _userTabDef.label : tab;
+
+    // ── Catalog-specific flow ──
+    if (isCatalog) {
+      return [
+        { id: 'cat_type',        title: 'What type of catalog is this?',          type: 'choice3',
+          choices: ['Consumer','Dealer','Advance','Other'] },
+        { id: 'cat_year',        title: 'What year is the catalog?',              type: 'text',
+          placeholder: 'e.g. 1957' },
+        { id: 'cat_hasMailer',   title: 'Does it have the envelope or mailer?',   type: 'choice2',
+          choices: ['Yes','No'] },
+        { id: 'cat_condition',   title: 'What condition is the catalog?',         type: 'slider', min:1, max:10 },
+        { id: 'cat_estValue',    title: 'Estimated value',                        type: 'money',
+          placeholder: '0.00', optional: true },
+        { id: 'cat_dateAcquired',title: 'Date acquired',                          type: 'date', optional: true },
+        { id: 'cat_notes',       title: 'Any notes?',                             type: 'textarea', optional: true },
+        { id: 'cat_confirm',     title: 'Ready to save the catalog!',             type: 'confirm' },
+      ];
+    }
+
     const steps = [
       { id: 'eph_title', title: isMockup ? 'What is the mock-up title or name?' : ('What is the title of this ' + (_userTabDef ? _userTabDef.label : 'item') + '?'), type: 'text', placeholder: isMockup ? 'e.g. 2344 Santa Fe Prototype' : 'e.g. 1957 Consumer Catalog' },
     ];
@@ -5309,8 +5355,15 @@ async function wizardNext() {
     return;
   }
 
+  // Catalog confirm
+  if (s.id === 'cat_confirm') {
+    await saveCatalogItem();
+    return;
+  }
+
   // Ephemera confirm
-  if (s.id === 'eph_confirm' || (s.type === 'confirm' && ['catalogs','paper','mockups','other'].includes(wizard.tab))) {
+  const _ephTabIds = ['paper','mockups','other',...(state.userDefinedTabs||[]).map(t=>t.id)];
+  if (s.id === 'eph_confirm' || (s.type === 'confirm' && _ephTabIds.includes(wizard.tab))) {
     await saveEphemeraItem();
     return;
   }
@@ -5329,6 +5382,46 @@ async function wizardNext() {
   }
 
   renderWizardStep();
+}
+
+async function saveCatalogItem() {
+  const d = wizard.data;
+  // Title = "Year Type" e.g. "1957 Consumer"
+  const title = [d.cat_year, d.cat_type].filter(Boolean).join(' ');
+  const row = [
+    d.cat_type || '',
+    d.cat_year || '',
+    d.cat_hasMailer || 'No',
+    d.cat_condition || '',
+    d.cat_estValue || '',
+    d.cat_dateAcquired || '',
+    d.cat_notes || '',
+    '',  // photo link
+  ];
+  try {
+    await sheetsAppend(state.personalSheetId, 'Catalogs', [row]);
+    const newKey = Date.now();
+    if (!state.ephemeraData.catalogs) state.ephemeraData.catalogs = {};
+    state.ephemeraData.catalogs[newKey] = {
+      row: newKey,
+      title,
+      catType:    d.cat_type || '',
+      year:       d.cat_year || '',
+      hasMailer:  d.cat_hasMailer || 'No',
+      condition:  d.cat_condition || '',
+      estValue:   d.cat_estValue || '',
+      dateAcquired: d.cat_dateAcquired || '',
+      notes:      d.cat_notes || '',
+      photoLink:  '',
+    };
+    showToast('✓ ' + (title || 'Catalog') + ' saved!');
+    closeWizard();
+    if (document.getElementById('page-ephemera')?.classList.contains('active')) {
+      buildEphemeraPage();
+    }
+  } catch(e) {
+    showToast('Error saving: ' + e.message);
+  }
 }
 
 async function saveEphemeraItem() {
