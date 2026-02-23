@@ -1436,9 +1436,10 @@ async function createPersonalSheet() {
   state.personalSheetId = data.spreadsheetId;
   localStorage.setItem('lv_personal_id', state.personalSheetId);
 
-  // 3. Write headers
+  // 3. Write headers and create all tabs
   await sheetsUpdate(state.personalSheetId, 'My Collection!A1:A1', [['My Collection']]);
   await sheetsUpdate(state.personalSheetId, 'My Collection!A2:N2', [PERSONAL_HEADERS]);
+  await initPersonalSheet(state.personalSheetId);
 
   // 4. Move the sheet file into the vault folder
   try { await driveMoveSheetToVault(state.personalSheetId); } catch(e) { console.warn('Could not move sheet to vault:', e); }
@@ -1526,7 +1527,7 @@ async function loadPersonalData() {
 
   // Load Sold tab
   try {
-    const soldRes = await sheetsGet(state.personalSheetId, 'Sold!A3:H');
+    const soldRes = await sheetsGet(state.personalSheetId, 'Sold!A3:H').catch(() => ({values:[]}));
     const soldRows = soldRes.values || [];
     console.log('Sold rows loaded:', soldRows.length);
     soldRows.forEach((r, idx) => {
@@ -1548,7 +1549,7 @@ async function loadPersonalData() {
 
   // Load Want List tab
   try {
-    const wantRes = await sheetsGet(state.personalSheetId, 'Want List!A3:E');
+    const wantRes = await sheetsGet(state.personalSheetId, 'Want List!A3:E').catch(() => ({values:[]}));
     const wantRows = wantRes.values || [];
     console.log('Want rows loaded:', wantRows.length);
     wantRows.forEach((r, idx) => {
