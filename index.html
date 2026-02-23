@@ -3206,7 +3206,7 @@ function renderWizardStep() {
           : '')
       + '<input type="number" id="wiz-year-input" value="' + curr + '" placeholder="e.g. 1952" min="1945" max="1969" '
       + 'style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;color:var(--text);font-family:var(--font-mono);font-size:1.2rem;outline:none;letter-spacing:0.1em" '
-      + 'oninput="wizard.data.yearMade=this.value" onkeydown="if(event.key==='Enter')wizardNext()">'
+      + 'oninput="wizard.data.yearMade=this.value" onkeydown="if(event.key===\'Enter\')wizardNext()">'
       + '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — if no year entered, the production range above will be used.</div>'
       + '</div>';
     setTimeout(function() { const i = document.getElementById('wiz-year-input'); if(i) i.focus(); }, 50);
