@@ -1712,12 +1712,22 @@ async function showDebugInfo() {
       sheetTest = r.status + ' — ' + JSON.stringify(d).substring(0, 80);
     } catch(e) { sheetTest = 'ERROR: ' + e.message; }
   }
+  const pdSample = JSON.stringify(Object.values(state.personalData)[0] || {}).substring(0, 200);
+  const owned = Object.values(state.personalData).filter(pd => pd.owned).length;
+  const boxOnly = Object.values(state.personalData).filter(pd => {
+    const c = pd.condition?.toString().trim();
+    const p = pd.priceItem?.toString().trim();
+    return pd.hasBox === 'Yes' && (!c || c === 'N/A') && (!p || p === 'N/A');
+  }).length;
   const info = [
     'token: ' + (accessToken ? 'YES' : 'MISSING'),
     'personalSheetId: ' + (pid || 'MISSING'),
     'masterRows: ' + state.masterData.length,
     'personalKeys: ' + Object.keys(state.personalData).length,
+    'owned flag: ' + owned,
+    'boxOnly excluded: ' + boxOnly,
     'sheet test: ' + sheetTest,
+    'sample: ' + pdSample,
   ].join('\n');
   alert(info);
 }
