@@ -1948,13 +1948,9 @@ function buildDashboard() {
     if (pd.allOriginal === 'Yes') origCount++;
   });
 
-  document.getElementById('stat-total').textContent = total.toLocaleString();
   document.getElementById('stat-owned').textContent = owned.toLocaleString();
   document.getElementById('stat-owned-pct').textContent = `${pct}% of catalog`;
   document.getElementById('stat-value').textContent = totalValue > 0 ? `$${Math.round(totalValue).toLocaleString()}` : '—';
-  document.getElementById('stat-cond').textContent = condCount > 0 ? (condSum / condCount).toFixed(1) : '—';
-  document.getElementById('stat-boxed').textContent = owned > 0 ? `${boxedCount} / ${owned}` : '—';
-  document.getElementById('stat-orig').textContent = owned > 0 ? `${origCount} / ${owned}` : '—';
 
   const soldCount = Object.keys(state.soldData).length;
   const wantCount = total - owned - soldCount;
