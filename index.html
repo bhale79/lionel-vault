@@ -2172,7 +2172,7 @@ function renderBrowse() {
       const vdCell = vdShort
         ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="event.stopPropagation();showVarDescPopup(${globalIdx})">${vdShort}</span>`
         : '<span class="text-dim">—</span>';
-      return `<tr onclick="openItem(${globalIdx})">
+      return `<tr onclick="browseRowClick(event, ${globalIdx})" style="cursor:pointer">
         <td><span class="item-num">${item.itemNum}</span></td>
         <td><span class="tag">${item.itemType || '—'}</span></td>
         <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
@@ -2209,6 +2209,97 @@ function renderBrowse() {
 }
 
 function goPage(p) { state.currentPage = p; renderBrowse(); document.getElementById('main-content').scrollTop = 0; }
+
+// ── BROWSE ROW CLICK — offer to add or view ─────────────────────
+function browseRowClick(event, idx) {
+  // If click was on the varDesc popup span, don't intercept
+  if (event.target.closest && event.target.closest('[onclick*="showVarDescPopup"]')) return;
+  const item = state.masterData[idx];
+  if (!item) return;
+  const keyPrefix = item.itemNum + '|' + item.variation + '|';
+  const alreadyOwned = Object.keys(state.personalData).some(k => k.startsWith(keyPrefix));
+  if (alreadyOwned) {
+    // Already in collection — just open the detail modal
+    openItem(idx);
+    return;
+  }
+  // Not owned — show quick prompt
+  const existing = document.getElementById('browse-add-prompt');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'browse-add-prompt';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(232,64,28,0.4);border-radius:16px;max-width:440px;width:100%;padding:1.75rem;position:relative';
+  // Header
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--accent);margin-bottom:0.25rem';
+  hdr.textContent = 'No. ' + item.itemNum + (item.variation ? ' — Var. ' + item.variation : '');
+  box.appendChild(hdr);
+  const sub = document.createElement('div');
+  sub.style.cssText = 'font-size:0.85rem;color:var(--text-mid);margin-bottom:0.25rem';
+  sub.textContent = item.roadName || item.itemType || '';
+  box.appendChild(sub);
+  if (item.yearProd) {
+    const yr = document.createElement('div');
+    yr.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-bottom:1.25rem';
+    yr.textContent = item.yearProd + (item.itemType ? ' · ' + item.itemType : '');
+    box.appendChild(yr);
+  } else {
+    sub.style.marginBottom = '1.25rem';
+  }
+  // Question
+  const q = document.createElement('div');
+  q.style.cssText = 'font-size:0.9rem;color:var(--text);margin-bottom:1.25rem;font-weight:500';
+  q.textContent = 'Do you own this item?';
+  box.appendChild(q);
+  // Buttons
+  const btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:0.75rem';
+  const yesBtn = document.createElement('button');
+  yesBtn.className = 'btn btn-primary';
+  yesBtn.style.cssText = 'flex:1;background:#e8401c;border-color:#e8401c;font-weight:600';
+  yesBtn.textContent = '✓ Yes — Add to Collection';
+  yesBtn.onclick = function() { overlay.remove(); addFromBrowse(idx); };
+  const viewBtn = document.createElement('button');
+  viewBtn.className = 'btn btn-secondary';
+  viewBtn.style.cssText = 'flex:1';
+  viewBtn.textContent = 'View Details';
+  viewBtn.onclick = function() { overlay.remove(); openItem(idx); };
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn btn-secondary';
+  cancelBtn.style.cssText = 'padding:0.6rem 0.9rem';
+  cancelBtn.textContent = '✕';
+  cancelBtn.onclick = function() { overlay.remove(); };
+  btnRow.appendChild(yesBtn);
+  btnRow.appendChild(viewBtn);
+  btnRow.appendChild(cancelBtn);
+  box.appendChild(btnRow);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
+function addFromBrowse(idx) {
+  const item = state.masterData[idx];
+  if (!item) return;
+  // Open the collection wizard with itemNum + variation pre-filled
+  wizard = { step: 0, tab: 'collection', data: { tab: 'collection', itemNum: item.itemNum, variation: item.variation || '' }, steps: getSteps('collection'), matchedItem: item };
+  document.getElementById('wizard-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Skip the tab picker (step 0) and itemNum step — advance past any steps
+  // whose id is 'itemNum' or 'variation' (already known)
+  const autoSkip = new Set(['itemNum', 'variation']);
+  while (wizard.step < wizard.steps.length - 1) {
+    const s = wizard.steps[wizard.step];
+    if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) {
+      wizard.step++;
+    } else {
+      break;
+    }
+  }
+  renderWizardStep();
+}
 
 // ── ITEM MODAL ──────────────────────────────────────────────────
 function openItem(idx) {
