@@ -679,7 +679,7 @@
         <div class="nav-label">Inventory</div>
         <button class="nav-item" onclick="showPage('browse', this); resetFilters(); renderBrowse();">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-          Browse All
+          Postwar Item List
           <span class="nav-badge" id="nav-total">—</span>
         </button>
         <button class="nav-item" onclick="showPage('browse', this); filterOwned()">
@@ -736,11 +736,6 @@
         </div>
 
         <div class="stats-grid" id="stats-grid">
-          <div class="stat-card" style="--accent-color: var(--accent)">
-            <div class="stat-label">Total Items in Master</div>
-            <div class="stat-value" id="stat-total">—</div>
-            <div class="stat-sub">unique item/variation rows</div>
-          </div>
           <div class="stat-card" style="--accent-color: var(--green)">
             <div class="stat-label">Items I Own</div>
             <div class="stat-value" id="stat-owned">—</div>
@@ -750,21 +745,6 @@
             <div class="stat-label">Collection Value</div>
             <div class="stat-value" id="stat-value">—</div>
             <div class="stat-sub">item+box complete</div>
-          </div>
-          <div class="stat-card" style="--accent-color: #9b59b6">
-            <div class="stat-label">Avg Condition</div>
-            <div class="stat-value" id="stat-cond">—</div>
-            <div class="stat-sub">out of 10</div>
-          </div>
-          <div class="stat-card" style="--accent-color: #3498db">
-            <div class="stat-label">With Original Box</div>
-            <div class="stat-value" id="stat-boxed">—</div>
-            <div class="stat-sub">of owned items</div>
-          </div>
-          <div class="stat-card" style="--accent-color: #1abc9c">
-            <div class="stat-label">All Original</div>
-            <div class="stat-value" id="stat-orig">—</div>
-            <div class="stat-sub">unmodified pieces</div>
           </div>
         </div>
 
@@ -791,7 +771,7 @@
 
       <!-- ── Browse ── -->
       <div class="page" id="page-browse">
-        <div class="page-title">Browse Inventory</div>
+        <div class="page-title">Postwar Item List</div>
 
         <div class="filter-bar">
           <select class="filter-select" id="filter-type" onchange="applyFilters()">
