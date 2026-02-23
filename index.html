@@ -1634,7 +1634,6 @@ async function loadDriveThumb(fileId, imgEl, containerEl) {
     const res = await fetch(thumbUrl, {
       headers: { Authorization: 'Bearer ' + accessToken }
     });
-    console.log('Drive thumb fetch', fileId, 'status:', res.status, 'type:', res.headers.get('content-type'));
     if (!res.ok) {
       containerEl.innerHTML = '<span style="font-size:0.65rem;color:var(--text-dim)">⚠ ' + res.status + '</span>';
       return;
@@ -1644,7 +1643,6 @@ async function loadDriveThumb(fileId, imgEl, containerEl) {
     _blobCache[cacheKey] = url;
     imgEl.src = url;
   } catch(e) {
-    console.error('loadDriveThumb error:', e);
     containerEl.innerHTML = '<span style="font-size:0.65rem;color:var(--text-dim)">⚠ err</span>';
   }
 }
@@ -1862,10 +1860,10 @@ async function loadAllData() {
 }
 
 async function loadMasterData() {
-  // Try 'Master Inventory' tab first, fall back to 'Sheet1' if renamed during import
-  let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A3:O');
+  // Fetch through col V to include Est. Market Value (col V = index 21)
+  let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A3:V');
   if (!res.values) {
-    res = await sheetsGet(state.masterSheetId, 'Sheet1!A3:O');
+    res = await sheetsGet(state.masterSheetId, 'Sheet1!A3:V');
   }
   const rows = res.values || [];
   state.masterData = rows.map(r => ({
@@ -1880,10 +1878,11 @@ async function loadMasterData() {
     variation:  r[8]  || '',
     varDesc:    r[9]  || '',
     refLink:    r[10] || '',
-    ebayAvg:    r[11] || '',
-    ebaySample: r[12] || '',
-    ebayUpdated:r[13] || '',
-    marketVal:  r[14] || '',
+    // cols L-Q (11-16) = personal collection data (ignored — use personal sheet instead)
+    ebayAvg:    r[18] || '',  // col S
+    ebaySample: r[19] || '',  // col T
+    ebayUpdated:r[20] || '',  // col U
+    marketVal:  r[21] || '',  // col V = Est. Market Value
   }));
 }
 
