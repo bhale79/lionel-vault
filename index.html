@@ -292,6 +292,9 @@
     width: 100%; max-width: 680px; max-height: 90vh; overflow-y: auto;
     transform: translateY(20px); transition: transform 0.2s;
   }
+  #wizard-modal .modal {
+    overflow: hidden; display: flex; flex-direction: column;
+  }
   .modal-overlay.open .modal { transform: translateY(0); }
 
   .modal-header {
@@ -674,10 +677,20 @@
 
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem">
           <div class="page-title">Dashboard <span id="dash-greeting"></span> <span title="Build indicator" style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#e8401c;vertical-align:middle;margin-left:4px"></span></div>
-          <button class="btn btn-primary" onclick="startAddWizard()" style="display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;padding:0.65rem 1.25rem">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Add Item
-          </button>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="openWizard('collection')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add to Collection
+            </button>
+            <button class="btn" onclick="openWizard('want')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid var(--accent2);color:var(--accent2);background:rgba(245,166,35,0.08)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
+              Want List
+            </button>
+            <button class="btn" onclick="openWizard('sold')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid var(--green);color:var(--green);background:rgba(34,197,94,0.08)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              Sell Item
+            </button>
+          </div>
         </div>
 
         <div class="stats-grid" id="stats-grid">
@@ -1077,7 +1090,7 @@
 
 <!-- ══ ADD ITEM WIZARD ══════════════════════════════════════════ -->
 <div class="modal-overlay" id="wizard-modal" onclick="closeWizardOnOverlay(event)">
-  <div class="modal" style="max-width:520px">
+  <div class="modal" style="max-width:520px;height:580px;display:flex;flex-direction:column;overflow:hidden">
     <div class="modal-header">
       <div>
         <div class="modal-item-num" id="wizard-step-label"></div>
@@ -1093,7 +1106,7 @@
       </div>
     </div>
 
-    <div class="modal-body" id="wizard-body" style="min-height:180px">
+    <div class="modal-body" id="wizard-body" style="flex:1;overflow-y:auto;min-height:0">
     </div>
 
     <div class="modal-footer">
@@ -2690,7 +2703,17 @@ function renderWizardStep() {
   document.getElementById('wizard-title').textContent = s.title;
   document.getElementById('wizard-progress').style.width = pct + '%';
   document.getElementById('wizard-back-btn').style.display = step > 0 ? 'inline-flex' : 'none';
-  document.getElementById('wizard-next-btn').textContent = s.type === 'confirm' ? '✓ Save' : 'Next →';
+  const autoAdvanceTypes = new Set(['choice','choice2','choice3','variation','divider','pickRow','pickSoldItem']);
+  const nextBtn = document.getElementById('wizard-next-btn');
+  if (s.type === 'confirm') {
+    nextBtn.textContent = '✓ Save';
+    nextBtn.style.display = 'inline-flex';
+  } else if (autoAdvanceTypes.has(s.type)) {
+    nextBtn.style.display = 'none';
+  } else {
+    nextBtn.textContent = 'Next →';
+    nextBtn.style.display = 'inline-flex';
+  }
 
   const body = document.getElementById('wizard-body');
 
@@ -3137,6 +3160,11 @@ function wizardChooseTab(tab) {
 function wizardChoose(field, val) {
   wizard.data[field] = val;
   renderWizardStep();
+  // Auto-advance for choice2/choice3 but not tenderMatch (user may want to review)
+  const s = wizard.steps[wizard.step];
+  if (s && s.type !== 'tenderMatch') {
+    setTimeout(() => wizardNext(), 200);
+  }
 }
 
 // Find personalData entry by itemNum|variation prefix (key includes row number)
