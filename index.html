@@ -2509,43 +2509,72 @@ function showItemPanel(idx, pdKey, mode) {
 
   photoContainer.appendChild(photoSection);
 
-  // Async load
+  // Async load photos
   (async function() {
-    let folderLink = pd.photoItem || '';
-    if (!folderLink) {
-      try {
-        const folderId = await driveEnsureItemFolder(item.itemNum);
-        folderLink = driveFolderLink(folderId);
-      } catch(e) {}
-    }
     const tr2 = document.getElementById('item-panel-thumb-row');
     const fl2 = document.getElementById('item-panel-folder-link');
-    if (fl2 && folderLink) {
-      const a = document.createElement('a');
-      a.href = folderLink; a.target = '_blank';
-      a.style.cssText = 'font-size:0.72rem;color:#2980b9';
-      a.textContent = '📁 Open Drive Folder ↗';
-      fl2.appendChild(a);
+    try {
+      // Ensure drive is set up before any drive calls
+      await driveEnsureSetup();
+
+      let folderLink = pd.photoItem || '';
+      if (!folderLink) {
+        const folderId = await driveEnsureItemFolder(item.itemNum);
+        folderLink = driveFolderLink(folderId);
+      }
+
+      // Show folder link
+      if (fl2 && folderLink) {
+        const a = document.createElement('a');
+        a.href = folderLink; a.target = '_blank';
+        a.style.cssText = 'font-size:0.72rem;color:#2980b9';
+        a.textContent = '📁 Open Drive Folder ↗';
+        fl2.innerHTML = '';
+        fl2.appendChild(a);
+      }
+
+      if (!tr2) return;
+
+      const photos = await driveGetFolderPhotos(folderLink);
+
+      if (!photos || photos.length === 0) {
+        tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim);font-style:italic">No photos yet — tap Add Photos</span>';
+        return;
+      }
+
+      // Sort: RSV first, then FV, then others
+      const priority = function(name) {
+        const n = (name || '').toUpperCase();
+        if (n.includes('RSV')) return 0;
+        if (n.includes('FV'))  return 1;
+        if (n.includes('TV'))  return 2;
+        if (n.includes('BV'))  return 3;
+        return 9;
+      };
+      photos.sort(function(a,b) { return priority(a.name) - priority(b.name); });
+
+      tr2.innerHTML = '';
+      photos.forEach(function(p) {
+        const a = document.createElement('a');
+        a.href = p.view; a.target = '_blank'; a.title = p.name.replace(/\.[^.]+$/, '');
+        a.style.cssText = 'display:inline-block;border-radius:8px;overflow:hidden;border:2px solid ' + (p.name.toUpperCase().includes('RSV') ? '#2980b9' : 'var(--border)') + ';flex-shrink:0;position:relative';
+        const img = document.createElement('img');
+        img.src = p.thumb;
+        img.style.cssText = 'width:80px;height:80px;object-fit:cover;display:block';
+        img.onerror = function() { a.style.display = 'none'; };
+        // Label below
+        const lbl = document.createElement('div');
+        lbl.style.cssText = 'font-size:0.55rem;text-align:center;padding:2px 0;background:var(--surface2);color:var(--text-dim);letter-spacing:0.03em';
+        lbl.textContent = p.name.replace(/\.[^.]+$/, '').split(' ').pop(); // last word = view abbr
+        a.appendChild(img);
+        a.appendChild(lbl);
+        tr2.appendChild(a);
+      });
+
+    } catch(e) {
+      console.error('Photo load error:', e);
+      if (tr2) tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">Could not load photos</span>';
     }
-    if (!tr2) return;
-    if (!folderLink) { tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">No Drive folder found</span>'; return; }
-    const photos = await driveGetFolderPhotos(folderLink);
-    if (photos.length === 0) {
-      tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim);font-style:italic">No photos yet — tap Add Photos above</span>';
-      return;
-    }
-    tr2.innerHTML = '';
-    photos.forEach(function(p) {
-      const a = document.createElement('a');
-      a.href = p.view; a.target = '_blank'; a.title = p.name;
-      a.style.cssText = 'display:inline-block;border-radius:8px;overflow:hidden;border:1px solid var(--border);flex-shrink:0';
-      const img = document.createElement('img');
-      img.src = p.thumb;
-      img.style.cssText = 'width:72px;height:72px;object-fit:cover;display:block';
-      img.onerror = function() { a.style.display = 'none'; };
-      a.appendChild(img);
-      tr2.appendChild(a);
-    });
   })();
 
   // Track which field is being edited
