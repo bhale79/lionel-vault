@@ -711,13 +711,6 @@
         </button>
       </div>
       <div class="nav-section">
-        <div class="nav-label">Ephemera &amp; Other</div>
-        <button class="nav-item" onclick="showPage('ephemera', this); buildEphemeraPage();">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-          Ephemera &amp; Items
-        </button>
-      </div>
-      <div class="nav-section">
         <div class="nav-label">Reports</div>
         <button class="nav-item" onclick="showPage('reports', this)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -916,25 +909,6 @@
 
       <!-- ── Reports ── -->
       <!-- ── Ephemera ── -->
-      <div class="page" id="page-ephemera">
-        <div class="page-title" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
-          <span>Ephemera &amp; Other Items</span>
-          <button class="btn" onclick="openWizard('ephemera')" style="display:flex;align-items:center;gap:0.4rem;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.12);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-            Add Item
-          </button>
-        </div>
-        <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap" id="ephemera-tabs">
-          <button class="eph-tab active" data-eph="catalogs" onclick="switchEphTab('catalogs',this)">📒 Catalogs</button>
-          <button class="eph-tab" data-eph="paper" onclick="switchEphTab('paper',this)">📄 Paper Items</button>
-          <button class="eph-tab" data-eph="mockups" onclick="switchEphTab('mockups',this)">🔩 Mock-Ups</button>
-          <button class="eph-tab" data-eph="other" onclick="switchEphTab('other',this)">📦 Other Lionel</button>
-        </div>
-        <div id="ephemera-content">
-          <div class="empty-state"><div class="spinner"></div></div>
-        </div>
-      </div>
-
       <div class="page" id="page-reports">
         <div class="page-title">Reports</div>
 
@@ -1637,6 +1611,7 @@ const BOX_VIEWS = [
 const driveCache = {
   vaultId: null,       // "Lionel Vault - My Collection" root
   photosId: null,      // "My Collection Photos"
+  catalogsId: null,    // "Catalog Photos" subfolder
   soldPhotosId: null,  // "My Sold Collection Photos"
   itemFolders: {},     // itemNum -> folderId
 };
@@ -1671,6 +1646,19 @@ async function driveFindOrCreateFolder(name, parentId) {
     name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId],
   });
   return created.id;
+}
+
+async function driveUploadPhoto(file, fileName, folderId) {
+  const meta = JSON.stringify({ name: fileName, parents: [folderId] });
+  const form = new FormData();
+  form.append('metadata', new Blob([meta], { type: 'application/json' }));
+  form.append('file', file);
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: form,
+  });
+  return res.json();
 }
 
 async function driveMoveFileToFolder(fileId, fromFolderId, toFolderId) {
@@ -2217,6 +2205,14 @@ function buildDashboard() {
     else if (pd.priceItem && pd.priceItem !== 'N/A') totalValue += parseFloat(pd.priceItem) || 0;
     else if (pd.priceBox) totalValue += parseFloat(pd.priceBox) || 0;
   });
+  // Add ephemera values
+  let ephemeraCount = 0;
+  Object.values(state.ephemeraData || {}).forEach(bucket => {
+    Object.values(bucket).forEach(item => {
+      ephemeraCount++;
+      if (item.estValue) totalValue += parseFloat(item.estValue) || 0;
+    });
+  });
 
   allOwned.forEach(pd => {
     if (pd.condition && pd.condition !== 'N/A') { const c = parseInt(pd.condition); if (!isNaN(c)) { condSum += c; condCount++; } }
@@ -2224,8 +2220,9 @@ function buildDashboard() {
     if (pd.allOriginal === 'Yes') origCount++;
   });
 
-  document.getElementById('stat-owned').textContent = owned.toLocaleString();
-  document.getElementById('stat-owned-pct').textContent = `${pct}% of catalog`;
+  const totalOwned = owned + ephemeraCount;
+  document.getElementById('stat-owned').textContent = totalOwned.toLocaleString();
+  document.getElementById('stat-owned-pct').textContent = `${pct}% of catalog${ephemeraCount > 0 ? ' + ' + ephemeraCount + ' other' : ''}`;
   document.getElementById('stat-value').textContent = totalValue > 0 ? `$${Math.round(totalValue).toLocaleString()}` : '—';
 
   const soldCount = Object.keys(state.soldData).length;
@@ -2237,14 +2234,37 @@ function buildDashboard() {
   if (document.getElementById('nav-sold')) document.getElementById('nav-sold').textContent = soldCount;
 
 
-  // Recent Additions — last 5 owned items by sheet row order (highest row = most recent)
-  const _recentOwned = Object.values(state.personalData)
+  // Recent Additions — last 5 owned items including ephemera, by row order
+  const _recentTrains = Object.values(state.personalData)
     .filter(pd => pd.owned)
+    .map(pd => ({ ...pd, _src: 'train' }));
+  const _recentEph = [];
+  const _ephEmojiMap = { catalogs:'📒', paper:'📄', mockups:'🔩', other:'📦' };
+  Object.entries(state.ephemeraData || {}).forEach(([tabId, bucket]) => {
+    Object.values(bucket).forEach(it => {
+      const emoji = _ephEmojiMap[tabId] || '⭐';
+      const label = it.catType ? it.catType + ' Catalog' : tabId;
+      _recentEph.push({ ...it, _src:'eph', tabId, _ephEmoji: emoji, _ephLabel: label });
+    });
+  });
+  const _recentOwned = [..._recentTrains, ..._recentEph]
     .sort((a, b) => (b.row || 0) - (a.row || 0))
     .slice(0, 5);
   const _recentEl = document.getElementById('recent-list');
   if (_recentEl) {
     _recentEl.innerHTML = _recentOwned.length ? _recentOwned.map(function(pd) {
+      if (pd._src === 'eph') {
+        const val = pd.estValue ? '$' + parseFloat(pd.estValue).toLocaleString() : '';
+        const meta = [pd.year, val].filter(Boolean).join(' · ');
+        return '<div onclick="goToMyCollection()" class="dash-row-hover" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid var(--border);cursor:pointer">'
+          + '<span style="font-size:1.1rem;flex-shrink:0">' + pd._ephEmoji + '</span>'
+          + '<div style="flex:1;min-width:0">'
+          + '<div style="font-size:0.85rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (pd.title || '—') + '</div>'
+          + (meta ? '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:1px">' + meta + '</div>' : '')
+          + '</div>'
+          + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>'
+          + '</div>';
+      }
       const master = state.masterData.find(function(m) {
         return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum);
       });
@@ -2427,14 +2447,59 @@ function renderBrowse() {
   const start = (state.currentPage - 1) * state.pageSize;
   const pageData = state.filteredData.slice(start, start + state.pageSize);
 
-  document.getElementById('result-count').textContent = `${total.toLocaleString()} items`;
-  document.getElementById('page-info').textContent = `Showing ${start+1}–${Math.min(start+state.pageSize, total)} of ${total.toLocaleString()}`;
+  // Ephemera items — shown at bottom when in owned/collection view
+  const _ephemeraRows = [];
+  if (state.filters.owned || state.filters._showEphemera) {
+    const _ephLabels = { catalogs:'Catalog', paper:'Paper Item', mockups:'Mock-Up', other:'Other Lionel' };
+    const _ephEmojis = { catalogs:'📒', paper:'📄', mockups:'🔩', other:'📦' };
+    const _ephColors = { catalogs:'#e67e22', paper:'#3498db', mockups:'#9b59b6', other:'#27ae60' };
+    Object.entries(state.ephemeraData || {}).forEach(([tabId, bucket]) => {
+      const items = Object.values(bucket);
+      if (!items.length) return;
+      const label = _ephLabels[tabId] || ((state.userDefinedTabs||[]).find(t=>t.id===tabId)||{}).label || tabId;
+      const emoji = _ephEmojis[tabId] || '⭐';
+      const color = _ephColors[tabId] || '#f39c12';
+      // Search filter
+      const sq = (state.filters.search||'').toLowerCase();
+      const filtered = sq ? items.filter(it => `${it.title||''} ${it.year||''} ${it.notes||''} ${it.catType||''}`.toLowerCase().includes(sq)) : items;
+      if (!filtered.length) return;
+      _ephemeraRows.push({ _divider: true, label: emoji + ' ' + label + 's', color });
+      filtered.sort((a,b)=>(b.row||0)-(a.row||0)).forEach(it => {
+        _ephemeraRows.push({ _eph: true, tabId, item: it, label, emoji, color });
+      });
+    });
+  }
+  const ephTotal = _ephemeraRows.filter(r=>r._eph).length;
+  const displayTotal = total + ephTotal;
+  document.getElementById('result-count').textContent = `${displayTotal.toLocaleString()} items`;
+  document.getElementById('page-info').textContent = `Showing ${start+1}–${Math.min(start+state.pageSize, total)} of ${total.toLocaleString()} trains${ephTotal ? ' + ' + ephTotal + ' other' : ''}`;
 
   // Rows
   const tbody = document.getElementById('browse-tbody');
   const isMobile = window.innerWidth <= 640;
   const cardsEl = document.getElementById('browse-cards');
   const tableEl = document.querySelector('.item-table');
+  let _ephRowsHtml = '';
+  if (_ephemeraRows.length) {
+    _ephRowsHtml = _ephemeraRows.map(r => {
+      if (r._divider) return `<tr><td colspan="9" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
+      const it = r.item;
+      const cond = it.condition ? parseInt(it.condition) : null;
+      const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
+      const val = it.estValue ? '$' + parseFloat(it.estValue).toLocaleString() : '—';
+      return `<tr onclick="openEphemeraDetail('${r.tabId}',${it.row})" style="cursor:pointer">
+        <td><span style="font-size:1rem">${r.emoji}</span></td>
+        <td><span class="tag" style="border-color:${r.color};color:${r.color};background:${r.color}18">${r.label}</span></td>
+        <td>${it.title || '—'}</td>
+        <td>${it.catType || it.year || '—'}</td>
+        <td style="color:var(--text-dim);font-size:0.8rem">${it.year || '—'}</td>
+        <td>${it.year || '—'}</td>
+        <td><span class="owned-badge badge-owned">✓ Owned</span></td>
+        <td>${cond ? `<span class="condition-pip ${condClass}"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
+        <td class="market-val">${val}</td>
+      </tr>`;
+    }).join('');
+  }
 
   if (isMobile) {
     if (tableEl) tableEl.style.display = 'none';
@@ -2507,9 +2572,23 @@ function renderBrowse() {
     : '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p></div></td></tr>';
 
   if (isMobile) {
-    if (cardsEl) cardsEl.innerHTML = rowsHtml.join('') || emptyHtml;
+    let _ephCardsHtml = '';
+    if (_ephemeraRows.length) {
+      _ephCardsHtml = _ephemeraRows.map(r => {
+        if (r._divider) return '<div style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:'+r.color+';text-transform:uppercase;padding:0.6rem 0 0.2rem;border-top:2px solid '+r.color+'33;margin-top:0.5rem">'+r.label+'</div>';
+        const it = r.item;
+        const val = it.estValue ? '$'+parseFloat(it.estValue).toLocaleString() : '';
+        return '<div class="browse-card" onclick="openEphemeraDetail(\"'+r.tabId+'\",'+it.row+')" style="border-left:3px solid '+r.color+';cursor:pointer">'
+          +'<div class="browse-card-row"><span style="font-size:0.9rem">'+r.emoji+'</span>'
+          +'<span class="browse-card-num" style="color:'+r.color+'">'+it.title+'</span>'
+          +'<span class="owned-badge badge-owned" style="margin-left:auto">✓</span></div>'
+          +'<div class="browse-card-sub">'+r.label+(it.year?' · '+it.year:'')+(val?' · '+val:'')+'</div>'
+          +'</div>';
+      }).join('');
+    }
+    if (cardsEl) cardsEl.innerHTML = (rowsHtml.join('') || emptyHtml) + _ephCardsHtml;
   } else {
-    tbody.innerHTML = rowsHtml.join('') || emptyHtml;
+    tbody.innerHTML = (rowsHtml.join('') || emptyHtml) + _ephRowsHtml;
   }
   // Async: check which owned items have photos and reveal their camera icons
   if (state.filters.owned) {
@@ -2924,6 +3003,29 @@ function showItemPanel(idx, pdKey, mode) {
         inpRow.appendChild(cancelInp);
         valWrap.appendChild(inpRow);
 
+      } else if (f.type === 'link') {
+        // External link — render as clickable anchor, no edit
+        const a = document.createElement('a');
+        a.href = f.val;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.style.cssText = 'font-size:0.85rem;color:#2980b9;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem';
+        a.innerHTML = 'View on COTT <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+        valWrap.appendChild(a);
+        row.appendChild(lbl);
+        row.appendChild(valWrap);
+        fieldsContainer.appendChild(row);
+        return;
+      } else if (f.type === 'readonly') {
+        // Read-only value with accent color, no edit
+        const valEl = document.createElement('span');
+        valEl.style.cssText = 'font-size:0.85rem;color:var(--accent);font-style:italic';
+        valEl.textContent = f.val && f.val !== '—' ? f.val : '—';
+        valWrap.appendChild(valEl);
+        row.appendChild(lbl);
+        row.appendChild(valWrap);
+        fieldsContainer.appendChild(row);
+        return;
       } else {
         // Show value
         const valEl = document.createElement('span');
@@ -3120,6 +3222,18 @@ function browseRowClick(event, idx) {
       descSec.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);font-size:0.82rem;color:var(--text-mid);line-height:1.6';
       descSec.textContent = item.description;
       vdBox.appendChild(descSec);
+    }
+    if (item.refLink) {
+      const cottRow = document.createElement('div');
+      cottRow.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)';
+      const cottA = document.createElement('a');
+      cottA.href = item.refLink;
+      cottA.target = '_blank';
+      cottA.rel = 'noopener';
+      cottA.style.cssText = 'font-size:0.82rem;color:#2980b9;text-decoration:none;display:inline-flex;align-items:center;gap:0.35rem';
+      cottA.innerHTML = 'View on COTT <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+      cottRow.appendChild(cottA);
+      vdBox.appendChild(cottRow);
     }
     // Add to collection button at bottom
     const addBtn = document.createElement('button');
@@ -3937,6 +4051,14 @@ function getSteps(tab) {
           placeholder: '0.00', optional: true },
         { id: 'cat_dateAcquired',title: 'Date acquired',                          type: 'date', optional: true },
         { id: 'cat_notes',       title: 'Any notes?',                             type: 'textarea', optional: true },
+        { id: 'cat_photos',      title: 'Add photos of the catalog',              type: 'drivePhotos', label: 'Catalog',
+          views: [
+            { key: 'COVER',   label: 'Front Cover',  abbr: 'COVER'   },
+            { key: 'BACK',    label: 'Back Cover',   abbr: 'BACK'    },
+            { key: 'INSIDE',  label: 'Inside Spread',abbr: 'INSIDE'  },
+            { key: 'MAILER',  label: 'Envelope/Mailer',abbr:'MAILER' },
+          ],
+          optional: true },
         { id: 'cat_confirm',     title: 'Ready to save the catalog!',             type: 'confirm' },
       ];
     }
@@ -4843,24 +4965,45 @@ function renderWizardStep() {
 
   } else if (s.type === 'confirm') {
     const item = wizard.matchedItem;
+    const _isEph = ['catalogs','paper','mockups','other',...(state.userDefinedTabs||[]).map(t=>t.id)].includes(wizard.tab);
+    // Human-readable key labels for confirm summary
+    const _keyLabels = {
+      itemCategory:'Category', cat_type:'Type', cat_year:'Year',
+      cat_hasMailer:'Has Envelope/Mailer', cat_condition:'Condition',
+      cat_estValue:'Est. Value', cat_dateAcquired:'Date Acquired', cat_notes:'Notes',
+      eph_title:'Title', eph_description:'Description', eph_year:'Year',
+      eph_condition:'Condition', eph_quantity:'Quantity', eph_estValue:'Est. Value',
+      eph_dateAcquired:'Date Acquired', eph_notes:'Notes',
+      eph_itemNumRef:'Item # Ref', eph_productionStatus:'Production Status',
+      eph_material:'Material', eph_dimensions:'Dimensions',
+      eph_lionelVerified:'Lionel Verified',
+    };
+    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_attachToBox','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos']);
+    const _summaryEntries = Object.entries(wizard.data).filter(([k,v]) =>
+      !_skipKeys.has(k) && v && v !== '' && !Array.isArray(v) && typeof v !== 'object'
+    );
     body.innerHTML = `
       <div style="padding-top:0.5rem">
-        ${item ? `
+        ${!_isEph && item ? `
           <div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">
             <div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.8rem">No. ${item.itemNum}${item.variation ? ' — Var ' + item.variation : ''}</div>
             <div style="font-weight:600;margin-top:0.2rem">${item.roadName || item.itemType || ''}</div>
             <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">${item.yearProd || ''} · ${item.itemType || ''}</div>
-          </div>` : `
+          </div>` : !_isEph ? `
           <div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">
             <div style="font-family:var(--font-mono);color:var(--accent2)">Item ${wizard.data.itemNum || '?'}${wizard.data.variation ? ' Var ' + wizard.data.variation : ''}</div>
             <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">Not found in master inventory — will save with entered data</div>
-          </div>`}
+          </div>` : ''}
         <div style="display:flex;flex-direction:column;gap:0.35rem;font-size:0.83rem">
-          ${Object.entries(wizard.data).filter(([k,v]) => k !== 'tab' && v && v !== '' && !Array.isArray(v)).map(([k,v]) => `
-            <div style="display:flex;gap:0.5rem">
-              <span style="color:var(--text-dim);min-width:130px;text-transform:capitalize">${k.replace(/([A-Z])/g,' $1').toLowerCase()}</span>
-              <span>${k.includes('price') || k.includes('Price') || k.includes('Value') ? '$'+parseFloat(v).toLocaleString() : v}</span>
-            </div>`).join('')}
+          ${_summaryEntries.map(([k,v]) => {
+            const label = _keyLabels[k] || k.replace(/^(cat_|eph_)/,'').replace(/([A-Z])/g,' $1').replace(/_/g,' ').toLowerCase().replace(/^./,c=>c.toUpperCase());
+            const isVal = k.includes('Value') || k.includes('value') || k.includes('Price') || k.includes('price');
+            const dispVal = isVal && parseFloat(v) ? '$'+parseFloat(v).toLocaleString() : v;
+            return `<div style="display:flex;gap:0.5rem">
+              <span style="color:var(--text-dim);min-width:130px;flex-shrink:0">${label}</span>
+              <span>${dispVal}</span>
+            </div>`;
+          }).join('')}
         </div>
       </div>`;
   }
@@ -5386,8 +5529,35 @@ async function wizardNext() {
 
 async function saveCatalogItem() {
   const d = wizard.data;
-  // Title = "Year Type" e.g. "1957 Consumer"
-  const title = [d.cat_year, d.cat_type].filter(Boolean).join(' ');
+  // Title = "Year Type Catalog" e.g. "1957 Consumer Catalog"
+  const typeLabel = d.cat_type || '';
+  const yearLabel = d.cat_year || '';
+  const folderName = [yearLabel, typeLabel, 'Catalog'].filter(Boolean).join(' ');
+  const title = folderName;
+
+  // Create photo folder and upload photos if any
+  let photoFolderLink = '';
+  const photoObj = d.cat_photos || {};
+  if (Object.keys(photoObj).length > 0 || true) {
+    try {
+      await driveEnsureSetup();
+      // Create "Catalogs" subfolder under vault if needed
+      if (!driveCache.catalogsId) {
+        driveCache.catalogsId = await driveFindOrCreateFolder('Catalog Photos', driveCache.vaultId);
+      }
+      const catFolderId = await driveFindOrCreateFolder(folderName, driveCache.catalogsId);
+      photoFolderLink = 'https://drive.google.com/drive/folders/' + catFolderId;
+      // Upload any photos
+      for (const [viewKey, fileObj] of Object.entries(photoObj)) {
+        if (!fileObj || !fileObj.file) continue;
+        try {
+          const fname = folderName + ' ' + viewKey + '.' + (fileObj.file.name.split('.').pop() || 'jpg');
+          await driveUploadPhoto(fileObj.file, fname, catFolderId);
+        } catch(e) { console.warn('Photo upload:', e); }
+      }
+    } catch(e) { console.warn('Drive folder:', e); }
+  }
+
   const row = [
     d.cat_type || '',
     d.cat_year || '',
@@ -5396,29 +5566,24 @@ async function saveCatalogItem() {
     d.cat_estValue || '',
     d.cat_dateAcquired || '',
     d.cat_notes || '',
-    '',  // photo link
+    photoFolderLink,
   ];
   try {
     await sheetsAppend(state.personalSheetId, 'Catalogs', [row]);
     const newKey = Date.now();
     if (!state.ephemeraData.catalogs) state.ephemeraData.catalogs = {};
     state.ephemeraData.catalogs[newKey] = {
-      row: newKey,
-      title,
-      catType:    d.cat_type || '',
-      year:       d.cat_year || '',
-      hasMailer:  d.cat_hasMailer || 'No',
-      condition:  d.cat_condition || '',
-      estValue:   d.cat_estValue || '',
-      dateAcquired: d.cat_dateAcquired || '',
-      notes:      d.cat_notes || '',
-      photoLink:  '',
+      row: newKey, title,
+      catType: d.cat_type || '', year: d.cat_year || '',
+      hasMailer: d.cat_hasMailer || 'No', condition: d.cat_condition || '',
+      estValue: d.cat_estValue || '', dateAcquired: d.cat_dateAcquired || '',
+      notes: d.cat_notes || '', photoLink: photoFolderLink,
     };
-    showToast('✓ ' + (title || 'Catalog') + ' saved!');
+    showToast('✓ ' + title + ' saved!');
     closeWizard();
-    if (document.getElementById('page-ephemera')?.classList.contains('active')) {
-      buildEphemeraPage();
-    }
+    buildDashboard(); // refresh stats
+    // Ephemera integrated into My Collection — refresh browse if active
+    if (state.filters.owned) renderBrowse();
   } catch(e) {
     showToast('Error saving: ' + e.message);
   }
@@ -5481,9 +5646,8 @@ async function saveEphemeraItem() {
     showToast('✓ ' + (d.eph_title||'Item') + ' saved!');
     closeWizard();
     // Refresh ephemera page if visible
-    if (document.getElementById('page-ephemera')?.classList.contains('active')) {
-      buildEphemeraPage();
-    }
+    // Ephemera integrated into My Collection — refresh browse if active
+    if (state.filters.owned) renderBrowse();
   } catch(e) {
     showToast('Error saving: ' + e.message);
   }
