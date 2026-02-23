@@ -1077,19 +1077,16 @@ function onTokenReceived(resp) {
     updateUserUI();
   }
 
-  const savedMasterId = localStorage.getItem('lv_master_id');
-  if (!savedMasterId) {
-    showSetup();
+  // Master sheet is hardcoded — no setup step needed
+  state.masterSheetId = '1cLmCcI4Ekao2gn-TntAGjhsPrIYe39-cX6rV1WAyDCM';
+  localStorage.setItem('lv_master_id', state.masterSheetId);
+  state.personalSheetId = localStorage.getItem('lv_personal_id');
+  if (!state.personalSheetId) {
+    createPersonalSheet().then(loadAllData);
   } else {
-    state.masterSheetId = savedMasterId;
-    state.personalSheetId = localStorage.getItem('lv_personal_id');
-    if (!state.personalSheetId) {
-      createPersonalSheet().then(loadAllData);
-    } else {
-      // Warm up drive cache for existing users
-      driveEnsureSetup().catch(e => console.warn('Drive setup:', e));
-      loadAllData();
-    }
+    // Warm up drive cache for existing users
+    driveEnsureSetup().catch(e => console.warn('Drive setup:', e));
+    loadAllData();
   }
 }
 
@@ -1269,25 +1266,25 @@ async function driveMoveFileToFolder(fileId, fromFolderId, toFolderId) {
 
 // Called once on first run — creates the full vault folder structure
 async function driveSetupVault() {
-  // Check cache / localStorage first
-  const saved = localStorage.getItem('lv_vault_id');
-  if (saved) {
-    driveCache.vaultId = saved;
-  } else {
-    // Find or create root vault folder in Drive root
-    const rootRes = await driveRequest('GET', '/files/root?fields=id');
-    const rootId = rootRes.id;
-    driveCache.vaultId = await driveFindOrCreateFolder('Lionel Vault - My Collection', rootId);
-    localStorage.setItem('lv_vault_id', driveCache.vaultId);
-  }
+  // Find or create root vault folder
+  const rootRes = await driveRequest('GET', '/files/root?fields=id');
+  const rootId = rootRes.id;
+  driveCache.vaultId = await driveFindOrCreateFolder('Lionel Vault - My Collection', rootId);
+  localStorage.setItem('lv_vault_id', driveCache.vaultId);
 
-  // Find or create photo subfolders inside vault
+  // Find or create both photo subfolders (always, so nothing is missing)
   driveCache.photosId     = await driveFindOrCreateFolder('My Collection Photos',      driveCache.vaultId);
   driveCache.soldPhotosId = await driveFindOrCreateFolder('My Sold Collection Photos', driveCache.vaultId);
-
   localStorage.setItem('lv_photos_id',      driveCache.photosId);
   localStorage.setItem('lv_sold_photos_id', driveCache.soldPhotosId);
 
+  // Move the personal sheet into the vault folder if we have its ID
+  const sheetId = localStorage.getItem('lv_personal_id');
+  if (sheetId) {
+    try { await driveMoveSheetToVault(sheetId); } catch(e) { console.warn('Sheet move:', e); }
+  }
+
+  console.log('Vault ready:', driveCache.vaultId, '| Photos:', driveCache.photosId, '| Sold:', driveCache.soldPhotosId);
   return driveCache.vaultId;
 }
 
@@ -1298,10 +1295,11 @@ async function driveEnsureSetup() {
   const pId = localStorage.getItem('lv_photos_id');
   const sId = localStorage.getItem('lv_sold_photos_id');
   if (vId && pId && sId) {
-    driveCache.vaultId = vId;
-    driveCache.photosId = pId;
+    driveCache.vaultId      = vId;
+    driveCache.photosId     = pId;
     driveCache.soldPhotosId = sId;
   } else {
+    // Always run full setup so any missing folders get created
     await driveSetupVault();
   }
 }
