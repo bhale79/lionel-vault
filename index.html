@@ -2722,18 +2722,13 @@ function getSteps(tab) {
         note: () => 'Unit 3 box photos.',
         skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' || d.unit3HasBox !== 'Yes' },
 
-      // ── COMBINED pricing (only when paired, replaces individual price) ──
+      // ── PRICING (pricePaid handles all cases; save logic splits if paired/set) ──
       { id: 'pricePaid',    title: 'What did you pay?',                    type: 'pricePaid',
-        skipIf: (d) => isPaired(d) },
-      { id: 'combinedPrice', title: 'What did you pay for all units together?', type: 'money', placeholder: '0.00', optional: true,
-        note: (d) => d.setMatch === 'set-now'
-          ? 'Combined price — split evenly between all units in the set.'
-          : 'Combined price — split evenly between engine and tender.',
-        skipIf: (d) => !isPaired(d) && d.setMatch !== 'set-now' },
+        note: (d) => isPaired(d) || d.setMatch === 'set-now' ? 'Combined price — will be split evenly between each unit.' : '' },
       { id: 'datePurchased', title: 'When did you purchase?',               type: 'date',     optional: true },
-      { id: 'userEstWorth',  title: (d) => isPaired(d) ? 'What do you estimate the engine and tender are worth together?' : 'What do you estimate it is worth?',
+      { id: 'userEstWorth',  title: 'What do you estimate it is worth?',
         type: 'money', placeholder: '0.00', optional: true,
-        note: (d) => isPaired(d) ? 'Combined estimate for engine + tender.' : (d.hasBox === 'Yes' ? 'Include the value of both the item and the box.' : '') },
+        note: (d) => (isPaired(d) || d.setMatch === 'set-now') ? 'Combined estimate — will be split evenly between each unit.' : (d.hasBox === 'Yes' ? 'Include the value of both the item and the box.' : '') },
 
       // ── TOGETHER photos (only when paired) ──
       { id: 'wantTogetherPhotos', title: 'Would you like to add photos of the engine and tender together?',
@@ -3832,7 +3827,7 @@ async function saveWizardItem() {
       } else {
         const _paired = d.tenderMatch && d.tenderMatch !== 'none';
         const enginePrice = _paired
-          ? (d.combinedPrice ? (parseFloat(d.combinedPrice)/2).toFixed(2) : '')
+          ? (d.priceItem ? (parseFloat(d.priceItem)/2).toFixed(2) : '')
           : (d.priceItem || '');
         const engineWorth = _paired
           ? (d.userEstWorth ? (parseFloat(d.userEstWorth)/2).toFixed(2) : '')
@@ -3864,40 +3859,42 @@ async function saveWizardItem() {
 
   if (isSetSave && d.unit2ItemNum) {
     const u2Num = (d.unit2ItemNum || '').trim();
-    const unitCount = d.setType === 'ABA' ? 3 : 2;
-    const priceEach = d.combinedPrice ? (parseFloat(d.combinedPrice) / unitCount).toFixed(2) : '';
-    const worthEach = d.userEstWorth  ? (parseFloat(d.userEstWorth)  / unitCount).toFixed(2) : '';
+    // Unit 1 keeps full price/worth; other units get $0 with a note pointing to unit 1
+    const setPriceNote = (baseNote, leadNum) => {
+      const ref = 'Set price on item ' + leadNum;
+      return baseNote ? baseNote + '; ' + ref : ref;
+    };
 
     const u2Row = [
       u2Num, '',
       d.unit2Condition || '',
       d.unit2AllOriginal || '',
-      priceEach, '', priceEach,
+      '', '', '',   // $0 — price is on unit 1
       d.unit2HasBox || 'No',
       d.unit2BoxCond || '',
       '', '',
-      (d.notes || '').trim(),
+      setPriceNote((d.notes || '').trim(), itemNum),
       d.datePurchased || '',
-      worthEach,
-      itemNum,   // matchedTo = A unit
+      '',           // $0 worth — worth is on unit 1
+      itemNum,      // matchedTo = A unit
       setId,
     ];
     await sheetsAppend(state.personalSheetId, 'My Collection', [u2Row]);
 
-    // Unit 3 (ABA second A unit = same item number as unit 1)
+    // Unit 3 (ABA second A unit)
     if (d.setType === 'ABA') {
       const u3Row = [
         itemNum, '',
         d.unit3Condition || '',
         d.unit3AllOriginal || '',
-        priceEach, '', priceEach,
+        '', '', '',   // $0 — price is on unit 1
         d.unit3HasBox || 'No',
         d.unit3BoxCond || '',
         '', '',
-        (d.notes || '').trim(),
+        setPriceNote((d.notes || '').trim(), itemNum),
         d.datePurchased || '',
-        worthEach,
-        u2Num,   // matchedTo = B unit
+        '',           // $0 worth — worth is on unit 1
+        u2Num,        // matchedTo = B unit
         setId,
       ];
       await sheetsAppend(state.personalSheetId, 'My Collection', [u3Row]);
@@ -3926,22 +3923,22 @@ async function saveWizardItem() {
   if (isPairedSave) {
     const tNum = d.tenderMatch.trim();
     const tVariation = '';
-    const halfPrice = d.combinedPrice ? (parseFloat(d.combinedPrice) / 2).toFixed(2) : '';
-    const halfWorth  = d.userEstWorth ? (parseFloat(d.userEstWorth) / 2).toFixed(2) : '';
+    const tenderNote = (() => {
+      const ref = 'Set price on item ' + itemNum;
+      return d.notes ? d.notes.trim() + '; ' + ref : ref;
+    })();
     const tRow = [
       tNum, tVariation,
       d.tenderCondition || '',
       d.tenderAllOriginal || '',
-      halfPrice,   // item only price
-      '',          // box price
-      halfPrice,   // complete price
+      '', '',  '',  // $0 — full price is on the engine row
       d.tenderHasBox || 'No',
       d.tenderBoxCond || '',
       '',          // photo — filed separately under tender folder
       '',          // box photo
-      (d.notes || '').trim(),
+      tenderNote,
       d.datePurchased || '',
-      halfWorth,
+      '',          // $0 worth — worth is on the engine row
       itemNum,     // matchedTo = engine number
     ];
     await sheetsAppend(state.personalSheetId, 'My Collection', [tRow]);
