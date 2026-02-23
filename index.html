@@ -672,7 +672,7 @@
       <div class="page active" id="page-dashboard">
 
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem">
-          <div class="page-title">Dashboard <span id="dash-greeting"></span></div>
+          <div class="page-title">Dashboard <span id="dash-greeting"></span> <span title="Build indicator" style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#e8401c;vertical-align:middle;margin-left:4px"></span></div>
           <button class="btn btn-primary" onclick="startAddWizard()" style="display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;padding:0.65rem 1.25rem">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add Item
@@ -2732,6 +2732,12 @@ function renderWizardStep() {
             onkeydown="if(event.key==='Enter')wizardNext()">
           ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(245,166,35,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
+        ${(() => {
+          const singleItem = state.masterData.find(i => i.itemNum === itemNum);
+          return singleItem && singleItem.refLink
+            ? '<a href="' + singleItem.refLink + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(245,166,35,0.3);border-radius:6px;background:rgba(245,166,35,0.08)">View on COTT ↗</a>'
+            : '';
+        })()}
         </div>`;
       setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
     } else {
@@ -2757,6 +2763,13 @@ function renderWizardStep() {
               </button>`).join('')}
           </div>
           <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Selecting a variation will auto-advance</div>
+          ${(() => {
+            // Show COTT link for the selected variation, or the first variation if none selected
+            const cottItem = variations.find(v => v.variation === val) || variations[0];
+            return cottItem && cottItem.refLink
+              ? '<a href="' + cottItem.refLink + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(245,166,35,0.3);border-radius:6px;background:rgba(245,166,35,0.08)">View ' + (val ? val : 'item') + ' on COTT ↗</a>'
+              : '';
+          })()}
         </div>`;
     }
 
