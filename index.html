@@ -2186,7 +2186,18 @@ function renderBrowse() {
     const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
     const cond = pd?.condition ? parseInt(pd.condition) : null;
     const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
-    const globalIdx = state.masterData.indexOf(item);
+    let globalIdx = state.masterData.indexOf(item);
+    // For _personalOnly items not in masterData, store their pdKey for direct lookup
+    if (globalIdx < 0 && item._personalOnly) {
+      const poKey = findPDKey(item.itemNum, item.variation);
+      if (poKey) {
+        // Use a negative encoded index: store pdKey in a temp map
+        if (!window._pdKeyMap) window._pdKeyMap = {};
+        const tempIdx = 'po_' + poKey;
+        window._pdKeyMap[tempIdx] = poKey;
+        globalIdx = JSON.stringify(tempIdx);
+      }
+    }
     const badgeClass = isOwned ? 'yes' : isWanted ? 'want' : 'no';
     const badgeText  = isOwned ? '✓ Owned' : isWanted ? '★ Want' : '—';
     const marketVal  = item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '';
@@ -2209,7 +2220,8 @@ function renderBrowse() {
       const vdCell = vdShort
         ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="event.stopPropagation();showVarDescPopup(${globalIdx})">${vdShort}</span>`
         : '<span class="text-dim">—</span>';
-      return `<tr onclick="browseRowClick(event, ${globalIdx})" style="cursor:pointer">
+      const _gIdxArg = typeof globalIdx === "number" ? globalIdx : JSON.stringify(globalIdx);
+      return `<tr onclick="browseRowClick(event, ${_gIdxArg})" style="cursor:pointer">
         <td><span class="item-num">${item.itemNum}</span></td>
         <td><span class="tag">${item.itemType || '—'}</span></td>
         <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
@@ -2250,9 +2262,13 @@ function goPage(p) { state.currentPage = p; renderBrowse(); document.getElementB
 
 // ── BROWSE ROW CLICK — offer to add or view ─────────────────────
 function showOwnedItemMenu(idx, pdKey) {
-  const item = state.masterData[idx];
   const pd = state.personalData[pdKey] || {};
-  if (!item) return;
+  // For personalOnly items, build a minimal item object from pd
+  const item = state.masterData[idx] || {
+    itemNum: pd.itemNum, variation: pd.variation || '',
+    roadName: pd.roadName || '', itemType: pd.itemType || '',
+    yearProd: pd.yearMade || '', marketVal: pd.userEstWorth || '',
+  };
   const existing = document.getElementById('owned-action-menu');
   if (existing) existing.remove();
 
@@ -2345,8 +2361,13 @@ function updateCollectionItem(idx, pdKey) {
 }
 
 function showItemPanel(idx, pdKey, mode) {
-  const item = state.masterData[idx] || {};
   const pd = state.personalData[pdKey] || {};
+  const item = state.masterData[idx] || {
+    itemNum: pd.itemNum, variation: pd.variation || '',
+    roadName: pd.roadName || '', itemType: pd.itemType || '',
+    yearProd: pd.yearMade || '', marketVal: pd.userEstWorth || '',
+    varDesc: '', description: '',
+  };
 
   const existing = document.getElementById('item-panel-overlay');
   if (existing) existing.remove();
@@ -2394,6 +2415,7 @@ function showItemPanel(idx, pdKey, mode) {
   const photoSection = document.createElement('div');
   photoSection.id = 'item-panel-photos';
   photoSection.style.cssText = 'padding:0.75rem 0;border-bottom:1px solid var(--border);margin-bottom:0.25rem';
+  console.log('showItemPanel photoItem:', JSON.stringify(pd.photoItem), 'pdKey:', pdKey);
   if (pd.photoItem) {
     photoSection.innerHTML = '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:0.08em">Photos</div>'
       + '<div id="photo-thumb-row" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">'
@@ -2580,6 +2602,12 @@ function showItemPanel(idx, pdKey, mode) {
 function browseRowClick(event, idx) {
   // If click was on the varDesc popup span, don't intercept
   if (event.target.closest && event.target.closest('[onclick*="showVarDescPopup"]')) return;
+  // Handle _personalOnly items (idx is a JSON string like '"po_2343-P|..."')
+  if (typeof idx === 'string' && idx.startsWith('po_')) {
+    const pdKey = (window._pdKeyMap || {})[idx];
+    if (pdKey) { showOwnedItemMenu(-1, pdKey); }
+    return;
+  }
   const item = state.masterData[idx];
   if (!item) return;
   const keyPrefix = item.itemNum + '|' + item.variation + '|';
