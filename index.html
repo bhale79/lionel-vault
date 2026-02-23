@@ -584,6 +584,17 @@
   }
   .market-val { font-family: var(--font-mono); color: var(--accent2); }
   .dash-row-hover:hover { background: var(--surface2); }
+  .eph-tab {
+    padding: 0.4rem 0.9rem; border-radius: 20px; border: 1.5px solid var(--border);
+    background: var(--surface2); color: var(--text-dim); cursor: pointer;
+    font-family: var(--font-body); font-size: 0.82rem; transition: all 0.15s;
+  }
+  .eph-tab.active { border-color: #e67e22; color: #e67e22; background: rgba(230,126,34,0.12); }
+  .eph-row { display:flex;align-items:center;gap:0.75rem;padding:0.55rem 0;border-bottom:1px solid var(--border);cursor:pointer; }
+  .eph-row:hover { background: var(--surface2); }
+  .eph-title { font-size:0.9rem;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
+  .eph-year  { font-size:0.75rem;color:var(--text-dim);flex-shrink:0 }
+  .eph-val   { font-size:0.78rem;color:var(--accent2);font-family:var(--font-mono);flex-shrink:0 }
   .text-dim { color: var(--text-dim); }
   .text-accent { color: var(--accent); }
   .mt-sm { margin-top: 0.5rem; }
@@ -697,6 +708,13 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           Sold Items
           <span class="nav-badge" id="nav-sold" style="background:#9b59b6">—</span>
+        </button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Ephemera &amp; Other</div>
+        <button class="nav-item" onclick="showPage('ephemera', this); buildEphemeraPage();">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          Ephemera &amp; Items
         </button>
       </div>
       <div class="nav-section">
@@ -897,6 +915,26 @@
       </div>
 
       <!-- ── Reports ── -->
+      <!-- ── Ephemera ── -->
+      <div class="page" id="page-ephemera">
+        <div class="page-title" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+          <span>Ephemera &amp; Other Items</span>
+          <button class="btn" onclick="openWizard('ephemera')" style="display:flex;align-items:center;gap:0.4rem;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.12);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            Add Item
+          </button>
+        </div>
+        <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap" id="ephemera-tabs">
+          <button class="eph-tab active" data-eph="catalogs" onclick="switchEphTab('catalogs',this)">📒 Catalogs</button>
+          <button class="eph-tab" data-eph="paper" onclick="switchEphTab('paper',this)">📄 Paper Items</button>
+          <button class="eph-tab" data-eph="mockups" onclick="switchEphTab('mockups',this)">🔩 Mock-Ups</button>
+          <button class="eph-tab" data-eph="other" onclick="switchEphTab('other',this)">📦 Other Lionel</button>
+        </div>
+        <div id="ephemera-content">
+          <div class="empty-state"><div class="spinner"></div></div>
+        </div>
+      </div>
+
       <div class="page" id="page-reports">
         <div class="page-title">Reports</div>
 
@@ -1191,7 +1229,8 @@ const PERSONAL_HEADERS = [
   'Item Number','Variation','Condition (1-10)','All Original',
   'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
   'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes',
-  'Date Purchased','User Est. Worth','Matched Tender/Engine','Set ID','Year Made'
+  'Date Purchased','User Est. Worth','Matched Tender/Engine','Set ID','Year Made',
+  'Is Error','Error Description'
 ];
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
@@ -1199,6 +1238,24 @@ const SOLD_HEADERS = [
 ];
 const WANT_HEADERS = [
   'Item Number','Variation','Priority','Expected Price','Notes'
+];
+
+// Ephemera tab definitions — shared structure, one tab per category
+const EPHEMERA_TABS = [
+  { id: 'catalogs',   label: 'Catalogs',    emoji: '📒', color: '#e67e22' },
+  { id: 'paper',      label: 'Paper Items', emoji: '📄', color: '#3498db' },
+  { id: 'mockups',    label: 'Mock-Ups',    emoji: '🔩', color: '#9b59b6' },
+  { id: 'other',      label: 'Other Lionel',emoji: '📦', color: '#27ae60' },
+];
+const EPHEMERA_HEADERS = [
+  'Title','Description','Year','Manufacturer','Condition (1-10)',
+  'Quantity','Est. Value','Photo Link','Notes','Date Acquired'
+];
+// Mock-ups get extra columns
+const MOCKUP_HEADERS = [
+  'Title','Item Number Ref','Description','Year','Manufacturer',
+  'Condition (1-10)','Production Status','Material','Dimensions',
+  'Provenance','Lionel Verified','Est. Value','Photo Link','Notes','Date Acquired'
 ];
 
 // ── TENDER / LOCOMOTIVE RELATIONSHIPS ──────────────────────────
@@ -1265,6 +1322,8 @@ function findOwnedMatch(itemNum) {
 let state = {
   user: null,
   masterSheetId: null,
+  ephemeraData: {},   // keyed by tab name → { rowKey: record }
+  isError: false,
   personalSheetId: null,
   masterData: [],      // all rows from master sheet
   personalData: {},    // keyed by "itemNum|variation" -> personal row (owned items)
@@ -1485,6 +1544,39 @@ async function initPersonalSheet(sheetId) {
   await sheetsUpdate(sheetId, 'Sold!A2:H2',      [SOLD_HEADERS]);
   await sheetsUpdate(sheetId, 'Want List!A1:A1', [['Want List']]);
   await sheetsUpdate(sheetId, 'Want List!A2:E2', [WANT_HEADERS]);
+
+  // Ephemera tabs
+  await ensureEphemeraSheets(sheetId);
+}
+
+async function ensureEphemeraSheets(sheetId) {
+  const metaRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const meta = await metaRes.json();
+  const existingTabs = (meta.sheets || []).map(s => s.properties.title);
+  const tabNames = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };
+  const toCreate = [];
+  Object.values(tabNames).forEach(t => {
+    if (!existingTabs.includes(t)) toCreate.push({ addSheet: { properties: { title: t } } });
+  });
+  if (toCreate.length > 0) {
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: toCreate }),
+    });
+  }
+  // Write headers
+  await sheetsUpdate(sheetId, 'Catalogs!A1:A1',    [['Catalogs']]);
+  await sheetsUpdate(sheetId, 'Catalogs!A2:J2',    [EPHEMERA_HEADERS]);
+  await sheetsUpdate(sheetId, 'Paper Items!A1:A1', [['Paper Items']]);
+  await sheetsUpdate(sheetId, 'Paper Items!A2:J2', [EPHEMERA_HEADERS]);
+  await sheetsUpdate(sheetId, 'Mock-Ups!A1:A1',    [['Mock-Ups']]);
+  await sheetsUpdate(sheetId, 'Mock-Ups!A2:O2',    [MOCKUP_HEADERS]);
+  await sheetsUpdate(sheetId, 'Other Lionel!A1:A1',[['Other Lionel']]);
+  await sheetsUpdate(sheetId, 'Other Lionel!A2:J2',[EPHEMERA_HEADERS]);
 }
 
 
@@ -1938,11 +2030,19 @@ async function loadPersonalData() {
   state.soldData = {};
   state.wantData = {};
 
-  // Fetch all 3 tabs in parallel
-  const [collRes, soldRes, wantRes] = await Promise.all([
+  // Ensure ephemera sheets exist (creates tabs if missing)
+  ensureEphemeraSheets(state.personalSheetId).catch(() => {});
+
+  // Fetch all tabs in parallel
+  const [collRes, soldRes, wantRes,
+         catRes, paperRes, mockRes, otherRes] = await Promise.all([
     sheetsGet(state.personalSheetId, 'My Collection!A3:Q').catch(() => ({values:[]})),
     sheetsGet(state.personalSheetId, 'Sold!A3:H').catch(() => ({values:[]})),
     sheetsGet(state.personalSheetId, 'Want List!A3:E').catch(() => ({values:[]})),
+    sheetsGet(state.personalSheetId, 'Catalogs!A3:J').catch(() => ({values:[]})),
+    sheetsGet(state.personalSheetId, 'Paper Items!A3:J').catch(() => ({values:[]})),
+    sheetsGet(state.personalSheetId, 'Mock-Ups!A3:O').catch(() => ({values:[]})),
+    sheetsGet(state.personalSheetId, 'Other Lionel!A3:J').catch(() => ({values:[]})),
   ]);
 
   // My Collection
@@ -1981,6 +2081,37 @@ async function loadPersonalData() {
     state.wantData[key] = {
       row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
       priority: r[2]||'Medium', expectedPrice: r[3]||'', notes: r[4]||'',
+    };
+  });
+
+  // Ephemera tabs
+  state.ephemeraData = { catalogs:{}, paper:{}, mockups:{}, other:{} };
+
+  function parseEphemeraRows(rows, bucket) {
+    (rows || []).forEach((r, idx) => {
+      if (!r[0] || r[0] === 'Title') return;
+      const key = idx + 3;
+      bucket[key] = {
+        row: key, title: r[0]||'', description: r[1]||'', year: r[2]||'',
+        manufacturer: r[3]||'Lionel', condition: r[4]||'', quantity: r[5]||'1',
+        estValue: r[6]||'', photoLink: r[7]||'', notes: r[8]||'', dateAcquired: r[9]||'',
+      };
+    });
+  }
+  parseEphemeraRows(catRes.values,   state.ephemeraData.catalogs);
+  parseEphemeraRows(paperRes.values, state.ephemeraData.paper);
+  parseEphemeraRows(otherRes.values, state.ephemeraData.other);
+
+  // Mock-ups have extra fields
+  (mockRes.values || []).forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Title') return;
+    const key = idx + 3;
+    state.ephemeraData.mockups[key] = {
+      row: key, title: r[0]||'', itemNumRef: r[1]||'', description: r[2]||'',
+      year: r[3]||'', manufacturer: r[4]||'Lionel', condition: r[5]||'',
+      productionStatus: r[6]||'', material: r[7]||'', dimensions: r[8]||'',
+      provenance: r[9]||'', lionelVerified: r[10]||'', estValue: r[11]||'',
+      photoLink: r[12]||'', notes: r[13]||'', dateAcquired: r[14]||'',
     };
   });
 }
@@ -2294,9 +2425,10 @@ function renderBrowse() {
       const vdCell = vdShort
         ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="event.stopPropagation();showVarDescPopup(${globalIdx})">${vdShort}</span>`
         : '<span class="text-dim">—</span>';
-      return `<tr onclick="browseRowClick(event, ${globalIdx})" style="cursor:pointer">
+      const _isErrCar = pd && pd.isError;
+      return `<tr onclick="browseRowClick(event, ${globalIdx})" style="cursor:pointer" title="${_isErrCar ? '⚠ Error car: ' + (pd.errorDesc||'see notes') : ''}">
         <td>
-          <span class="item-num">${item.itemNum}</span>
+          <span class="item-num">${item.itemNum}${_isErrCar ? '<sup style="color:var(--accent);font-size:0.65rem">*</sup>' : ''}</span>
           <span id="cam-${item.itemNum}-${item.variation||''}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')" title="Open photo folder">📷</span>
         </td>
         <td><span class="tag">${item.itemType || '—'}</span></td>
@@ -2981,7 +3113,9 @@ function openItem(idx) {
   const pdKey = Object.keys(state.personalData).find(k => k.startsWith(keyPrefix));
   const pd = pdKey ? state.personalData[pdKey] : {};
 
-  document.getElementById('modal-item-num').textContent = `No. ${item.itemNum}${item.variation ? ' — Variation ' + item.variation : ''}`;
+  const _errPd = findPD(item.itemNum, item.variation);
+  const _errSuffix = _errPd && _errPd.isError ? ' ⚠ Error' : '';
+  document.getElementById('modal-item-num').textContent = `No. ${item.itemNum}${item.variation ? ' — Variation ' + item.variation : ''}${_errSuffix}`;
   document.getElementById('modal-title').textContent = item.roadName || item.itemType || item.description.substring(0, 60);
   const modalMatchedTo = pd?.matchedTo || '';
   const modalIsTender = isTender(item.itemNum);
@@ -3311,6 +3445,115 @@ function exportReport() {
 }
 
 // ── NAVIGATION ──────────────────────────────────────────────────
+// ── EPHEMERA ─────────────────────────────────────────────────────
+let _ephCurrentTab = 'catalogs';
+
+function buildEphemeraPage() {
+  switchEphTab(_ephCurrentTab, document.querySelector('.eph-tab.active'));
+}
+
+function switchEphTab(tabId, btn) {
+  _ephCurrentTab = tabId;
+  document.querySelectorAll('.eph-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const bucket = state.ephemeraData[tabId] || {};
+  const items = Object.values(bucket);
+  const container = document.getElementById('ephemera-content');
+  if (!container) return;
+  const isMockup = tabId === 'mockups';
+
+  if (items.length === 0) {
+    const labels = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel Items' };
+    const emojis = { catalogs:'📒', paper:'📄', mockups:'🔩', other:'📦' };
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">${emojis[tabId]}</div><p>No ${labels[tabId]} yet — tap Add Item to get started</p></div>`;
+    return;
+  }
+
+  container.innerHTML = items.sort((a,b) => (b.row||0)-(a.row||0)).map(item => {
+    const val = item.estValue ? '$' + parseFloat(item.estValue).toLocaleString() : '';
+    const cond = item.condition ? item.condition + '/10' : '';
+    const subtitle = [
+      isMockup && item.itemNumRef ? 'Ref: ' + item.itemNumRef : '',
+      item.manufacturer && item.manufacturer !== 'Lionel' ? item.manufacturer : '',
+      isMockup && item.productionStatus ? item.productionStatus : '',
+      item.quantity > 1 ? 'Qty: ' + item.quantity : '',
+      cond,
+    ].filter(Boolean).join(' · ');
+    return `<div class="eph-row" onclick="openEphemeraDetail('${tabId}',${item.row})">
+      <div style="font-size:1.4rem;width:28px;text-align:center;flex-shrink:0">${{catalogs:'📒',paper:'📄',mockups:'🔩',other:'📦'}[tabId]}</div>
+      <div style="flex:1;min-width:0">
+        <div class="eph-title">${item.title}</div>
+        ${subtitle ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:1px">${subtitle}</div>` : ''}
+      </div>
+      ${item.year ? `<span class="eph-year">${item.year}</span>` : ''}
+      ${val ? `<span class="eph-val">${val}</span>` : ''}
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+    </div>`;
+  }).join('');
+}
+
+function openEphemeraDetail(tabId, rowKey) {
+  const item = (state.ephemeraData[tabId] || {})[rowKey];
+  if (!item) return;
+  const isMockup = tabId === 'mockups';
+  const labels = { catalogs:'Catalog', paper:'Paper Item', mockups:'Mock-Up', other:'Other Item' };
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay open';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+  const fields = isMockup ? [
+    ['Title', item.title],
+    ['Item # Reference', item.itemNumRef],
+    ['Description', item.description],
+    ['Year', item.year],
+    ['Manufacturer', item.manufacturer || 'Lionel'],
+    ['Condition', item.condition ? item.condition + '/10' : '—'],
+    ['Production Status', item.productionStatus || '—'],
+    ['Material', item.material || '—'],
+    ['Dimensions', item.dimensions || '—'],
+    ['Provenance', item.provenance || '—'],
+    ['Lionel Verified', item.lionelVerified || '—'],
+    ['Est. Value', item.estValue ? '$' + parseFloat(item.estValue).toLocaleString() : '—'],
+    ['Date Acquired', item.dateAcquired || '—'],
+    ['Notes', item.notes || '—'],
+  ] : [
+    ['Title', item.title],
+    ['Description', item.description || '—'],
+    ['Year', item.year || '—'],
+    ['Manufacturer', item.manufacturer || 'Lionel'],
+    ['Condition', item.condition ? item.condition + '/10' : '—'],
+    ['Quantity', item.quantity || '1'],
+    ['Est. Value', item.estValue ? '$' + parseFloat(item.estValue).toLocaleString() : '—'],
+    ['Date Acquired', item.dateAcquired || '—'],
+    ['Notes', item.notes || '—'],
+  ];
+
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:480px;max-height:85vh;overflow-y:auto">
+      <div class="modal-header" style="background:var(--surface2);border-bottom:1px solid var(--border);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.2rem">${labels[tabId]}</div>
+          <div style="font-weight:600;font-size:1rem">${item.title}</div>
+        </div>
+        <button onclick="this.closest('.modal-overlay').remove()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:1.4rem;line-height:1">✕</button>
+      </div>
+      <div style="padding:1rem 1.25rem">
+        ${fields.map(([label, val]) => val && val !== '—' ? `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:0.45rem 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:0.78rem;color:var(--text-dim);flex-shrink:0;padding-right:1rem">${label}</span>
+            <span style="font-size:0.85rem;color:var(--text);text-align:right">${val}</span>
+          </div>` : '').join('')}
+        ${item.photoLink ? `<div style="margin-top:1rem"><a href="${item.photoLink}" target="_blank" style="color:#2980b9;font-size:0.82rem">📁 View Photos ↗</a></div>` : ''}
+      </div>
+      <div style="padding:0.75rem 1.25rem;border-top:1px solid var(--border);display:flex;gap:0.5rem">
+        <button onclick="openEphemeraEdit('${tabId}',${rowKey})" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.1);cursor:pointer;font-family:var(--font-body);font-weight:600">Edit</button>
+        <button onclick="this.closest('.modal-overlay').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-family:var(--font-body)">Close</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
 function buildWantPage() {
   const isMobile = window.innerWidth <= 640;
   const _wq = (state._wantSearch || '').toLowerCase();
@@ -3584,6 +3827,38 @@ let wizard = {
 
 // Step definitions per tab
 function getSteps(tab) {
+  // Ephemera (non-train items)
+  if (tab && ['catalogs','paper','mockups','other'].includes(tab)) {
+    const isMockup = tab === 'mockups';
+    const steps = [
+      { id: 'tab', title: 'What would you like to add?', type: 'choice' },
+      { id: 'eph_title', title: isMockup ? 'What is the mock-up title or name?' : 'What is the title?', type: 'text', placeholder: isMockup ? 'e.g. 2344 Santa Fe Prototype' : 'e.g. 1957 Consumer Catalog' },
+    ];
+    if (isMockup) steps.push(
+      { id: 'eph_itemNumRef', title: 'Related item number (if known)', type: 'text', placeholder: 'e.g. 2344', optional: true },
+      { id: 'eph_productionStatus', title: 'Production status', type: 'choice3', choices: ['Produced as shown','Modified before production','Never produced'] },
+      { id: 'eph_material', title: 'Material', type: 'choice3', choices: ['Wood','Clay/Plaster','Metal','Mixed','Unknown'] },
+      { id: 'eph_dimensions', title: 'Dimensions (optional)', type: 'text', placeholder: 'e.g. 12" x 4" x 3"', optional: true },
+      { id: 'eph_provenance', title: 'Provenance / history (optional)', type: 'textarea', optional: true },
+      { id: 'eph_lionelVerified', title: 'Lionel factory verified?', type: 'choice3', choices: ['Yes','No','Unknown'] },
+    );
+    steps.push(
+      { id: 'eph_description', title: 'Description (optional)', type: 'textarea', optional: true, placeholder: isMockup ? 'e.g. Pre-production body in unpainted wood, hand-lettered' : 'e.g. First edition with red cover, 48 pages' },
+      { id: 'eph_year', title: 'Year', type: 'text', placeholder: 'e.g. 1957', optional: true },
+      { id: 'eph_condition', title: 'Condition (1-10)', type: 'slider', min:1, max:10 },
+    );
+    if (!isMockup) steps.push(
+      { id: 'eph_quantity', title: 'How many copies?', type: 'text', placeholder: '1', optional: true },
+    );
+    steps.push(
+      { id: 'eph_estValue', title: 'Estimated value', type: 'money', placeholder: '0.00', optional: true },
+      { id: 'eph_dateAcquired', title: 'Date acquired', type: 'date', optional: true },
+      { id: 'eph_notes', title: 'Notes (optional)', type: 'textarea', optional: true },
+      { id: 'eph_confirm', title: 'Ready to save!', type: 'confirm' },
+    );
+    return steps;
+  }
+
   const base = [
     { id: 'tab',        title: 'What would you like to add?',          type: 'choice' },
     { id: 'itemNum',    title: 'What is the Lionel item number?',       type: 'text',     placeholder: 'e.g. 726, 2046, 6464-1' },
@@ -3732,6 +4007,11 @@ function getSteps(tab) {
         skipIf: (d) => !isPaired(d) || d.wantTogetherPhotos !== 'Yes' },
 
       { id: 'notes',        title: 'Any notes?',                           type: 'textarea', optional: true },
+      { id: 'isError',      title: 'Is this an error car?',                  type: 'choice2', choices: ['No','Yes'],
+        note: () => 'Error cars have factory mistakes like double-stamping, missing lettering or decoration, wrong color, etc.' },
+      { id: 'errorDesc',    title: 'Describe the error',                     type: 'textarea', optional: true,
+        placeholder: 'e.g. Double-stamped road name, missing decoration on left side',
+        skipIf: d => d.isError !== 'Yes' },
       { id: 'confirm',      title: 'Ready to save!',                       type: 'confirm' },
     ];
   } else if (tab === 'sold') {
@@ -3820,9 +4100,11 @@ function renderWizardStep() {
   }
   const progBar = document.getElementById('wizard-progress');
   if (progBar) {
+    const _ephColors = {catalogs:'#e67e22',paper:'#3498db',mockups:'#9b59b6',other:'#27ae60'};
     if (wizard.tab === 'collection') progBar.style.background = '#e8401c';
     else if (wizard.tab === 'want')  progBar.style.background = '#2980b9';
     else if (wizard.tab === 'sold')  progBar.style.background = '#2ecc71';
+    else if (_ephColors[wizard.tab]) progBar.style.background = _ephColors[wizard.tab];
     else                             progBar.style.background = 'var(--accent)';
   }
   if (nextBtn) {
@@ -3853,9 +4135,14 @@ function renderWizardStep() {
     // First step - choose tab
     body.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:0.75rem;padding-top:0.5rem">
-        ${[['collection','✓ My Collection','Add an item you own','var(--green)'],
+        ${[['collection','✓ My Collection','Add a Lionel train you own','var(--green)'],
            ['sold','$ Sold','Record a sold item','#9b59b6'],
-           ['want','★ Want List','Add to your wish list','var(--accent2)']].map(([val,label,desc,color]) => `
+           ['want','★ Want List','Add to your wish list','var(--accent2)'],
+           ['catalogs','📒 Catalogs','Lionel catalogs & publications','#e67e22'],
+           ['paper','📄 Paper Items','Ads, flyers, box inserts, articles','#3498db'],
+           ['mockups','🔩 Mock-Ups','Pre-production prototypes','#9b59b6'],
+           ['other','📦 Other Lionel','Accessories, displays & more','#27ae60'],
+          ].map(([val,label,desc,color]) => `
           <button onclick="wizardChooseTab('${val}')" style="
             display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;
             border-radius:10px;border:2px solid ${wizard.tab===val ? color : 'var(--border)'};
@@ -4856,6 +5143,12 @@ async function wizardNext() {
     return;
   }
 
+  // Ephemera confirm
+  if (s.id === 'eph_confirm' || (s.type === 'confirm' && ['catalogs','paper','mockups','other'].includes(wizard.tab))) {
+    await saveEphemeraItem();
+    return;
+  }
+
   // Commit slider default if user never moved it
   if (s.type === 'slider' && (wizard.data[s.id] === undefined || wizard.data[s.id] === null)) {
     wizard.data[s.id] = 7;
@@ -4870,6 +5163,69 @@ async function wizardNext() {
   }
 
   renderWizardStep();
+}
+
+async function saveEphemeraItem() {
+  const d = wizard.data;
+  const tab = wizard.tab;
+  const tabNames = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };
+  const sheetName = tabNames[tab];
+  if (!sheetName) { closeWizard(); return; }
+
+  let row;
+  if (tab === 'mockups') {
+    row = [
+      d.eph_title||'', d.eph_itemNumRef||'', d.eph_description||'',
+      d.eph_year||'', d.eph_manufacturer||'Lionel', d.eph_condition||'',
+      d.eph_productionStatus||'', d.eph_material||'', d.eph_dimensions||'',
+      d.eph_provenance||'', d.eph_lionelVerified||'', d.eph_estValue||'',
+      '', // photo link — empty for now
+      d.eph_notes||'', d.eph_dateAcquired||'',
+    ];
+  } else {
+    row = [
+      d.eph_title||'', d.eph_description||'', d.eph_year||'',
+      d.eph_manufacturer||'Lionel', d.eph_condition||'',
+      d.eph_quantity||'1', d.eph_estValue||'',
+      '', // photo link
+      d.eph_notes||'', d.eph_dateAcquired||'',
+    ];
+  }
+
+  try {
+    await sheetsAppend(state.personalSheetId, sheetName, [row]);
+    // Add to local state
+    const bucket = state.ephemeraData[tab] || {};
+    const newKey = Date.now();
+    if (tab === 'mockups') {
+      bucket[newKey] = {
+        row: newKey, title: d.eph_title||'', itemNumRef: d.eph_itemNumRef||'',
+        description: d.eph_description||'', year: d.eph_year||'',
+        manufacturer: d.eph_manufacturer||'Lionel', condition: d.eph_condition||'',
+        productionStatus: d.eph_productionStatus||'', material: d.eph_material||'',
+        dimensions: d.eph_dimensions||'', provenance: d.eph_provenance||'',
+        lionelVerified: d.eph_lionelVerified||'', estValue: d.eph_estValue||'',
+        photoLink: '', notes: d.eph_notes||'', dateAcquired: d.eph_dateAcquired||'',
+      };
+    } else {
+      bucket[newKey] = {
+        row: newKey, title: d.eph_title||'', description: d.eph_description||'',
+        year: d.eph_year||'', manufacturer: d.eph_manufacturer||'Lionel',
+        condition: d.eph_condition||'', quantity: d.eph_quantity||'1',
+        estValue: d.eph_estValue||'', photoLink: '', notes: d.eph_notes||'',
+        dateAcquired: d.eph_dateAcquired||'',
+      };
+    }
+    state.ephemeraData[tab] = bucket;
+    showToast('✓ ' + (d.eph_title||'Item') + ' saved!');
+    closeWizard();
+    // Refresh ephemera page if visible
+    if (document.getElementById('page-ephemera')?.classList.contains('active')) {
+      buildEphemeraPage();
+    }
+  } catch(e) {
+    showToast('Error saving: ' + e.message);
+  }
 }
 
 async function savePhotoOnlyUpdate() {
@@ -5010,6 +5366,8 @@ async function saveWizardItem() {
           d.tenderMatch && d.tenderMatch !== 'none' ? d.tenderMatch : '',
           '',  // Set ID — filled in after save if set unit
           d.yearMade || '',  // Year Made (col Q)
+        d.isError === 'Yes' ? 'Yes' : 'No',  // Is Error (col R)
+        d.isError === 'Yes' ? (d.errorDesc || '') : '',  // Error Description (col S)
         ];
       }
       // ── SET UNIT SAVE: if diesel set, save unit2 (and unit3) rows with shared Set ID ──
