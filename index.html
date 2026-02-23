@@ -4706,6 +4706,12 @@ async function wizardNext() {
     return;
   }
 
+  // Photo-only mode: after completing a drivePhotos step, save the link and close
+  if (wizard.data._photoOnly && s.type === 'drivePhotos') {
+    await savePhotoOnlyUpdate();
+    return;
+  }
+
   // Commit slider default if user never moved it
   if (s.type === 'slider' && (wizard.data[s.id] === undefined || wizard.data[s.id] === null)) {
     wizard.data[s.id] = 7;
@@ -4720,6 +4726,40 @@ async function wizardNext() {
   }
 
   renderWizardStep();
+}
+
+async function savePhotoOnlyUpdate() {
+  const d = wizard.data;
+  const pdKey = d._updatePdKey;
+  if (!pdKey || !state.personalData[pdKey]) {
+    closeWizard(); return;
+  }
+  const pd = state.personalData[pdKey];
+  // Get the folder link from whichever photo step just ran
+  const photoObj = d.photosItem || d.photosBox || {};
+  const folderLink = Object.values(photoObj).find(v => v) || '';
+  if (folderLink && pd.row) {
+    // Write folder link to col J (index 9) of the existing row
+    try {
+      await sheetsUpdate(state.personalSheetId, 'My Collection!J' + pd.row, [[folderLink]]);
+      pd.photoItem = folderLink;
+      showToast('✓ Photos saved!');
+    } catch(e) {
+      showToast('Photos uploaded but link save failed: ' + e.message);
+    }
+  } else {
+    showToast('✓ Photos uploaded!');
+  }
+  closeWizard();
+  // Refresh camera icons on current browse view
+  if (folderLink) {
+    const itemNum = pd.itemNum;
+    const variation = pd.variation || '';
+    const c1 = document.getElementById('cam-' + itemNum + '-' + variation);
+    const c2 = document.getElementById('cam-' + itemNum + '-' + variation + '-m');
+    if (c1) c1.style.display = 'inline';
+    if (c2) c2.style.display = 'inline';
+  }
 }
 
 async function saveWizardItem() {
