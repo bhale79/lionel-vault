@@ -667,6 +667,7 @@
 
       <!-- ── Dashboard ── -->
       <div class="page active" id="page-dashboard">
+        <button onclick="showDebugInfo()" style="position:fixed;top:0.5rem;right:0.5rem;z-index:999;font-size:0.65rem;padding:0.3rem 0.6rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);cursor:pointer">🔍 Debug</button>
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem">
           <div class="page-title">Dashboard <span id="dash-greeting"></span></div>
           <button class="btn btn-primary" onclick="startAddWizard()" style="display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;padding:0.65rem 1.25rem">
@@ -1698,15 +1699,25 @@ function showLoading() {
 }
 
 // ── DASHBOARD ───────────────────────────────────────────────────
-function showDebugInfo() {
+async function showDebugInfo() {
+  const pid = state.personalSheetId || localStorage.getItem('lv_personal_id');
+  let sheetTest = 'not tested';
+  if (pid && accessToken) {
+    try {
+      const r = await fetch(
+        'https://sheets.googleapis.com/v4/spreadsheets/' + pid + '/values/My%20Collection!A1:A3',
+        { headers: { Authorization: 'Bearer ' + accessToken } }
+      );
+      const d = await r.json();
+      sheetTest = r.status + ' — ' + JSON.stringify(d).substring(0, 80);
+    } catch(e) { sheetTest = 'ERROR: ' + e.message; }
+  }
   const info = [
-    'personalSheetId: ' + (state.personalSheetId || 'MISSING'),
-    'masterSheetId: ' + (state.masterSheetId || 'MISSING'),
-    'accessToken: ' + (accessToken ? 'YES (' + accessToken.substring(0,10) + '...)' : 'MISSING'),
-    'masterData rows: ' + state.masterData.length,
-    'personalData keys: ' + Object.keys(state.personalData).length,
-    'lv_personal_id: ' + (localStorage.getItem('lv_personal_id') || 'MISSING'),
-    'lv_vault_id: ' + (localStorage.getItem('lv_vault_id') || 'MISSING'),
+    'token: ' + (accessToken ? 'YES' : 'MISSING'),
+    'personalSheetId: ' + (pid || 'MISSING'),
+    'masterRows: ' + state.masterData.length,
+    'personalKeys: ' + Object.keys(state.personalData).length,
+    'sheet test: ' + sheetTest,
   ].join('\n');
   alert(info);
 }
