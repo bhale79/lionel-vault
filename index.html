@@ -6,12 +6,12 @@
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230e0f11'/><text y='0.9em' font-size='80'>🚂</text></svg>">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Lionel Vault">
+  <meta name="apple-mobile-web-app-title" content="My Train Collection">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0e0f11">
   <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Lionel Vault&quot;,&quot;short_name&quot;:&quot;Lionel Vault&quot;,&quot;start_url&quot;:&quot;/lionel-vault/&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%230e0f11&quot;,&quot;theme_color&quot;:&quot;%230e0f11&quot;,&quot;icons&quot;:[{&quot;src&quot;:&quot;data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230e0f11'/><text y='0.9em' font-size='80'>🚂</text></svg>&quot;,&quot;sizes&quot;:&quot;any&quot;,&quot;type&quot;:&quot;image/svg+xml&quot;}]}">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Lionel Vault — Postwar Collector's Inventory</title>
+<title>My Train Collection — Postwar 1945–1969</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   /* ── Reset & Variables ─────────────────────────────────────── */
@@ -95,9 +95,7 @@
     display: flex; align-items: center; padding: 0 1.25rem;
     gap: 1rem; flex-shrink: 0; z-index: 100;
   }
-  .header-logo { font-family: var(--font-head); font-size: 1.6rem; letter-spacing: 0.05em;
-    background: linear-gradient(135deg, #fff, var(--accent2));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent; flex-shrink: 0; }
+  .header-logo { font-family: var(--font-head); flex-shrink: 0; line-height: 1.2; }
   .header-search {
     flex: 1; max-width: 480px;
     display: flex; align-items: center; gap: 0.5rem;
@@ -600,7 +598,10 @@
 
 <!-- ══ AUTH SCREEN ══════════════════════════════════════════════ -->
 <div id="auth-screen">
-  <div class="auth-logo">LIONEL VAULT</div>
+  <div class="auth-logo" style="line-height:1.3">
+    <div style="color:#2980b9">My Train Collection</div>
+    <div style="font-size:0.9rem;letter-spacing:0.15em;color:#2980b9;opacity:0.75;margin-top:4px">POST WAR &nbsp;1945–1969</div>
+  </div>
   <div class="auth-sub">Postwar Collector's Inventory</div>
   <div class="auth-card">
     <h2>Sign in to your collection</h2>
@@ -650,7 +651,10 @@
 
   <!-- Header -->
   <header class="header">
-    <div class="header-logo">LIONEL VAULT</div>
+    <div class="header-logo">
+      <div style="font-size:1.4rem;letter-spacing:0.05em;color:#2980b9">My Train Collection</div>
+      <div style="font-size:0.65rem;letter-spacing:0.12em;color:#2980b9;opacity:0.8;margin-top:1px">POST WAR &nbsp;1945–1969</div>
+    </div>
     <div class="header-search">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
       <input id="global-search" type="text" placeholder="Search item number, road name, description…" oninput="onGlobalSearch(this.value)">
@@ -843,10 +847,10 @@
               <tr>
                 <th>Item #</th>
                 <th>Road / Name</th>
-                <th>Variation</th>
+                <th>Var.</th>
+                <th>Var. Description</th>
                 <th>Priority</th>
                 <th>Est. Price</th>
-                <th>Notes</th>
               </tr>
             </thead>
             <tbody id="want-tbody"></tbody>
@@ -2575,40 +2579,62 @@ function buildWantPage() {
   } else {
     if (tableEl) tableEl.style.display = '';
     if (cardsEl) cardsEl.style.display = 'none';
-    tbody.innerHTML = entries.map(w => {
+    // Store descriptions in a map to avoid quoting issues in onclick
+    window._wantDescs = {};
+    tbody.innerHTML = entries.map((w, idx) => {
       const master = state.masterData.find(m => m.itemNum === w.itemNum && (!w.variation || m.variation === w.variation));
-      const name = master ? (master.roadName || master.description || '') : '';
+      const roadName = master ? (master.roadName || '') : '';
+      const varDesc  = master ? (master.varDesc || master.variationDesc || '') : '';
       const fullDesc = master ? (master.description || '') : '';
+      window._wantDescs[idx] = { title: roadName || w.itemNum, varDesc, fullDesc };
       const pColor = priorityColor[w.priority] || 'var(--text-dim)';
-      const shortName = name.length > 28 ? name.substring(0, 28) + '…' : name;
-      const nameCell = name
-        ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border)" onclick="showWantDesc(${JSON.stringify(name)},${JSON.stringify(fullDesc)})">${shortName}</span>`
-        : '<span class="text-dim">—</span>';
+      const shortVar = varDesc.length > 30 ? varDesc.substring(0, 30) + '…' : varDesc;
+      const varCell = varDesc
+        ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="showWantDesc(${idx})">${shortVar}</span>`
+        : (w.variation ? `<span class="text-dim">${w.variation}</span>` : '<span class="text-dim">—</span>');
       return `<tr>
         <td><span class="item-num">${w.itemNum}</span></td>
-        <td>${nameCell}</td>
+        <td>${roadName || '<span class="text-dim">—</span>'}</td>
         <td>${w.variation || '<span class="text-dim">—</span>'}</td>
+        <td>${varCell}</td>
         <td><span style="color:${pColor};font-weight:500">${w.priority || 'Medium'}</span></td>
         <td class="market-val">${w.expectedPrice ? '$' + parseFloat(w.expectedPrice).toLocaleString() : '<span class="text-dim">—</span>'}</td>
-        <td class="text-dim" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${w.notes || '—'}</td>
       </tr>`;
-    }).join('') || '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">No items on want list</td></tr>';
+    }).join('') || '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-dim)">No items on want list</td></tr>';
   }
 }
 
-function showWantDesc(name, desc) {
+function showWantDesc(idx) {
+  const d = (window._wantDescs || {})[idx];
+  if (!d) return;
   const existing = document.getElementById('want-desc-modal');
   if (existing) existing.remove();
   const overlay = document.createElement('div');
   overlay.id = 'want-desc-modal';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
-  overlay.innerHTML = `
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.5rem;position:relative">
-      <button onclick="document.getElementById('want-desc-modal').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;line-height:1">✕</button>
-      <div style="font-family:var(--font-head);font-size:1rem;color:var(--accent2);margin-bottom:0.75rem">${name}</div>
-      <div style="font-size:0.85rem;color:var(--text-mid);line-height:1.7">${desc || name}</div>
-    </div>`;
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.5rem;position:relative';
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
+  closeBtn.onclick = function() { overlay.remove(); };
+  box.appendChild(closeBtn);
+  const titleEl = document.createElement('div');
+  titleEl.style.cssText = 'font-family:var(--font-head);font-size:1rem;color:var(--accent2);margin-bottom:0.75rem;margin-right:2rem';
+  titleEl.textContent = d.title;
+  box.appendChild(titleEl);
+  if (d.varDesc) {
+    const varEl = document.createElement('div');
+    varEl.style.cssText = 'font-size:0.85rem;color:var(--accent);font-weight:600;margin-bottom:0.5rem';
+    varEl.textContent = 'Variation: ' + d.varDesc;
+    box.appendChild(varEl);
+  }
+  const descEl = document.createElement('div');
+  descEl.style.cssText = 'font-size:0.85rem;color:var(--text-mid);line-height:1.7';
+  descEl.textContent = d.fullDesc || d.title;
+  box.appendChild(descEl);
+  overlay.appendChild(box);
   document.body.appendChild(overlay);
 }
 
