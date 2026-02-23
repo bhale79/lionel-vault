@@ -493,7 +493,7 @@
 </div>
 
 <!-- ══ FIRST-TIME SETUP SCREEN ═════════════════════════════════ -->
-<div id="setup-screen">
+<div id="setup-screen" style="display:none!important">
   <div class="setup-card">
     <h2>Welcome!</h2>
     <p>One-time setup — just two steps to connect your inventory.</p>
@@ -1032,14 +1032,14 @@ function initGoogle() {
     callback: onTokenReceived,
   });
 
-  // Check for existing session
+  // Check for existing session — master ID is hardcoded, just need saved user
   const savedUser = localStorage.getItem('lv_user');
-  const savedMasterId = localStorage.getItem('lv_master_id');
   const savedPersonalId = localStorage.getItem('lv_personal_id');
+  state.masterSheetId = '1cLmCcI4Ekao2gn-TntAGjhsPrIYe39-cX6rV1WAyDCM';
+  localStorage.setItem('lv_master_id', state.masterSheetId);
 
-  if (savedUser && savedMasterId) {
+  if (savedUser) {
     state.user = JSON.parse(savedUser);
-    state.masterSheetId = savedMasterId;
     state.personalSheetId = savedPersonalId;
     showApp();
     tokenClient.requestAccessToken({ prompt: '' });
