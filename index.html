@@ -2042,6 +2042,21 @@ function resetFilters() {
 }
 
 function filterOwned() { resetFilters(); state.filters.owned = true; renderBrowse(); }
+
+function renderOwnedItems() {
+  // Build a unified list: masterData matches + personal-only items (e.g. 2343-P)
+  const masterOwned = state.masterData.filter(item => {
+    const pd = findPD(item.itemNum, item.variation);
+    return pd?.owned;
+  });
+  // Personal items with no master match
+  const masterNums = new Set(state.masterData.map(m => m.itemNum + '|' + (m.variation||'')));
+  const personalOnly = Object.values(state.personalData).filter(pd => {
+    if (!pd.owned) return false;
+    return !masterNums.has(pd.itemNum + '|' + (pd.variation||''));
+  });
+  return { masterOwned, personalOnly };
+}
 function filterWanted() {
   resetFilters();
   state.filters.wantList = true;
@@ -2059,9 +2074,20 @@ function buildBrowse() { renderBrowse(); }
 
 function renderBrowse() {
   const { type, road, owned, unowned, boxed, search } = state.filters;
-  state.filteredData = state.masterData.filter(item => {
-    const pd = findPD(item.itemNum, item.variation);
-    const isOwned = pd?.owned || false;
+  // Base list: masterData + any personal-only items (e.g. 2343-P not in master)
+  const masterNums = new Set(state.masterData.map(m => m.itemNum + '|' + (m.variation||'')));
+  const personalOnlyItems = Object.values(state.personalData)
+    .filter(pd => pd.owned && !masterNums.has(pd.itemNum + '|' + (pd.variation||'')))
+    .map(pd => ({
+      itemNum: pd.itemNum, variation: pd.variation || '', itemType: pd.itemType || 'Diesel Locomotive',
+      roadName: pd.roadName || '', description: pd.notes || '', yearProd: pd.datePurchased || '',
+      marketVal: pd.userEstWorth || '', refLink: '', _personalOnly: true
+    }));
+  const baseList = owned ? [...state.masterData, ...personalOnlyItems] : state.masterData;
+
+  state.filteredData = baseList.filter(item => {
+    const pd = findPD(item.itemNum, item.variation) || (item._personalOnly ? item : null);
+    const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const hasBox = pd?.hasBox === 'Yes';
     const isSold = !!state.soldData[`${item.itemNum}|${item.variation}`];
     if (isSold) return false;
@@ -2073,7 +2099,7 @@ function renderBrowse() {
     if (type && item.itemType !== type) return false;
     if (road && item.roadName !== road) return false;
     if (search) {
-      const haystack = `${item.itemNum} ${item.roadName} ${item.description} ${item.itemType}`.toLowerCase();
+      const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''}`.toLowerCase();
       if (!haystack.includes(search)) return false;
     }
     return true;
