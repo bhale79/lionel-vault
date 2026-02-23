@@ -793,7 +793,8 @@
                 <th>Item #</th>
                 <th>Type</th>
                 <th>Road / Name</th>
-                <th>Variation</th>
+                <th>Var.</th>
+                <th>Var. Description</th>
                 <th>Year</th>
                 <th>Owned</th>
                 <th>Cond.</th>
@@ -2154,14 +2155,18 @@ function renderBrowse() {
         </div>
       </div>`;
     } else {
+      const vdShort = item.varDesc ? (item.varDesc.length > 28 ? item.varDesc.substring(0,28)+'…' : item.varDesc) : '';
+      const vdCell = vdShort
+        ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="event.stopPropagation();showVarDescPopup(${globalIdx})">${vdShort}</span>`
+        : '<span class="text-dim">—</span>';
       return `<tr onclick="openItem(${globalIdx})">
         <td><span class="item-num">${item.itemNum}</span></td>
         <td><span class="tag">${item.itemType || '—'}</span></td>
         <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
         <td>${item.variation || '<span class="text-dim">—</span>'}</td>
+        <td>${vdCell}</td>
         <td class="text-dim">${item.yearProd || '—'}</td>
         <td><span class="owned-badge ${badgeClass}">${badgeText}</span></td>
-        <td>${cond ? `<span class="condition-pip ${condClass}"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
         <td class="market-val">${item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '<span class="text-dim">—</span>'}</td>
       </tr>`;
     }
@@ -2169,7 +2174,7 @@ function renderBrowse() {
 
   const emptyHtml = isMobile
     ? '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔍</div><p>No items match your filters</p></div>'
-    : '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p></div></td></tr>';
+    : '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p></div></td></tr>';
 
   if (isMobile) {
     if (cardsEl) cardsEl.innerHTML = rowsHtml.join('') || emptyHtml;
@@ -2602,6 +2607,34 @@ function buildWantPage() {
       </tr>`;
     }).join('') || '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-dim)">No items on want list</td></tr>';
   }
+}
+
+function showVarDescPopup(idx) {
+  const item = state.masterData[idx];
+  if (!item || !item.varDesc) return;
+  const existing = document.getElementById('vardesc-popup');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'vardesc-popup';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.5rem;position:relative';
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
+  closeBtn.onclick = function() { overlay.remove(); };
+  box.appendChild(closeBtn);
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'font-family:var(--font-head);color:var(--accent2);margin-bottom:0.5rem;margin-right:2rem';
+  hdr.textContent = item.itemNum + (item.variation ? ' — Variation ' + item.variation : '') + (item.roadName ? ' · ' + item.roadName : '');
+  box.appendChild(hdr);
+  const varEl = document.createElement('div');
+  varEl.style.cssText = 'font-size:0.9rem;color:var(--text);line-height:1.7';
+  varEl.textContent = item.varDesc;
+  box.appendChild(varEl);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 }
 
 function showWantDesc(idx) {
