@@ -2229,16 +2229,231 @@ function renderBrowse() {
 function goPage(p) { state.currentPage = p; renderBrowse(); document.getElementById('main-content').scrollTop = 0; }
 
 // ── BROWSE ROW CLICK — offer to add or view ─────────────────────
+function showOwnedItemMenu(idx, pdKey) {
+  const item = state.masterData[idx];
+  const pd = state.personalData[pdKey] || {};
+  if (!item) return;
+  const existing = document.getElementById('owned-action-menu');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'owned-action-menu';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(46,204,113,0.35);border-radius:16px;max-width:420px;width:100%;padding:1.75rem;position:relative';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
+  closeBtn.onclick = function() { overlay.remove(); };
+  box.appendChild(closeBtn);
+
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'font-family:var(--font-head);font-size:1rem;color:var(--green);margin-bottom:0.15rem';
+  hdr.textContent = '✓ In Your Collection';
+  box.appendChild(hdr);
+  const itemLbl = document.createElement('div');
+  itemLbl.style.cssText = 'font-size:0.85rem;color:var(--text-mid);margin-bottom:0.1rem';
+  itemLbl.textContent = 'No. ' + item.itemNum + (item.variation ? ' — Var. ' + item.variation : '') + (item.roadName ? ' · ' + item.roadName : '');
+  box.appendChild(itemLbl);
+  const condLbl = document.createElement('div');
+  condLbl.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-bottom:1.25rem';
+  const parts = [];
+  if (pd.condition) parts.push('Condition: ' + pd.condition + '/10');
+  if (pd.priceItem || pd.priceComplete) parts.push('Paid: $' + (pd.priceComplete || pd.priceItem));
+  if (pd.yearMade) parts.push('Year: ' + pd.yearMade);
+  condLbl.textContent = parts.join(' · ') || item.yearProd || '';
+  box.appendChild(condLbl);
+
+  // Action buttons stacked
+  const mkBtn = function(label, color, bg, handler) {
+    const b = document.createElement('button');
+    b.style.cssText = 'width:100%;padding:0.7rem 1rem;border-radius:9px;border:1.5px solid ' + color + ';color:' + color + ';background:' + bg + ';font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-bottom:0.5rem;text-align:left;display:flex;align-items:center;gap:0.5rem';
+    b.innerHTML = label;
+    b.onclick = handler;
+    return b;
+  };
+
+  box.appendChild(mkBtn(
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Record a Sale',
+    '#2ecc71', 'rgba(46,204,113,0.1)',
+    function() { overlay.remove(); sellFromCollection(idx, pdKey); }
+  ));
+  box.appendChild(mkBtn(
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Update Info',
+    '#2980b9', 'rgba(41,128,185,0.1)',
+    function() { overlay.remove(); updateCollectionItem(idx, pdKey); }
+  ));
+  box.appendChild(mkBtn(
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> View Item Details',
+    'var(--text-dim)', 'var(--surface2)',
+    function() { overlay.remove(); openItem(idx); }
+  ));
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
+function sellFromCollection(idx, pdKey) {
+  const item = state.masterData[idx];
+  const pd = state.personalData[pdKey] || {};
+  if (!item) return;
+  // Open sell wizard pre-filled with item info
+  wizard = { step: 0, tab: 'sold', data: {
+    tab: 'sold',
+    itemNum: item.itemNum,
+    variation: item.variation || '',
+    condition: pd.condition || '',
+    _collectionPdKey: pdKey,
+    _collectionRow: pd.row
+  }, steps: getSteps('sold'), matchedItem: item };
+  document.getElementById('wizard-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Skip tab, itemNum, variation steps
+  const autoSkip = new Set(['tab', 'itemNum', 'variation']);
+  while (wizard.step < wizard.steps.length - 1) {
+    const s = wizard.steps[wizard.step];
+    if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) wizard.step++;
+    else break;
+  }
+  renderWizardStep();
+}
+
+function updateCollectionItem(idx, pdKey) {
+  const item = state.masterData[idx];
+  const pd = state.personalData[pdKey] || {};
+  if (!item) return;
+  // Build an update modal with all editable fields
+  const existing = document.getElementById('update-item-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'update-item-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(41,128,185,0.4);border-radius:16px;max-width:480px;width:100%;padding:1.75rem;position:relative;max-height:90vh;overflow-y:auto';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
+  closeBtn.onclick = function() { overlay.remove(); };
+  box.appendChild(closeBtn);
+
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'font-family:var(--font-head);font-size:1rem;color:#2980b9;margin-bottom:0.15rem';
+  hdr.textContent = 'Update Item';
+  box.appendChild(hdr);
+  const sub = document.createElement('div');
+  sub.style.cssText = 'font-size:0.8rem;color:var(--text-dim);margin-bottom:1.25rem';
+  sub.textContent = 'No. ' + item.itemNum + (item.variation ? ' · Var. ' + item.variation : '') + (item.roadName ? ' · ' + item.roadName : '');
+  box.appendChild(sub);
+
+  // Helper to make a labeled field
+  function mkField(label, id, val, type, options) {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'margin-bottom:0.9rem';
+    const lbl = document.createElement('label');
+    lbl.style.cssText = 'display:block;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.3rem';
+    lbl.textContent = label;
+    wrap.appendChild(lbl);
+    let inp;
+    if (type === 'select') {
+      inp = document.createElement('select');
+      inp.style.cssText = 'width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.8rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem';
+      options.forEach(function(o) {
+        const opt = document.createElement('option');
+        opt.value = o; opt.textContent = o;
+        if (o === val) opt.selected = true;
+        inp.appendChild(opt);
+      });
+    } else {
+      inp = document.createElement('input');
+      inp.type = type || 'text';
+      inp.value = val || '';
+      inp.style.cssText = 'width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.8rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;box-sizing:border-box';
+    }
+    inp.id = 'upd-' + id;
+    wrap.appendChild(inp);
+    return wrap;
+  }
+
+  box.appendChild(mkField('Condition (1–10)', 'condition', pd.condition || '', 'number', null));
+  document.getElementById('upd-condition').min = 1;
+  document.getElementById('upd-condition').max = 10;
+  box.appendChild(mkField('All Original?', 'allOriginal', pd.allOriginal || 'Unknown', 'select', ['Yes','No','Unknown']));
+  box.appendChild(mkField('Has Box?', 'hasBox', pd.hasBox || 'No', 'select', ['Yes','No']));
+  box.appendChild(mkField('Box Condition (1–10)', 'boxCond', pd.boxCond || '', 'number', null));
+  box.appendChild(mkField('Item Price Paid ($)', 'priceItem', pd.priceItem || '', 'number', null));
+  box.appendChild(mkField('Est. Worth ($)', 'userEstWorth', pd.userEstWorth || '', 'number', null));
+  box.appendChild(mkField('Year Made', 'yearMade', pd.yearMade || '', 'number', null));
+  box.appendChild(mkField('Date Purchased', 'datePurchased', pd.datePurchased || '', 'date', null));
+  box.appendChild(mkField('Notes', 'notes', pd.notes || '', 'text', null));
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn btn-primary';
+  saveBtn.style.cssText = 'width:100%;margin-top:0.5rem;background:#2980b9;border-color:#2980b9;font-weight:600';
+  saveBtn.textContent = '💾 Save Changes';
+  saveBtn.onclick = async function() {
+    saveBtn.textContent = 'Saving…'; saveBtn.disabled = true;
+    const getV = function(id) { const el = document.getElementById('upd-' + id); return el ? el.value.trim() : ''; };
+    const priceItem = getV('priceItem');
+    const priceBox = pd.priceBox || '';
+    const calcComplete = (parseFloat(priceItem)||0) + (parseFloat(priceBox)||0);
+    const newRow = [
+      item.itemNum,
+      item.variation || '',
+      getV('condition'),
+      getV('allOriginal'),
+      priceItem,
+      priceBox,
+      calcComplete > 0 ? calcComplete.toFixed(2) : '',
+      getV('hasBox'),
+      getV('boxCond'),
+      pd.photoItem || '',
+      pd.photoBox || '',
+      getV('notes'),
+      getV('datePurchased'),
+      getV('userEstWorth'),
+      pd.matchedTo || '',
+      pd.setId || '',
+      getV('yearMade'),
+    ];
+    try {
+      await sheetsUpdate(state.personalSheetId, 'My Collection!A' + pd.row + ':Q' + pd.row, [newRow]);
+      // Update local state
+      state.personalData[pdKey] = Object.assign({}, pd, {
+        condition: getV('condition'), allOriginal: getV('allOriginal'),
+        hasBox: getV('hasBox'), boxCond: getV('boxCond'),
+        priceItem: priceItem, priceComplete: calcComplete > 0 ? calcComplete.toFixed(2) : '',
+        userEstWorth: getV('userEstWorth'), yearMade: getV('yearMade'),
+        datePurchased: getV('datePurchased'), notes: getV('notes'),
+      });
+      overlay.remove();
+      showToast('✓ Item updated!');
+      buildDashboard();
+    } catch(e) {
+      saveBtn.textContent = '💾 Save Changes'; saveBtn.disabled = false;
+      showToast('Error saving: ' + e.message);
+    }
+  };
+  box.appendChild(saveBtn);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
 function browseRowClick(event, idx) {
   // If click was on the varDesc popup span, don't intercept
   if (event.target.closest && event.target.closest('[onclick*="showVarDescPopup"]')) return;
   const item = state.masterData[idx];
   if (!item) return;
   const keyPrefix = item.itemNum + '|' + item.variation + '|';
-  const alreadyOwned = Object.keys(state.personalData).some(k => k.startsWith(keyPrefix));
+  const pdKey = Object.keys(state.personalData).find(k => k.startsWith(keyPrefix));
+  const alreadyOwned = !!pdKey;
   if (alreadyOwned) {
-    // Already in collection — just open the detail modal
-    openItem(idx);
+    showOwnedItemMenu(idx, pdKey);
     return;
   }
   // Not owned — show quick prompt
