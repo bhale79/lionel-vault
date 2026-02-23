@@ -667,10 +667,7 @@
 
       <!-- ── Dashboard ── -->
       <div class="page active" id="page-dashboard">
-        <button onclick="showDebugInfo()" style="position:fixed;top:0.5rem;right:0.5rem;z-index:999;font-size:0.65rem;padding:0.3rem 0.6rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);cursor:pointer">🔍 Debug</button>
-        <div id="dash-debug-line" style="position:fixed;top:2.5rem;right:0.5rem;z-index:999;font-size:0.6rem;color:var(--accent2);background:var(--surface);padding:0.2rem 0.4rem;border-radius:4px;max-width:200px;word-break:break-all"></div>
-        <button onclick="driveReadConfig().then(c=>alert('Drive config: '+JSON.stringify(c)))" style="position:fixed;top:4rem;right:0.5rem;z-index:999;font-size:0.6rem;padding:0.2rem 0.4rem;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--accent2);cursor:pointer">📁 Config</button>
-        <button onclick="driveReadConfig().then(c=>{if(c&&c.personalSheetId){localStorage.setItem('lv_personal_id',c.personalSheetId);localStorage.setItem('lv_vault_id',c.vaultId||'');localStorage.setItem('lv_photos_id',c.photosId||'');localStorage.setItem('lv_sold_photos_id',c.soldPhotosId||'');alert('Fixed! Reloading...');location.reload();}else{alert('No config found');}})" style="position:fixed;top:6rem;right:0.5rem;z-index:999;font-size:0.6rem;padding:0.2rem 0.4rem;background:var(--accent);border:none;border-radius:4px;color:white;cursor:pointer">🔧 Fix</button>
+
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem">
           <div class="page-title">Dashboard <span id="dash-greeting"></span></div>
           <button class="btn btn-primary" onclick="startAddWizard()" style="display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;padding:0.65rem 1.25rem">
@@ -1190,42 +1187,35 @@ function onTokenReceived(resp) {
   state.masterSheetId = '1cLmCcI4Ekao2gn-TntAGjhsPrIYe39-cX6rV1WAyDCM';
   localStorage.setItem('lv_master_id', state.masterSheetId);
 
-  // Try localStorage first, then fall back to Drive config file
-  state.personalSheetId = localStorage.getItem('lv_personal_id');
-
-  if (!state.personalSheetId) {
-    // New device — check Drive for existing config
-    console.log('No local personalSheetId — checking Drive config...');
-    driveReadConfig().then(config => {
-      if (config && config.personalSheetId) {
-        console.log('Found personalSheetId in Drive config:', config.personalSheetId);
-        state.personalSheetId = config.personalSheetId;
-        localStorage.setItem('lv_personal_id', config.personalSheetId);
-        if (config.vaultId) {
-          driveCache.vaultId = config.vaultId;
-          localStorage.setItem('lv_vault_id', config.vaultId);
-        }
-        if (config.photosId) {
-          driveCache.photosId = config.photosId;
-          localStorage.setItem('lv_photos_id', config.photosId);
-        }
-        if (config.soldPhotosId) {
-          driveCache.soldPhotosId = config.soldPhotosId;
-          localStorage.setItem('lv_sold_photos_id', config.soldPhotosId);
-        }
+  // Always sync from Drive config to ensure correct sheet ID across devices
+  driveReadConfig().then(config => {
+    if (config && config.personalSheetId) {
+      // Always use Drive config as source of truth
+      state.personalSheetId = config.personalSheetId;
+      localStorage.setItem('lv_personal_id', config.personalSheetId);
+      if (config.vaultId)      { driveCache.vaultId = config.vaultId;           localStorage.setItem('lv_vault_id', config.vaultId); }
+      if (config.photosId)     { driveCache.photosId = config.photosId;         localStorage.setItem('lv_photos_id', config.photosId); }
+      if (config.soldPhotosId) { driveCache.soldPhotosId = config.soldPhotosId; localStorage.setItem('lv_sold_photos_id', config.soldPhotosId); }
+      loadAllData();
+    } else {
+      // No config yet — check localStorage then create if needed
+      state.personalSheetId = localStorage.getItem('lv_personal_id');
+      if (!state.personalSheetId) {
+        createPersonalSheet().then(loadAllData);
+      } else {
         driveEnsureSetup().catch(e => console.warn('Drive setup:', e));
         loadAllData();
-      } else {
-        console.log('No Drive config found — creating new personal sheet...');
-        createPersonalSheet().then(loadAllData);
       }
-    }).catch(() => {
+    }
+  }).catch(() => {
+    // Drive read failed — fall back to localStorage
+    state.personalSheetId = localStorage.getItem('lv_personal_id');
+    if (!state.personalSheetId) {
       createPersonalSheet().then(loadAllData);
-    });
-  } else {
-    driveEnsureSetup().catch(e => console.warn('Drive setup:', e));
-    loadAllData();
-  }
+    } else {
+      loadAllData();
+    }
+  });
 }
 
 function handleSignOut() {
@@ -1662,10 +1652,7 @@ async function loadAllData() {
     await loadMasterData();
     await loadPersonalData();
     buildApp();
-    // Re-render multiple times to fix mobile timing issues
-    setTimeout(() => buildDashboard(), 500);
-    setTimeout(() => buildDashboard(), 1500);
-    setTimeout(() => buildDashboard(), 3000);
+
   } catch(e) {
     console.error('Load error:', e.message, e.stack);
     showToast('Error loading data: ' + e.message);
@@ -1799,53 +1786,10 @@ function showLoading() {
 }
 
 // ── DASHBOARD ───────────────────────────────────────────────────
-async function showDebugInfo() {
-  const pid = state.personalSheetId || localStorage.getItem('lv_personal_id');
-  let sheetTest = 'not tested';
-  if (pid && accessToken) {
-    try {
-      const r = await fetch(
-        'https://sheets.googleapis.com/v4/spreadsheets/' + pid + '/values/My%20Collection!A1:A3',
-        { headers: { Authorization: 'Bearer ' + accessToken } }
-      );
-      const d = await r.json();
-      sheetTest = r.status + ' — ' + JSON.stringify(d).substring(0, 80);
-    } catch(e) { sheetTest = 'ERROR: ' + e.message; }
-  }
-  const pdSample = JSON.stringify(Object.values(state.personalData)[0] || {}).substring(0, 200);
-  const owned = Object.values(state.personalData).filter(pd => pd.owned).length;
-  const boxOnly = Object.values(state.personalData).filter(pd => {
-    const c = pd.condition?.toString().trim();
-    const p = pd.priceItem?.toString().trim();
-    return pd.hasBox === 'Yes' && (!c || c === 'N/A') && (!p || p === 'N/A');
-  }).length;
-  // Force rebuild dashboard and read result
-  buildDashboard();
-  const statOwned = document.getElementById('stat-owned')?.textContent;
-  const statTotal = document.getElementById('stat-total')?.textContent;
-  const info = [
-    'token: ' + (accessToken ? 'YES' : 'MISSING'),
-    'personalSheetId: ' + (pid || 'MISSING'),
-    'masterRows: ' + state.masterData.length,
-    'personalKeys: ' + Object.keys(state.personalData).length,
-    'owned flag: ' + owned,
-    'boxOnly excluded: ' + boxOnly,
-    'stat-owned el: ' + statOwned,
-    'stat-total el: ' + statTotal,
-    'sheet test: ' + sheetTest,
-    'sample: ' + pdSample,
-  ].join('\n');
-  alert(info);
-}
 
 function buildDashboard() {
   const total = state.masterData.length;
-  const pdCount = Object.keys(state.personalData).length;
-  // Show visible status on mobile for debugging
-  const dbgEl = document.getElementById('dash-debug-line');
-  const lsId = localStorage.getItem('lv_personal_id') || 'NULL';
-  const stId = state.personalSheetId || 'NULL';
-  if (dbgEl) dbgEl.textContent = 'pd:' + pdCount + ' ls:' + lsId.substring(0,8) + ' st:' + stId.substring(0,8);
+
   // Count ALL owned entries including box-only rows
   const allOwned = Object.values(state.personalData).filter(pd => {
     if (!pd.owned) return false;
