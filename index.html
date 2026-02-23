@@ -2831,50 +2831,78 @@ function renderWizardStep() {
       </div>`;
 
   } else if (s.type === 'tenderMatch') {
-    const itemNum = (wizard.data.itemNum || '').trim();
-    const matchingTenders = getMatchingTenders(itemNum);
-    const matchingLocos   = getMatchingLocos(itemNum);
-    const isTend = matchingLocos.length > 0;
-    const candidates = isTend ? matchingLocos : matchingTenders;
-    const roleLabel = isTend ? 'locomotive' : 'tender';
-    const current = wizard.data.tenderMatch || '';
-    const intro = isTend
-      ? 'This tender (' + itemNum + ') pairs with the following locomotive(s):'
-      : 'This steam engine (' + itemNum + ') pairs with the following tender(s):';
+    const tmItemNum = (wizard.data.itemNum || '').trim();
+    const tmTenders = getMatchingTenders(tmItemNum);
+    const tmLocos   = getMatchingLocos(tmItemNum);
+    const tmIsTend  = tmLocos.length > 0;
+    const tmCandidates = tmIsTend ? tmLocos : tmTenders;
+    const tmRole    = tmIsTend ? 'locomotive' : 'tender';
+    const tmCurrent = wizard.data.tenderMatch || '';
+    const tmIntro   = tmIsTend
+      ? ('This tender (' + tmItemNum + ') pairs with the following locomotive(s):')
+      : ('This steam engine (' + tmItemNum + ') pairs with the following tender(s):');
 
-    let btns = candidates.map(function(num) {
+    const tmContainer = document.createElement('div');
+    tmContainer.style.cssText = 'padding-top:0.5rem';
+
+    const tmIntroEl = document.createElement('div');
+    tmIntroEl.style.cssText = 'font-size:0.85rem;color:var(--text-dim);margin-bottom:1rem';
+    tmIntroEl.textContent = tmIntro;
+    tmContainer.appendChild(tmIntroEl);
+
+    tmCandidates.forEach(function(num) {
       const masterItem = state.masterData.find(function(m) { return m.itemNum === num; });
       const desc = masterItem ? (masterItem.roadName || masterItem.description || masterItem.itemType || '') : '';
       const owned = Object.values(state.personalData).find(function(pd) { return pd.itemNum === num; });
-      const sel = current === num;
-      const icon = isTend ? '🚂' : '🚃';
-      const ownedBadge = owned
-        ? '<span style="font-size:0.7rem;color:var(--accent2);border:1px solid var(--accent2);padding:0.15rem 0.5rem;border-radius:4px">✓ In Collection</span>'
-        : '';
-      const descHtml = desc
-        ? '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">' + desc + '</div>'
-        : '';
-      return '<button onclick="wizard.data.tenderMatch='' + num + '';renderWizardStep()" style="'
-        + 'text-align:left;padding:0.85rem 1rem;border-radius:10px;cursor:pointer;width:100%;'
+      const sel = tmCurrent === num;
+
+      const btn = document.createElement('button');
+      btn.style.cssText = 'text-align:left;padding:0.85rem 1rem;border-radius:10px;cursor:pointer;width:100%;margin-bottom:0.5rem;'
         + 'border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
         + 'background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--surface2)') + ';'
-        + 'color:var(--text);font-family:var(--font-body);margin-bottom:0.5rem">'
-        + '<div style="display:flex;align-items:center;justify-content:space-between">'
-        + '<span style="font-family:var(--font-head);font-size:1.2rem;color:' + (sel ? 'var(--accent)' : 'var(--text)') + '">'
-        + icon + ' ' + num + '</span>' + ownedBadge + '</div>'
-        + descHtml + '</button>';
-    }).join('');
+        + 'color:var(--text);font-family:var(--font-body)';
+      btn.onclick = function() { wizard.data.tenderMatch = num; renderWizardStep(); };
 
-    const noneBtn = '<button onclick="wizard.data.tenderMatch='none';renderWizardStep()" style="'
-      + 'text-align:left;padding:0.75rem 1rem;border-radius:10px;cursor:pointer;width:100%;'
-      + 'border:2px solid var(--border);background:' + (current === 'none' ? 'var(--surface2)' : 'transparent') + ';'
-      + 'color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem">No matching ' + roleLabel + ' / not applicable</button>';
+      const topRow = document.createElement('div');
+      topRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between';
 
-    body.innerHTML = '<div style="padding-top:0.5rem">'
-      + '<div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:1rem">' + intro + '</div>'
-      + btns + noneBtn
-      + '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.75rem">Optional — press Next to skip</div>'
-      + '</div>';
+      const numSpan = document.createElement('span');
+      numSpan.style.cssText = 'font-family:var(--font-head);font-size:1.2rem;color:' + (sel ? 'var(--accent)' : 'var(--text)');
+      numSpan.textContent = (tmIsTend ? '🚂 ' : '🚃 ') + num;
+      topRow.appendChild(numSpan);
+
+      if (owned) {
+        const badge = document.createElement('span');
+        badge.style.cssText = 'font-size:0.7rem;color:var(--accent2);border:1px solid var(--accent2);padding:0.15rem 0.5rem;border-radius:4px';
+        badge.textContent = '✓ In Collection';
+        topRow.appendChild(badge);
+      }
+      btn.appendChild(topRow);
+
+      if (desc) {
+        const descEl = document.createElement('div');
+        descEl.style.cssText = 'font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem';
+        descEl.textContent = desc;
+        btn.appendChild(descEl);
+      }
+      tmContainer.appendChild(btn);
+    });
+
+    const noneBtn = document.createElement('button');
+    noneBtn.style.cssText = 'text-align:left;padding:0.75rem 1rem;border-radius:10px;cursor:pointer;width:100%;'
+      + 'border:2px solid var(--border);background:' + (tmCurrent === 'none' ? 'var(--surface2)' : 'transparent') + ';'
+      + 'color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem';
+    noneBtn.textContent = 'No matching ' + tmRole + ' / not applicable';
+    noneBtn.onclick = function() { wizard.data.tenderMatch = 'none'; renderWizardStep(); };
+    tmContainer.appendChild(noneBtn);
+
+    const tmHint = document.createElement('div');
+    tmHint.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-top:0.75rem';
+    tmHint.textContent = 'Optional — press Next to skip';
+    tmContainer.appendChild(tmHint);
+
+    body.innerHTML = '';
+    body.appendChild(tmContainer);
 
   } else if (s.type === 'drivePhotos') {
     const views = s.label === 'Box' ? BOX_VIEWS : ITEM_VIEWS;
