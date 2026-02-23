@@ -2587,7 +2587,7 @@ function getSteps(tab) {
 
       // ── TENDER section (only shown when paired) ──
       { id: '_tenderDivider', title: 'Now for the tender',                  type: 'divider',
-        subtitle: (d) => 'Next we'll record details for the matching tender (' + d.tenderMatch + '). It will be saved as a separate item in your collection.',
+        subtitle: (d) => 'Next we will record details for the matching tender (' + d.tenderMatch + '). It will be saved as a separate item in your collection.',
         skipIf: (d) => !isPaired(d) },
       { id: 'tenderCondition',  title: 'What condition is the tender?',     type: 'slider',   min:1, max:10, skipIf: (d) => !isPaired(d) },
       { id: 'tenderAllOriginal', title: 'Is the tender all original?',      type: 'choice3',  choices: ['Yes','No','Unknown'], skipIf: (d) => !isPaired(d) },
@@ -2595,7 +2595,7 @@ function getSteps(tab) {
       { id: 'tenderBoxCond',  title: 'What condition is the tender box?',   type: 'slider',   min:1, max:10, skipIf: (d) => !isPaired(d) || d.tenderHasBox !== 'Yes' },
       { id: 'photosTenderItem', title: 'Add photos of the tender',          type: 'drivePhotos', label: 'Item',
         tenderMode: true,
-        note: () => 'Tender photos only — filed under the tender's own Drive folder.',
+        note: () => 'Tender photos only — filed under the tender own Drive folder.',
         skipIf: (d) => !isPaired(d) },
       { id: 'photosTenderBox',  title: 'Add photos of the tender box',      type: 'drivePhotos', label: 'Box',
         tenderMode: true,
