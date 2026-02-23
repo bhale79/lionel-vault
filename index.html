@@ -647,7 +647,10 @@
           Want List
           <span class="nav-badge" id="nav-wanted" style="background:var(--accent2);color:#000">—</span>
         </button>
-        <button class="nav-item" onclick="showPage('sold', this)">
+        <button class="nav-item" onclick="showPage('want', this); buildWantPage();">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
+          Want List
+             <button class="nav-item" onclick="showPage('sold', this)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           Sold Items
           <span class="nav-badge" id="nav-sold" style="background:#9b59b6">—</span>
@@ -790,6 +793,33 @@
         </div>
       </div>
 
+      <!-- ── Want List ── -->
+      <div class="page" id="page-want">
+        <div class="page-title">Want List</div>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:0.75rem">
+          <button class="btn btn-primary" onclick="openWizard('want')" style="display:flex;align-items:center;gap:0.4rem">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            Add to Want List
+          </button>
+        </div>
+        <div id="want-cards" style="display:flex;flex-direction:column;gap:0.6rem"></div>
+        <div class="table-wrap" style="margin-top:0">
+          <table class="item-table" id="want-table">
+            <thead>
+              <tr>
+                <th>Item #</th>
+                <th>Road / Name</th>
+                <th>Variation</th>
+                <th>Priority</th>
+                <th>Est. Price</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="want-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- ── Reports ── -->
       <div class="page" id="page-reports">
         <div class="page-title">Reports</div>
@@ -839,13 +869,13 @@
         </div>
         Add
       </button>
+      <button class="mobile-nav-item" id="mnav-want" onclick="showPage('want', this); buildWantPage();">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
+        Want List
+      </button>
       <button class="mobile-nav-item" id="mnav-sold" onclick="showPage('sold', this)">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         Sold
-      </button>
-      <button class="mobile-nav-item" id="mnav-reports" onclick="showPage('reports', this)">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        Reports
       </button>
     </div>
   </nav>
@@ -1778,6 +1808,7 @@ function buildApp() {
   buildDashboard();
   buildBrowse();
   buildSoldPage();
+  buildWantPage();
   buildReport();
 }
 
@@ -2352,6 +2383,67 @@ function exportReport() {
 }
 
 // ── NAVIGATION ──────────────────────────────────────────────────
+function buildWantPage() {
+  const isMobile = window.innerWidth <= 640;
+  const entries = Object.values(state.wantData);
+  const cardsEl = document.getElementById('want-cards');
+  const tableEl = document.getElementById('want-table');
+  const tbody   = document.getElementById('want-tbody');
+
+  // Priority order
+  const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
+  entries.sort((a, b) => (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1));
+
+  const priorityColor = { High: 'var(--accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
+
+  if (entries.length === 0) {
+    const empty = '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">❤️</div><p>Your want list is empty</p><p style="font-size:0.8rem;margin-top:0.5rem">Add items you're looking for</p></div>';
+    if (cardsEl) cardsEl.innerHTML = empty;
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">No items on want list</td></tr>';
+    return;
+  }
+
+  if (isMobile) {
+    if (tableEl) tableEl.style.display = 'none';
+    if (cardsEl) cardsEl.style.display = 'flex';
+    cardsEl.innerHTML = entries.map(w => {
+      const master = state.masterData.find(m => m.itemNum === w.itemNum && (!w.variation || m.variation === w.variation));
+      const name = master ? (master.roadName || master.description || master.itemType || '') : '';
+      const pColor = priorityColor[w.priority] || 'var(--text-dim)';
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;display:flex;align-items:center;gap:0.75rem">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:0.5rem">
+            <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${w.itemNum}</span>
+            ${w.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${w.variation}</span>` : ''}
+            <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${w.priority || 'Medium'}</span>
+          </div>
+          ${name ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.15rem">${name}</div>` : ''}
+          ${w.notes ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${w.notes}</div>` : ''}
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          ${w.expectedPrice ? `<div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.9rem">$${parseFloat(w.expectedPrice).toLocaleString()}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    if (tableEl) tableEl.style.display = '';
+    if (cardsEl) cardsEl.style.display = 'none';
+    tbody.innerHTML = entries.map(w => {
+      const master = state.masterData.find(m => m.itemNum === w.itemNum && (!w.variation || m.variation === w.variation));
+      const name = master ? (master.roadName || master.description || '') : '';
+      const pColor = priorityColor[w.priority] || 'var(--text-dim)';
+      return `<tr>
+        <td><span class="item-num">${w.itemNum}</span></td>
+        <td>${name || '<span class="text-dim">—</span>'}</td>
+        <td>${w.variation || '<span class="text-dim">—</span>'}</td>
+        <td><span style="color:${pColor};font-weight:500">${w.priority || 'Medium'}</span></td>
+        <td class="market-val">${w.expectedPrice ? '$' + parseFloat(w.expectedPrice).toLocaleString() : '<span class="text-dim">—</span>'}</td>
+        <td class="text-dim">${w.notes || '—'}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">No items on want list</td></tr>';
+  }
+}
+
 function buildSoldPage() {
   const soldEntries = Object.values(state.soldData);
   const tbody = document.getElementById('sold-tbody');
@@ -2382,6 +2474,7 @@ function showPage(name, clickedEl) {
   if (name === 'browse') renderBrowse();
   if (name === 'reports') buildReport();
   if (name === 'sold') buildSoldPage();
+  if (name === 'want') buildWantPage();
   document.getElementById('main-content').scrollTop = 0;
 }
 
