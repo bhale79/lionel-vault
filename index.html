@@ -1603,13 +1603,14 @@ async function driveEnsureItemFolder(itemNum) {
 }
 
 async function driveGetFolderPhotos(folderLink) {
-  // Extract folder ID from link
   const match = (folderLink || '').match(/folders\/([a-zA-Z0-9_-]+)/);
-  if (!match) return [];
+  if (!match) return null; // null = folder link bad
   const folderId = match[1];
+  if (!accessToken) return null; // null = not ready
   try {
     const q = encodeURIComponent(`'${folderId}' in parents and mimeType contains 'image/' and trashed=false`);
-    const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&orderBy=name&spaces=drive`);
+    const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&orderBy=name`);
+    if (res.error) { console.warn('Drive photo fetch error:', res.error); return null; }
     return (res.files || []).map(function(f) {
       return {
         id: f.id,
@@ -1618,7 +1619,7 @@ async function driveGetFolderPhotos(folderLink) {
         view:  'https://drive.google.com/file/d/' + f.id + '/view',
       };
     });
-  } catch(e) { return []; }
+  } catch(e) { console.error('driveGetFolderPhotos:', e); return null; }
 }
 
 function driveFolderLink(folderId) {
@@ -2256,7 +2257,7 @@ function renderBrowse() {
       if (!camEl) return;
       if (pd2.photoItem) {
         driveGetFolderPhotos(pd2.photoItem).then(function(photos) {
-          if (photos.length > 0) {
+          if (photos && photos.length > 0) {
             const c1 = document.getElementById('cam-' + item.itemNum + '-' + (item.variation || ''));
             const c2 = document.getElementById('cam-' + item.itemNum + '-' + (item.variation || '') + '-m');
             if (c1) c1.style.display = 'inline';
@@ -2514,13 +2515,24 @@ function showItemPanel(idx, pdKey, mode) {
     const tr2 = document.getElementById('item-panel-thumb-row');
     const fl2 = document.getElementById('item-panel-folder-link');
     try {
-      // Ensure drive is set up before any drive calls
-      await driveEnsureSetup();
+      // Wait for accessToken to be available (max 5s)
+      let waited = 0;
+      while (!accessToken && waited < 5000) {
+        await new Promise(r => setTimeout(r, 200));
+        waited += 200;
+      }
+      if (!accessToken) {
+        if (tr2) tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">Not signed in to Drive</span>';
+        return;
+      }
 
       let folderLink = pd.photoItem || '';
       if (!folderLink) {
-        const folderId = await driveEnsureItemFolder(item.itemNum);
-        folderLink = driveFolderLink(folderId);
+        try { await driveEnsureSetup(); } catch(e) {}
+        try {
+          const folderId = await driveEnsureItemFolder(item.itemNum);
+          folderLink = driveFolderLink(folderId);
+        } catch(e) {}
       }
 
       // Show folder link
@@ -2537,7 +2549,11 @@ function showItemPanel(idx, pdKey, mode) {
 
       const photos = await driveGetFolderPhotos(folderLink);
 
-      if (!photos || photos.length === 0) {
+      if (photos === null) {
+        tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">Could not load photos — check Drive access</span>';
+        return;
+      }
+      if (photos.length === 0) {
         tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim);font-style:italic">No photos yet — tap Add Photos</span>';
         return;
       }
