@@ -1606,6 +1606,10 @@ async function loadMasterData() {
 }
 
 async function loadPersonalData() {
+  // Always try localStorage as fallback in case state wasn't set yet (mobile timing)
+  if (!state.personalSheetId) {
+    state.personalSheetId = localStorage.getItem('lv_personal_id');
+  }
   if (!state.personalSheetId) return;
   state.personalData = {};
   state.soldData = {};
