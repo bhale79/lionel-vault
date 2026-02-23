@@ -1312,14 +1312,18 @@ async function driveEnsureItemFolder(itemNum) {
   return folderId;
 }
 
+function driveFolderLink(folderId) {
+  return `https://drive.google.com/drive/folders/${folderId}`;
+}
+
 async function driveUploadItemPhoto(file, itemNum, viewAbbr) {
   await driveEnsureSetup();
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   const fileName = `${itemNum} ${viewAbbr}.${ext}`;
   const folderId = await driveEnsureItemFolder(itemNum);
-  const result = await driveUploadFile(file, fileName, folderId);
-  // Return a direct thumbnail/view link
-  return result.webViewLink || null;
+  await driveUploadFile(file, fileName, folderId);
+  // Return folder link (not individual photo link)
+  return driveFolderLink(folderId);
 }
 
 async function driveMoveToSold(itemNum) {
@@ -2871,9 +2875,11 @@ async function saveWizardItem() {
   const photoObj = d.photosItem || {};
   const boxPhotoObj = d.photosBox || {};
   // Primary display photo = Front View, fallback to first available
-  const primaryViews = ['FV','RSV','TV','BV','BKV','LSV'];
-  const photos = [primaryViews.find(k => photoObj[k]) ? photoObj[primaryViews.find(k => photoObj[k])] : ''];
-  const boxPhotos = [primaryViews.find(k => boxPhotoObj['BOX-'+k]) ? boxPhotoObj['BOX-'+primaryViews.find(k => boxPhotoObj['BOX-'+k])] : ''];
+  // All views return the same folder link — just grab the first one found
+  const anyItemLink = Object.values(photoObj).find(v => v) || '';
+  const anyBoxLink  = Object.values(boxPhotoObj).find(v => v) || '';
+  const photos    = [anyItemLink];
+  const boxPhotos = [anyBoxLink];
 
   try {
     if (tab === 'collection') {
