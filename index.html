@@ -1130,6 +1130,7 @@ function initGoogle() {
     state.user = JSON.parse(savedUser);
     state.personalSheetId = savedPersonalId;
     showApp();
+    showLoading(); // show spinner immediately — data loads after token arrives
     tokenClient.requestAccessToken({ prompt: '' });
   }
 }
@@ -1147,8 +1148,19 @@ function onGoogleSignIn(response) {
 let accessToken = null;
 
 function onTokenReceived(resp) {
-  if (resp.error) { console.error('Token error:', resp); return; }
+  if (resp.error) {
+    console.error('Token error:', resp);
+    // If silent token refresh failed, prompt user to sign in again
+    if (resp.error === 'interaction_required' || resp.error === 'login_required') {
+      tokenClient.requestAccessToken({ prompt: 'consent' });
+    }
+    return;
+  }
   accessToken = resp.access_token;
+  // Auto-refresh token before it expires (tokens last 1 hour)
+  setTimeout(() => {
+    if (accessToken) tokenClient.requestAccessToken({ prompt: '' });
+  }, 55 * 60 * 1000);
 
   // Fetch user info from Google if we don't have it yet
   if (!state.user) {
