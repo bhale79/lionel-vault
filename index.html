@@ -2222,7 +2222,7 @@ function renderBrowse() {
       return `<tr onclick="browseRowClick(event, ${globalIdx})" style="cursor:pointer">
         <td>
           <span class="item-num">${item.itemNum}</span>
-          ${isOwned ? `<span onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')" title="Open photo folder" style="margin-left:5px;cursor:pointer;font-size:0.85rem">📷</span>` : ''}
+          <span id="cam-${item.itemNum}-${item.variation||''}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')" title="Open photo folder">📷</span>
         </td>
         <td><span class="tag">${item.itemType || '—'}</span></td>
         <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
@@ -2245,6 +2245,22 @@ function renderBrowse() {
   } else {
     tbody.innerHTML = rowsHtml.join('') || emptyHtml;
   }
+  // Async: check which owned items have photos and reveal their camera icons
+  if (state.filters.owned) {
+    pageData.forEach(function(item) {
+      const pd2 = item._personalOnly ? item : findPD(item.itemNum, item.variation);
+      if (!pd2 || !pd2.owned) return;
+      const camEl = document.getElementById('cam-' + item.itemNum + '-' + (item.variation || ''));
+      if (!camEl) return;
+      if (pd2.photoItem) {
+        driveGetFolderPhotos(pd2.photoItem).then(function(photos) {
+          if (photos.length > 0 && document.getElementById('cam-' + item.itemNum + '-' + (item.variation || ''))) {
+            camEl.style.display = 'inline';
+          }
+        });
+      }
+    });
+  }
 
   // Pagination
   const paginEl = document.getElementById('pagination-btns');
@@ -2262,6 +2278,33 @@ function renderBrowse() {
 function goPage(p) { state.currentPage = p; renderBrowse(); document.getElementById('main-content').scrollTop = 0; }
 
 // ── BROWSE ROW CLICK — offer to add or view ─────────────────────
+function openPhotoWizard(itemNum, variation, pdKey) {
+  // Open wizard on the photo step for an existing item
+  const pd = state.personalData[pdKey] || {};
+  wizard = {
+    step: 0, tab: 'collection',
+    data: { tab: 'collection', itemNum: itemNum, variation: variation,
+            condition: pd.condition || '', allOriginal: pd.allOriginal || '',
+            hasBox: pd.hasBox || '', _updatePdKey: pdKey, _photoOnly: true },
+    steps: getSteps('collection'), matchedItem: null
+  };
+  document.getElementById('wizard-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Skip to the photosItem step
+  const autoSkip = new Set(['tab','itemNum','variation','condition','allOriginal','hasBox',
+    'boxCond','pricePaid','datePurchased','userEstWorth','yearMade',
+    'wantTenderPhotos','tenderMatch','dieselSetQ','setMatch','setType',
+    'unit2ItemNum','unit3ItemNum','setUnit2Num','setUnit3Num',
+    'wantTogetherPhotos','photosTogether','boxOnly','wantBoxPhotos',
+    'purchaseDate','photosBox']);
+  while (wizard.step < wizard.steps.length - 1) {
+    const s = wizard.steps[wizard.step];
+    if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) wizard.step++;
+    else break;
+  }
+  renderWizardStep();
+}
+
 async function openPhotoFolder(itemNum, storedLink) {
   if (storedLink) { window.open(storedLink, '_blank'); return; }
   try {
@@ -2421,17 +2464,42 @@ function showItemPanel(idx, pdKey, mode) {
   ];
 
   // ── Photos section ──
+  // ── Photos section ──
   const photoSection = document.createElement('div');
   photoSection.id = 'item-panel-photos';
   photoSection.style.cssText = 'padding:0.75rem 0;border-bottom:1px solid var(--border);margin-bottom:0.25rem';
-  // Photos: always show section — get folder link from stored link or build from itemNum
-  photoSection.innerHTML = '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:0.08em">Photos</div>'
-    + '<div id="photo-thumb-row" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">'
-    + '<div style="font-size:0.75rem;color:var(--text-dim)">Loading…</div></div>'
-    + '<div id="photo-folder-link" style="margin-top:0.4rem"></div>';
+
+  // Header row with label + "Add Photos" button
+  const photoHdr = document.createElement('div');
+  photoHdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem';
+  photoHdr.innerHTML = '<span style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em">Photos</span>';
+  const addPhotoBtn = document.createElement('button');
+  addPhotoBtn.style.cssText = 'font-size:0.72rem;padding:0.2rem 0.55rem;border-radius:5px;border:1px solid #2980b9;color:#2980b9;background:rgba(41,128,185,0.1);cursor:pointer;display:flex;align-items:center;gap:0.25rem';
+  addPhotoBtn.innerHTML = '📷 Add Photos';
+  addPhotoBtn.onclick = function() {
+    // Close this panel and open photo wizard for this item
+    document.getElementById('item-panel-overlay').remove();
+    openPhotoWizard(item.itemNum, pd.variation || item.variation || '', pdKey);
+  };
+  photoHdr.appendChild(addPhotoBtn);
+  photoSection.appendChild(photoHdr);
+
+  // Thumbnail row
+  const thumbRow = document.createElement('div');
+  thumbRow.id = 'item-panel-thumb-row';
+  thumbRow.style.cssText = 'display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center';
+  thumbRow.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">Loading…</span>';
+  photoSection.appendChild(thumbRow);
+
+  // Folder link
+  const folderLinkEl = document.createElement('div');
+  folderLinkEl.id = 'item-panel-folder-link';
+  folderLinkEl.style.cssText = 'margin-top:0.4rem;min-height:1.2rem';
+  photoSection.appendChild(folderLinkEl);
+
   body.appendChild(photoSection);
 
-  // Get folder — use stored link or fetch/create folder for this item
+  // Async load
   (async function() {
     let folderLink = pd.photoItem || '';
     if (!folderLink) {
@@ -2440,26 +2508,23 @@ function showItemPanel(idx, pdKey, mode) {
         folderLink = driveFolderLink(folderId);
       } catch(e) {}
     }
-    const linkEl = document.getElementById('photo-folder-link');
-    if (linkEl && folderLink) {
+    const tr2 = document.getElementById('item-panel-thumb-row');
+    const fl2 = document.getElementById('item-panel-folder-link');
+    if (fl2 && folderLink) {
       const a = document.createElement('a');
       a.href = folderLink; a.target = '_blank';
       a.style.cssText = 'font-size:0.72rem;color:#2980b9';
       a.textContent = '📁 Open Drive Folder ↗';
-      linkEl.appendChild(a);
+      fl2.appendChild(a);
     }
-    const thumbRow = document.getElementById('photo-thumb-row');
-    if (!thumbRow) return;
-    if (!folderLink) {
-      thumbRow.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">No Drive folder found</span>';
-      return;
-    }
+    if (!tr2) return;
+    if (!folderLink) { tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">No Drive folder found</span>'; return; }
     const photos = await driveGetFolderPhotos(folderLink);
     if (photos.length === 0) {
-      thumbRow.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">No photos yet — upload via the camera icon</span>';
+      tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim);font-style:italic">No photos yet — tap Add Photos above</span>';
       return;
     }
-    thumbRow.innerHTML = '';
+    tr2.innerHTML = '';
     photos.forEach(function(p) {
       const a = document.createElement('a');
       a.href = p.view; a.target = '_blank'; a.title = p.name;
@@ -2469,7 +2534,7 @@ function showItemPanel(idx, pdKey, mode) {
       img.style.cssText = 'width:72px;height:72px;object-fit:cover;display:block';
       img.onerror = function() { a.style.display = 'none'; };
       a.appendChild(img);
-      thumbRow.appendChild(a);
+      tr2.appendChild(a);
     });
   })();
 
