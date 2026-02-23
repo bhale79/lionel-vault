@@ -673,20 +673,21 @@
     <main class="main" id="main-content">
 
       <!-- ── Dashboard ── -->
+      <script>function startWizardFor(tab){if(typeof openWizard==="function"){openWizard(tab);}else{setTimeout(function(){startWizardFor(tab);},100);}}</script>
       <div class="page active" id="page-dashboard">
 
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem">
           <div class="page-title">Dashboard <span id="dash-greeting"></span> <span title="Build indicator" style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#22c55e;vertical-align:middle;margin-left:4px"></span></div>
           <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-            <button class="btn btn-primary" onclick="openWizard('collection')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem">
+            <button class="btn btn-primary" onclick="startWizardFor('collection')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add to Collection
             </button>
-            <button class="btn" onclick="openWizard('want')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid var(--accent2);color:var(--accent2);background:rgba(245,166,35,0.08)">
+            <button class="btn" onclick="startWizardFor('want')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid var(--accent2);color:var(--accent2);background:rgba(245,166,35,0.08)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
               Want List
             </button>
-            <button class="btn" onclick="openWizard('sold')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid var(--green);color:var(--green);background:rgba(34,197,94,0.08)">
+            <button class="btn" onclick="startWizardFor('sold')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid var(--green);color:var(--green);background:rgba(34,197,94,0.08)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               Sell Item
             </button>
@@ -811,7 +812,7 @@
       <div class="page" id="page-want">
         <div class="page-title">Want List</div>
         <div style="display:flex;justify-content:flex-end;margin-bottom:0.75rem">
-          <button class="btn btn-primary" onclick="openWizard('want')" style="display:flex;align-items:center;gap:0.4rem">
+          <button class="btn btn-primary" onclick="startWizardFor('want')" style="display:flex;align-items:center;gap:0.4rem">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
             Add to Want List
           </button>
@@ -877,7 +878,7 @@
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         Browse
       </button>
-      <button class="mobile-nav-item mobile-add-btn" onclick="openWizard()">
+      <button class="mobile-nav-item mobile-add-btn" onclick="startWizardFor(null)">
         <div style="width:44px;height:44px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:-8px;box-shadow:0 4px 12px rgba(232,64,28,0.5)">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
         </div>
