@@ -1115,7 +1115,7 @@ const PERSONAL_HEADERS = [
   'Item Number','Variation','Condition (1-10)','All Original',
   'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
   'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes',
-  'Date Purchased','User Est. Worth'
+  'Date Purchased','User Est. Worth','Matched Tender/Engine'
 ];
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
@@ -1124,6 +1124,27 @@ const SOLD_HEADERS = [
 const WANT_HEADERS = [
   'Item Number','Variation','Priority','Expected Price','Notes'
 ];
+
+// ── TENDER / LOCOMOTIVE RELATIONSHIPS ──────────────────────────
+const TENDER_TO_LOCOS = {"1872T":["1872"],"1882T":["1882"],"2020W":["2020"],"2046W":["726RR","637","646","2056","675","736","2055","2046","2065","665"],"2046WX":["671RR","682","681"],"2426W":["773","726"],"2466T":["224","1666"],"2466W":["224","1666"],"2466WX":["675","224","1666"],"2671W":["681","671"],"4424W":["671R"],"4671W":["671R"],"6001T":["6110"],"6020W":["2020"],"6026T":["2018","2037"],"6026W":["2037","685","2055","2018","2065","665","2016"],"6066T":["2026","1130","2034","2037"],"6403B":["1656"],"6466W":["2026","2036","2025","2035"],"6466WX":["2026","2025","675"],"6654T":["1655"],"250T":["250","249"],"671W":["671"],"736W":["637","665","773","736"],"746W":["746"],"773W":["773"],"1001T":["1101","1120","1001","1110"],"1050T":["235","1060","1050","236"],"1060T":["237","242","1060","2029","1062","1061"],"1130T":["244","248","236","245","2037","2018","1130","235","246"],"1130T-500":["2037-500"],"1625T":["1625"],"1654T":["1654"],"1654W":["1654"],"1862T":["1862"]};
+const LOCO_TO_TENDERS = {"1872":["1872T"],"1882":["1882T"],"2020":["2020W","6020W"],"726RR":["2046W"],"637":["2046W","736W"],"646":["2046W"],"2056":["2046W"],"675":["2046W","2466WX","6466WX"],"736":["2046W","736W"],"2055":["2046W","6026W"],"2046":["2046W"],"2065":["2046W","6026W"],"665":["2046W","6026W","736W"],"671RR":["2046WX"],"682":["2046WX"],"681":["2046WX","2671W"],"773":["2426W","736W","773W"],"726":["2426W"],"224":["2466T","2466W","2466WX"],"1666":["2466T","2466W","2466WX"],"671":["2671W","671W"],"671R":["4424W","4671W"],"6110":["6001T"],"2018":["6026T","6026W","1130T"],"2037":["6026T","6026W","6066T","1130T"],"685":["6026W"],"2016":["6026W"],"2026":["6066T","6466W","6466WX"],"1130":["6066T","1130T"],"2034":["6066T"],"1656":["6403B"],"2036":["6466W"],"2025":["6466W","6466WX"],"2035":["6466W"],"1655":["6654T"],"250":["250T"],"249":["250T"],"746":["746W"],"1101":["1001T"],"1120":["1001T"],"1001":["1001T"],"1110":["1001T"],"235":["1050T","1130T"],"1060":["1050T","1060T"],"1050":["1050T"],"236":["1050T","1130T"],"237":["1060T"],"242":["1060T"],"2029":["1060T"],"1062":["1060T"],"1061":["1060T"],"244":["1130T"],"248":["1130T"],"245":["1130T"],"246":["1130T"],"2037-500":["1130T-500"],"1625":["1625T"],"1654":["1654T","1654W"],"1862":["1862T"]};
+
+function isTender(itemNum) { return !!TENDER_TO_LOCOS[itemNum?.toString().trim().toUpperCase()] || !!TENDER_TO_LOCOS[itemNum?.toString().trim()]; }
+function isLocomotive(itemNum) { return !!LOCO_TO_TENDERS[itemNum?.toString().trim()]; }
+function getMatchingTenders(itemNum) { return LOCO_TO_TENDERS[itemNum?.toString().trim()] || []; }
+function getMatchingLocos(tenderNum) { return TENDER_TO_LOCOS[tenderNum?.toString().trim()] || []; }
+
+function findOwnedMatch(itemNum) {
+  // Given an item number, find if the user owns the matching tender or engine
+  const tenders = getMatchingTenders(itemNum);
+  const locos   = getMatchingLocos(itemNum);
+  const candidates = [...tenders, ...locos];
+  for (const num of candidates) {
+    const owned = Object.values(state.personalData).find(pd => pd.itemNum === num);
+    if (owned) return { itemNum: num, pd: owned };
+  }
+  return null;
+}
 
 // ── STATE ───────────────────────────────────────────────────────
 let state = {
@@ -1755,6 +1776,7 @@ async function loadPersonalData() {
       notes:        r[11] || '',
       datePurchased:r[12] || '',
       userEstWorth: r[13] || '',
+      matchedTo:    r[14] || '',
     };
   });
   } catch(e) { console.error('My Collection load error:', e); }
@@ -2023,7 +2045,7 @@ function renderBrowse() {
         <div class="browse-card-left">
           <div class="browse-card-num">${item.itemNum}${item.variation ? ' <span style="font-size:0.75rem;color:var(--text-dim)">${item.variation}</span>' : ''}</div>
           <div class="browse-card-name">${item.roadName || item.itemType || '—'}</div>
-          <div class="browse-card-sub">${[item.itemType, item.yearProd].filter(Boolean).join(' · ')}</div>
+          <div class="browse-card-sub">${[item.itemType, item.yearProd].filter(Boolean).join(' · ')}${pd?.matchedTo ? ` · <span style="color:var(--accent2)">${isTender(item.itemNum)?'🚂':'🚃'} ${pd.matchedTo}</span>` : ''}</div>
         </div>
         <div class="browse-card-right">
           <span class="owned-badge ${badgeClass}">${badgeText}</span>
@@ -2081,7 +2103,18 @@ function openItem(idx) {
 
   document.getElementById('modal-item-num').textContent = `No. ${item.itemNum}${item.variation ? ' — Variation ' + item.variation : ''}`;
   document.getElementById('modal-title').textContent = item.roadName || item.itemType || item.description.substring(0, 60);
+  const modalMatchedTo = pd?.matchedTo || '';
+  const modalIsTender = isTender(item.itemNum);
   document.getElementById('modal-subtitle').textContent = `${item.itemType}${item.subType ? ' — ' + item.subType : ''}${item.yearProd ? ' · ' + item.yearProd : ''}`;
+  const matchedBadgeEl = document.getElementById('modal-matched-badge');
+  if (matchedBadgeEl) {
+    if (modalMatchedTo) {
+      matchedBadgeEl.style.display = 'inline-flex';
+      matchedBadgeEl.innerHTML = `${modalIsTender ? '🚂' : '🚃'} Matched ${modalIsTender ? 'Engine' : 'Tender'}: <strong style="margin-left:0.3rem">${modalMatchedTo}</strong>`;
+    } else {
+      matchedBadgeEl.style.display = 'none';
+    }
+  }
   document.getElementById('mi-type').textContent = item.itemType || '—';
   document.getElementById('mi-year').textContent = item.yearProd || '—';
   document.getElementById('mi-road').textContent = item.roadName || '—';
@@ -2532,6 +2565,12 @@ function getSteps(tab) {
     return [...base,
       { id: 'condition',   title: 'What condition is the item?',          type: 'slider',   min:1, max:10, skipIf: () => false },
       { id: 'allOriginal', title: 'Is it all original parts?',             type: 'choice3',  choices: ['Yes','No','Unknown'] },
+      { id: 'tenderMatch', title: 'Tender / Engine matching',              type: 'tenderMatch',
+        skipIf: (d) => {
+          const num = (d.itemNum || '').trim();
+          return getMatchingTenders(num).length === 0 && getMatchingLocos(num).length === 0;
+        }
+      },
       { id: 'hasBox',      title: 'Did it come with a box?',              type: 'choice2',  choices: ['Yes','No'], skipIf: (d) => !!d._attachToBox },
       { id: 'boxCond',     title: 'What condition is the box?',           type: 'slider',   min:1, max:10, skipIf: (d) => d.hasBox !== 'Yes' && !d._attachToBox || !!d._attachToBox },
       { id: 'pricePaid',   title: 'What did you pay?',                    type: 'pricePaid' },
@@ -2789,6 +2828,60 @@ function renderWizardStep() {
           oninput="wizard.data['${s.id}']=this.value">
         ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(245,166,35,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
+      </div>`;
+
+  } else if (s.type === 'tenderMatch') {
+    const itemNum = (wizard.data.itemNum || '').trim();
+    const matchingTenders = getMatchingTenders(itemNum);
+    const matchingLocos   = getMatchingLocos(itemNum);
+    const isTend = matchingLocos.length > 0;
+    const candidates = isTend ? matchingLocos : matchingTenders;
+    const roleLabel = isTend ? 'locomotive' : 'tender';
+    const current = wizard.data.tenderMatch || '';
+
+    // Check which candidates the user already owns
+    const ownedMap = {};
+    candidates.forEach(num => {
+      const owned = Object.values(state.personalData).find(pd => pd.itemNum === num);
+      ownedMap[num] = owned ? '✓ In Collection' : '';
+    });
+
+    body.innerHTML = `
+      <div style="padding-top:0.5rem">
+        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:1rem">
+          ${isTend
+            ? \`This tender (${itemNum}) pairs with the following locomotive(s):\`
+            : \`This steam engine (${itemNum}) pairs with the following tender(s):\`}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.6rem">
+          ${candidates.map(num => {
+            const masterItem = state.masterData.find(m => m.itemNum === num);
+            const desc = masterItem ? (masterItem.roadName || masterItem.description || masterItem.itemType || '') : '';
+            const owned = ownedMap[num];
+            const sel = current === num;
+            return \`<button onclick="wizard.data.tenderMatch='\${num}';renderWizardStep()" style="
+              text-align:left;padding:0.85rem 1rem;border-radius:10px;cursor:pointer;
+              border:2px solid \${sel ? 'var(--accent)' : 'var(--border)'};
+              background:\${sel ? 'rgba(232,64,28,0.12)' : 'var(--surface2)'};
+              color:var(--text);font-family:var(--font-body)
+            ">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <span style="font-family:var(--font-head);font-size:1.2rem;color:\${sel ? 'var(--accent)' : 'var(--text)'}">
+                  ${isTend ? '🚂' : '🚃'} \${num}
+                </span>
+                \${owned ? \`<span style="font-size:0.7rem;color:var(--accent2);border:1px solid var(--accent2);padding:0.15rem 0.5rem;border-radius:4px">\${owned}</span>\` : ''}
+              </div>
+              \${desc ? \`<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">\${desc}</div>\` : ''}
+            </button>\`;
+          }).join('')}
+          <button onclick="wizard.data.tenderMatch='none';renderWizardStep()" style="
+            text-align:left;padding:0.75rem 1rem;border-radius:10px;cursor:pointer;
+            border:2px solid \${current==='none' ? 'var(--border)' : 'var(--border)'};
+            background:\${current==='none' ? 'var(--surface2)' : 'transparent'};
+            color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem
+          ">No matching ${roleLabel} / not applicable</button>
+        </div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.75rem">Optional — press Next to skip</div>
       </div>`;
 
   } else if (s.type === 'drivePhotos') {
@@ -3288,9 +3381,21 @@ async function saveWizardItem() {
           ( d.notes || '' ).trim(),
           d.datePurchased || '',
           d.userEstWorth || '',
+          d.tenderMatch && d.tenderMatch !== 'none' ? d.tenderMatch : '',
         ];
       }
-      if (d._fillItemMode && existing?.row) {
+      // Cross-link: if a tender/engine was matched, update that item's matchedTo column too
+  const matchedNum = d.tenderMatch && d.tenderMatch !== 'none' ? d.tenderMatch : null;
+  if (matchedNum) {
+    const matchedEntry = Object.values(state.personalData).find(pd => pd.itemNum === matchedNum);
+    if (matchedEntry && matchedEntry.row) {
+      // Update col O (index 14) of the matched row
+      sheetsUpdate(state.personalSheetId, `My Collection!O${matchedEntry.row}`, [[itemNum]]).catch(e => console.warn('Cross-link update:', e));
+      matchedEntry.matchedTo = itemNum;
+    }
+  }
+
+  if (d._fillItemMode && existing?.row) {
         // Preserve ALL box fields, update only item fields
         row[5]  = existing.priceBox    || row[5];
         row[7]  = existing.hasBox      || 'Yes';
