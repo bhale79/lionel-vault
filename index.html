@@ -2562,24 +2562,67 @@ function getSteps(tab) {
         { id: 'confirm',       title: 'Ready to save box info!',            type: 'confirm' },
       ];
     }
+    // Helper: is this a paired engine+tender set?
+    const isPaired = (d) => d.tenderMatch && d.tenderMatch !== 'none' && d.tenderMatch !== '';
+    const engineLabel = (d) => isPaired(d) ? ' (Engine Only — tender added next)' : '';
+    const tenderLabel = (d) => ' (Tender: ' + (d.tenderMatch || '') + ')';
+
     return [...base,
-      { id: 'condition',   title: 'What condition is the item?',          type: 'slider',   min:1, max:10, skipIf: () => false },
-      { id: 'allOriginal', title: 'Is it all original parts?',             type: 'choice3',  choices: ['Yes','No','Unknown'] },
-      { id: 'tenderMatch', title: 'Tender / Engine matching',              type: 'tenderMatch',
+      // ── ENGINE section ──
+      { id: 'condition',    title: 'What condition is the engine?',         type: 'slider',   min:1, max:10, skipIf: () => false },
+      { id: 'allOriginal',  title: 'Is it all original parts?',             type: 'choice3',  choices: ['Yes','No','Unknown'] },
+      { id: 'tenderMatch',  title: 'Tender / Engine matching',              type: 'tenderMatch',
         skipIf: (d) => {
           const num = (d.itemNum || '').trim();
           return getMatchingTenders(num).length === 0 && getMatchingLocos(num).length === 0;
         }
       },
-      { id: 'hasBox',      title: 'Did it come with a box?',              type: 'choice2',  choices: ['Yes','No'], skipIf: (d) => !!d._attachToBox },
-      { id: 'boxCond',     title: 'What condition is the box?',           type: 'slider',   min:1, max:10, skipIf: (d) => d.hasBox !== 'Yes' && !d._attachToBox || !!d._attachToBox },
-      { id: 'pricePaid',   title: 'What did you pay?',                    type: 'pricePaid' },
-      { id: 'datePurchased', title: 'When did you purchase it?',          type: 'date',     optional: true },
-      { id: 'photosItem',  title: 'Add photos of the item',               type: 'drivePhotos', label: 'Item' },
-      { id: 'photosBox',   title: 'Add photos of the box',                type: 'drivePhotos', label: 'Box',  skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox },
-      { id: 'userEstWorth', title: 'What do you estimate it is worth?',     type: 'money', placeholder: '0.00', optional: true, note: (d) => (d._attachToBox || d._fillItemMode || d.hasBox === 'Yes') ? 'Include the value of both the item and the box in your estimate' : '' },
-      { id: 'notes',       title: 'Any notes about this item?',           type: 'textarea', optional: true },
-      { id: 'confirm',     title: 'Ready to save!',                       type: 'confirm' },
+      { id: 'hasBox',       title: 'Did the engine come with a box?',       type: 'choice2',  choices: ['Yes','No'], skipIf: (d) => !!d._attachToBox },
+      { id: 'boxCond',      title: 'What condition is the engine box?',     type: 'slider',   min:1, max:10, skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox },
+      { id: 'photosItem',   title: 'Add photos of the engine',              type: 'drivePhotos', label: 'Item',
+        note: (d) => isPaired(d) ? 'Engine photos only — tender photos will be added next. Each item is filed in its own Drive folder.' : '' },
+      { id: 'photosBox',    title: 'Add photos of the engine box',          type: 'drivePhotos', label: 'Box',
+        skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox,
+        note: (d) => isPaired(d) ? 'Engine box photos only — tender box photos will be added next.' : '' },
+
+      // ── TENDER section (only shown when paired) ──
+      { id: '_tenderDivider', title: 'Now for the tender',                  type: 'divider',
+        subtitle: (d) => 'Next we'll record details for the matching tender (' + d.tenderMatch + '). It will be saved as a separate item in your collection.',
+        skipIf: (d) => !isPaired(d) },
+      { id: 'tenderCondition',  title: 'What condition is the tender?',     type: 'slider',   min:1, max:10, skipIf: (d) => !isPaired(d) },
+      { id: 'tenderAllOriginal', title: 'Is the tender all original?',      type: 'choice3',  choices: ['Yes','No','Unknown'], skipIf: (d) => !isPaired(d) },
+      { id: 'tenderHasBox',   title: 'Did the tender come with a box?',     type: 'choice2',  choices: ['Yes','No'], skipIf: (d) => !isPaired(d) },
+      { id: 'tenderBoxCond',  title: 'What condition is the tender box?',   type: 'slider',   min:1, max:10, skipIf: (d) => !isPaired(d) || d.tenderHasBox !== 'Yes' },
+      { id: 'photosTenderItem', title: 'Add photos of the tender',          type: 'drivePhotos', label: 'Item',
+        tenderMode: true,
+        note: () => 'Tender photos only — filed under the tender's own Drive folder.',
+        skipIf: (d) => !isPaired(d) },
+      { id: 'photosTenderBox',  title: 'Add photos of the tender box',      type: 'drivePhotos', label: 'Box',
+        tenderMode: true,
+        note: () => 'Tender box photos only.',
+        skipIf: (d) => !isPaired(d) || d.tenderHasBox !== 'Yes' },
+
+      // ── COMBINED pricing (only when paired, replaces individual price) ──
+      { id: 'pricePaid',    title: 'What did you pay?',                    type: 'pricePaid',
+        skipIf: (d) => isPaired(d) },
+      { id: 'combinedPrice', title: 'What did you pay for the engine and tender together?', type: 'money', placeholder: '0.00', optional: true,
+        note: () => 'This combined price will be split evenly between the engine and tender rows.',
+        skipIf: (d) => !isPaired(d) },
+      { id: 'datePurchased', title: 'When did you purchase?',               type: 'date',     optional: true },
+      { id: 'userEstWorth',  title: (d) => isPaired(d) ? 'What do you estimate the engine and tender are worth together?' : 'What do you estimate it is worth?',
+        type: 'money', placeholder: '0.00', optional: true,
+        note: (d) => isPaired(d) ? 'Combined estimate for engine + tender.' : (d.hasBox === 'Yes' ? 'Include the value of both the item and the box.' : '') },
+
+      // ── TOGETHER photos (only when paired) ──
+      { id: 'wantTogetherPhotos', title: 'Would you like to add photos of the engine and tender together?',
+        type: 'choice2', choices: ['Yes','No'], skipIf: (d) => !isPaired(d) },
+      { id: 'photosTogether',   title: 'Add photos of the engine and tender together',
+        type: 'drivePhotos', label: 'Set',
+        note: () => 'These photos will be filed under the engine's Drive folder.',
+        skipIf: (d) => !isPaired(d) || d.wantTogetherPhotos !== 'Yes' },
+
+      { id: 'notes',        title: 'Any notes?',                           type: 'textarea', optional: true },
+      { id: 'confirm',      title: 'Ready to save!',                       type: 'confirm' },
     ];
   } else if (tab === 'sold') {
     return [
@@ -2830,6 +2873,13 @@ function renderWizardStep() {
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
       </div>`;
 
+  } else if (s.type === 'divider') {
+    const sub = s.subtitle ? s.subtitle(wizard.data) : '';
+    body.innerHTML = '<div style="padding-top:1rem;text-align:center">'
+      + '<div style="font-size:3rem;margin-bottom:0.75rem">🚃</div>'
+      + '<div style="font-size:0.95rem;color:var(--text-dim);line-height:1.6;max-width:340px;margin:0 auto">' + sub + '</div>'
+      + '</div>';
+
   } else if (s.type === 'tenderMatch') {
     const tmItemNum = (wizard.data.itemNum || '').trim();
     const tmTenders = getMatchingTenders(tmItemNum);
@@ -2905,13 +2955,14 @@ function renderWizardStep() {
     body.appendChild(tmContainer);
 
   } else if (s.type === 'drivePhotos') {
-    const views = s.label === 'Box' ? BOX_VIEWS : ITEM_VIEWS;
+    const views = s.label === 'Box' ? BOX_VIEWS : s.label === 'Set' ? ITEM_VIEWS : ITEM_VIEWS;
     const stored = wizard.data[s.id] || {};
     body.innerHTML = `
       <div style="padding-top:0.25rem">
-        <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:0.75rem">
-          Drag & drop or click each slot to upload. Photos save to Google Drive automatically.
+        <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:0.5rem">
+          Drag &amp; drop or click each slot to upload. Photos save to Google Drive automatically.
         </div>
+        ${s.note && s.note(wizard.data) ? '<div style="font-size:0.8rem;color:var(--accent2);margin-bottom:0.75rem;padding:0.5rem 0.75rem;background:rgba(245,166,35,0.1);border-radius:6px">' + s.note(wizard.data) + '</div>' : ''}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem" id="photo-grid">
           ${views.map(v => {
             const url = stored[v.key] || '';
@@ -3103,7 +3154,12 @@ async function handlePhotoFile(event, stepId, viewKey) {
 
 async function uploadWizardPhoto(file, stepId, viewKey) {
   const d = wizard.data;
-  const itemNum = (d.itemNum || 'unknown').trim();
+  // For tender/set photo steps, use the tender or engine item number for the Drive folder
+  const isTenderPhotoStep = stepId === 'photosTenderItem' || stepId === 'photosTenderBox';
+  const isSetPhotoStep = stepId === 'photosTogether';
+  const itemNum = isTenderPhotoStep
+    ? (d.tenderMatch || d.itemNum || 'unknown').trim()
+    : (d.itemNum || 'unknown').trim();
   const variation = (d.variation || '').trim();
 
   // Show progress overlay
@@ -3386,12 +3442,21 @@ async function saveWizardItem() {
           d.userEstWorth || ex.userEstWorth || '',
         ];
       } else {
-        const calcComplete = (parseFloat(d.priceItem)||0) + (parseFloat(d.priceBox)||0);
+        const _paired = d.tenderMatch && d.tenderMatch !== 'none';
+        const enginePrice = _paired
+          ? (d.combinedPrice ? (parseFloat(d.combinedPrice)/2).toFixed(2) : '')
+          : (d.priceItem || '');
+        const engineWorth = _paired
+          ? (d.userEstWorth ? (parseFloat(d.userEstWorth)/2).toFixed(2) : '')
+          : (d.userEstWorth || '');
+        const calcComplete = _paired
+          ? (enginePrice ? parseFloat(enginePrice) : 0)
+          : ((parseFloat(d.priceItem)||0) + (parseFloat(d.priceBox)||0));
         row = [
           itemNum, variation,
           d.condition || '',
           d.allOriginal || '',
-          d.priceItem || '',
+          enginePrice,
           d.priceBox || '',
           calcComplete > 0 ? calcComplete.toFixed(2) : '',
           d.hasBox || 'No',
@@ -3400,12 +3465,40 @@ async function saveWizardItem() {
           boxPhotos[0] || '',
           ( d.notes || '' ).trim(),
           d.datePurchased || '',
-          d.userEstWorth || '',
+          engineWorth,
           d.tenderMatch && d.tenderMatch !== 'none' ? d.tenderMatch : '',
         ];
       }
-      // Cross-link: if a tender/engine was matched, update that item's matchedTo column too
-  const matchedNum = d.tenderMatch && d.tenderMatch !== 'none' ? d.tenderMatch : null;
+      // ── PAIRED SAVE: if engine+tender together, save a second row for the tender ──
+  const isPairedSave = d.tenderMatch && d.tenderMatch !== 'none';
+  if (isPairedSave) {
+    const tNum = d.tenderMatch.trim();
+    const tVariation = '';
+    const halfPrice = d.combinedPrice ? (parseFloat(d.combinedPrice) / 2).toFixed(2) : '';
+    const halfWorth  = d.userEstWorth ? (parseFloat(d.userEstWorth) / 2).toFixed(2) : '';
+    const tRow = [
+      tNum, tVariation,
+      d.tenderCondition || '',
+      d.tenderAllOriginal || '',
+      halfPrice,   // item only price
+      '',          // box price
+      halfPrice,   // complete price
+      d.tenderHasBox || 'No',
+      d.tenderBoxCond || '',
+      '',          // photo — filed separately under tender folder
+      '',          // box photo
+      (d.notes || '').trim(),
+      d.datePurchased || '',
+      halfWorth,
+      itemNum,     // matchedTo = engine number
+    ];
+    await sheetsAppend(state.personalSheetId, 'My Collection', [tRow]);
+    // Update engine row matchedTo to point to tender
+    row[14] = tNum;
+  }
+
+  // Cross-link: if a tender/engine was matched, update that item's matchedTo column too
+  const matchedNum = (!isPairedSave && d.tenderMatch && d.tenderMatch !== 'none') ? d.tenderMatch : null;
   if (matchedNum) {
     const matchedEntry = Object.values(state.personalData).find(pd => pd.itemNum === matchedNum);
     if (matchedEntry && matchedEntry.row) {
