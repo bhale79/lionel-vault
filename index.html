@@ -2677,6 +2677,8 @@ function showItemPanel(idx, pdKey, mode) {
     { label: 'Year Made',     key: 'yearMade',      val: pd.yearMade || '—',      type: 'number', min:1945, max:1969 },
     { label: 'Date Purchased',key: 'datePurchased', val: pd.datePurchased || '—', type: 'date' },
     { label: 'Notes',         key: 'notes',         val: pd.notes || '—',         type: 'text' },
+    ...(item.refLink ? [{ label: 'COTT Reference', key: null, val: item.refLink, type: 'link' }] : []),
+    ...(item.errorDesc || pd.isError ? [{ label: 'Error', key: null, val: pd.errorDesc || '—', type: 'readonly' }] : []),
   ];
 
   // ── Photos section ──
