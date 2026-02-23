@@ -613,7 +613,7 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
       <input id="global-search" type="text" placeholder="Search item number, road name, description…" oninput="onGlobalSearch(this.value)">
     </div>
-    <div title="Build indicator" style="width:14px;height:14px;border-radius:3px;background:#22c55e;flex-shrink:0;margin-left:0.5rem;align-self:center"></div>
+    <div title="Build indicator" style="width:14px;height:14px;border-radius:3px;background:#e8401c;flex-shrink:0;margin-left:0.5rem;align-self:center"></div>
     <div class="header-right">
       <div class="user-chip">
         <div class="user-avatar" id="user-avatar">?</div>
@@ -677,7 +677,7 @@
       <div class="page active" id="page-dashboard">
 
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem">
-          <div class="page-title">Dashboard <span id="dash-greeting"></span> <span title="Build indicator" style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#22c55e;vertical-align:middle;margin-left:4px"></span></div>
+          <div class="page-title">Dashboard <span id="dash-greeting"></span> <span title="Build indicator" style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#e8401c;vertical-align:middle;margin-left:4px"></span></div>
           <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
             <button class="btn btn-primary" onclick="startWizardFor('collection')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1130,7 +1130,7 @@ const PERSONAL_HEADERS = [
   'Item Number','Variation','Condition (1-10)','All Original',
   'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
   'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes',
-  'Date Purchased','User Est. Worth','Matched Tender/Engine'
+  'Date Purchased','User Est. Worth','Matched Tender/Engine','Set ID'
 ];
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
@@ -1143,6 +1143,44 @@ const WANT_HEADERS = [
 // ── TENDER / LOCOMOTIVE RELATIONSHIPS ──────────────────────────
 const TENDER_TO_LOCOS = {"1872T":["1872"],"1882T":["1882"],"2020W":["2020"],"2046W":["726RR","637","646","2056","675","736","2055","2046","2065","665"],"2046WX":["671RR","682","681"],"2426W":["773","726"],"2466T":["224","1666"],"2466W":["224","1666"],"2466WX":["675","224","1666"],"2671W":["681","671"],"4424W":["671R"],"4671W":["671R"],"6001T":["6110"],"6020W":["2020"],"6026T":["2018","2037"],"6026W":["2037","685","2055","2018","2065","665","2016"],"6066T":["2026","1130","2034","2037"],"6403B":["1656"],"6466W":["2026","2036","2025","2035"],"6466WX":["2026","2025","675"],"6654T":["1655"],"250T":["250","249"],"671W":["671"],"736W":["637","665","773","736"],"746W":["746"],"773W":["773"],"1001T":["1101","1120","1001","1110"],"1050T":["235","1060","1050","236"],"1060T":["237","242","1060","2029","1062","1061"],"1130T":["244","248","236","245","2037","2018","1130","235","246"],"1130T-500":["2037-500"],"1625T":["1625"],"1654T":["1654"],"1654W":["1654"],"1862T":["1862"]};
 const LOCO_TO_TENDERS = {"1872":["1872T"],"1882":["1882T"],"2020":["2020W","6020W"],"726RR":["2046W"],"637":["2046W","736W"],"646":["2046W"],"2056":["2046W"],"675":["2046W","2466WX","6466WX"],"736":["2046W","736W"],"2055":["2046W","6026W"],"2046":["2046W"],"2065":["2046W","6026W"],"665":["2046W","6026W","736W"],"671RR":["2046WX"],"682":["2046WX"],"681":["2046WX","2671W"],"773":["2426W","736W","773W"],"726":["2426W"],"224":["2466T","2466W","2466WX"],"1666":["2466T","2466W","2466WX"],"671":["2671W","671W"],"671R":["4424W","4671W"],"6110":["6001T"],"2018":["6026T","6026W","1130T"],"2037":["6026T","6026W","6066T","1130T"],"685":["6026W"],"2016":["6026W"],"2026":["6066T","6466W","6466WX"],"1130":["6066T","1130T"],"2034":["6066T"],"1656":["6403B"],"2036":["6466W"],"2025":["6466W","6466WX"],"2035":["6466W"],"1655":["6654T"],"250":["250T"],"249":["250T"],"746":["746W"],"1101":["1001T"],"1120":["1001T"],"1001":["1001T"],"1110":["1001T"],"235":["1050T","1130T"],"1060":["1050T","1060T"],"1050":["1050T"],"236":["1050T","1130T"],"237":["1060T"],"242":["1060T"],"2029":["1060T"],"1062":["1060T"],"1061":["1060T"],"244":["1130T"],"248":["1130T"],"245":["1130T"],"246":["1130T"],"2037-500":["1130T-500"],"1625":["1625T"],"1654":["1654T","1654W"],"1862":["1862T"]};
+
+// ── DIESEL SET HELPERS ──────────────────────────────────────────
+function isSetUnit(itemNum) {
+  // A unit is a set unit if a corresponding C (B) unit exists in master data
+  // A B unit always ends in 'C'
+  const num = (itemNum || '').trim();
+  if (num.endsWith('C')) return true;
+  return state.masterData.some(m => m.itemNum === num + 'C');
+}
+function getBUnit(itemNum) {
+  const num = (itemNum || '').trim();
+  const bNum = num + 'C';
+  return state.masterData.some(m => m.itemNum === bNum) ? bNum : null;
+}
+function getAUnit(itemNum) {
+  const num = (itemNum || '').trim();
+  if (!num.endsWith('C')) return null;
+  const aNum = num.slice(0, -1);
+  return state.masterData.some(m => m.itemNum === aNum) ? aNum : null;
+}
+function getSetPartner(itemNum) {
+  // Returns the partner item number (A->B or B->A)
+  const num = (itemNum || '').trim();
+  if (num.endsWith('C')) return getAUnit(num);
+  return getBUnit(num);
+}
+function isF3AlcoUnit(itemNum) {
+  const num = (itemNum || '').trim();
+  const checkNum = num.endsWith('C') ? num.slice(0, -1) : num;
+  return state.masterData.some(m =>
+    m.itemNum === checkNum &&
+    m.itemType === 'Diesel Locomotive' &&
+    (m.description || '').match(/F-3|F3|Alco FA|FA No\.|FA-/)
+  );
+}
+function genSetId(baseNum) {
+  return 'SET-' + baseNum + '-' + Date.now();
+}
 
 function isTender(itemNum) { return !!TENDER_TO_LOCOS[itemNum?.toString().trim().toUpperCase()] || !!TENDER_TO_LOCOS[itemNum?.toString().trim()]; }
 function isLocomotive(itemNum) { return !!LOCO_TO_TENDERS[itemNum?.toString().trim()]; }
@@ -1354,10 +1392,10 @@ async function initPersonalSheet(sheetId) {
   if (rows.length === 0 || !rows[0] || rows[0].length === 0) {
     // Brand new sheet — write title row 1 and headers row 2
     await sheetsUpdate(sheetId, 'My Collection!A1:A1', [['My Collection']]);
-    await sheetsUpdate(sheetId, 'My Collection!A2:N2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:P2', [PERSONAL_HEADERS]);
   } else if (rows.length === 1 || !rows[1] || rows[1].length < 13) {
     // Has title but missing/old headers — rewrite row 2
-    await sheetsUpdate(sheetId, 'My Collection!A2:N2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:P2', [PERSONAL_HEADERS]);
   }
   // Get existing sheet tab names
   const metaRes = await fetch(
@@ -1694,7 +1732,7 @@ async function createPersonalSheet() {
 
   // 3. Write headers and create all tabs
   await sheetsUpdate(state.personalSheetId, 'My Collection!A1:A1', [['My Collection']]);
-  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:N2', [PERSONAL_HEADERS]);
+  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:P2', [PERSONAL_HEADERS]);
   await initPersonalSheet(state.personalSheetId);
 
   // 4. Move the sheet file into the vault folder
@@ -1792,6 +1830,7 @@ async function loadPersonalData() {
       datePurchased:r[12] || '',
       userEstWorth: r[13] || '',
       matchedTo:    r[14] || '',
+      setId:        r[15] || '',
     };
   });
   } catch(e) { console.error('My Collection load error:', e); }
@@ -2060,7 +2099,7 @@ function renderBrowse() {
         <div class="browse-card-left">
           <div class="browse-card-num">${item.itemNum}${item.variation ? ' <span style="font-size:0.75rem;color:var(--text-dim)">${item.variation}</span>' : ''}</div>
           <div class="browse-card-name">${item.roadName || item.itemType || '—'}</div>
-          <div class="browse-card-sub">${[item.itemType, item.yearProd].filter(Boolean).join(' · ')}${pd?.matchedTo ? ` · <span style="color:var(--accent2)">${isTender(item.itemNum)?'🚂':'🚃'} ${pd.matchedTo}</span>` : ''}</div>
+          <div class="browse-card-sub">${[item.itemType, item.yearProd].filter(Boolean).join(' · ')}${pd?.matchedTo ? ' · <span style="color:var(--accent2)">' + (isTender(item.itemNum)?'🚂':'🚃') + ' ' + pd.matchedTo + '</span>' : ''}${pd?.setId ? ' · <span style="color:#a855f7;font-size:0.7rem">🔗 ' + pd.setId.split('-').slice(0,2).join('-') + '</span>' : ''}</div>
         </div>
         <div class="browse-card-right">
           <span class="owned-badge ${badgeClass}">${badgeText}</span>
@@ -2121,6 +2160,21 @@ function openItem(idx) {
   const modalMatchedTo = pd?.matchedTo || '';
   const modalIsTender = isTender(item.itemNum);
   document.getElementById('modal-subtitle').textContent = `${item.itemType}${item.subType ? ' — ' + item.subType : ''}${item.yearProd ? ' · ' + item.yearProd : ''}`;
+  // Set ID badge
+  const setIdBadgeEl = document.getElementById('modal-set-badge');
+  if (setIdBadgeEl) {
+    if (pd?.setId) {
+      setIdBadgeEl.style.display = 'inline-flex';
+      // Find all other items in this set
+      const setMates = Object.values(state.personalData)
+        .filter(p => p.setId === pd.setId && p.itemNum !== item.itemNum)
+        .map(p => p.itemNum);
+      setIdBadgeEl.textContent = '🔗 Set: ' + pd.setId + (setMates.length ? ' (with ' + setMates.join(', ') + ')' : '');
+    } else {
+      setIdBadgeEl.style.display = 'none';
+    }
+  }
+
   const matchedBadgeEl = document.getElementById('modal-matched-badge');
   if (matchedBadgeEl) {
     if (modalMatchedTo) {
@@ -2592,6 +2646,9 @@ function getSteps(tab) {
           return getMatchingTenders(num).length === 0 && getMatchingLocos(num).length === 0;
         }
       },
+      { id: 'setMatch', title: 'Multi-unit diesel set',                    type: 'setMatch',
+        skipIf: (d) => !isF3AlcoUnit((d.itemNum || '').trim())
+      },
       { id: 'hasBox',       title: 'Did the engine come with a box?',       type: 'choice2',  choices: ['Yes','No'], skipIf: (d) => !!d._attachToBox },
       { id: 'boxCond',      title: 'What condition is the engine box?',     type: 'slider',   min:1, max:10, skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox },
       { id: 'photosItem',   title: 'Add photos of the engine',              type: 'drivePhotos', label: 'Item',
@@ -2617,12 +2674,61 @@ function getSteps(tab) {
         note: () => 'Tender box photos only.',
         skipIf: (d) => !isPaired(d) || d.tenderHasBox !== 'Yes' },
 
+      // ── SET UNIT 2 section (only shown when buying as diesel set) ──
+      { id: '_setDivider', title: 'Now for the second unit',             type: 'divider',
+        subtitle: (d) => {
+          const partner = getSetPartner((d.itemNum||'').trim()) || ((d.itemNum||'').trim()+'C');
+          return 'Next we will record details for the ' + (d.setType||'AB') + ' set partner (' + partner + '). It will be saved as a separate item with the same Set ID.';
+        },
+        skipIf: (d) => d.setMatch !== 'set-now' },
+      { id: 'unit2ItemNum',   title: 'Confirm second unit item number',   type: 'setUnit2Num',
+        skipIf: (d) => d.setMatch !== 'set-now' },
+      { id: 'unit2Condition', title: 'What condition is the second unit?', type: 'slider', min:1, max:10,
+        skipIf: (d) => d.setMatch !== 'set-now' },
+      { id: 'unit2AllOriginal', title: 'Is the second unit all original?', type: 'choice3', choices: ['Yes','No','Unknown'],
+        skipIf: (d) => d.setMatch !== 'set-now' },
+      { id: 'unit2HasBox',    title: 'Did the second unit come with a box?', type: 'choice2', choices: ['Yes','No'],
+        skipIf: (d) => d.setMatch !== 'set-now' },
+      { id: 'unit2BoxCond',   title: 'What condition is the second unit box?', type: 'slider', min:1, max:10,
+        skipIf: (d) => d.setMatch !== 'set-now' || d.unit2HasBox !== 'Yes' },
+      { id: 'photosUnit2Item', title: 'Add photos of the second unit',    type: 'drivePhotos', label: 'Item',
+        unit2Mode: true,
+        note: () => 'Photos for unit 2 — filed under its own Drive folder.',
+        skipIf: (d) => d.setMatch !== 'set-now' },
+      { id: 'photosUnit2Box',  title: 'Add photos of the second unit box', type: 'drivePhotos', label: 'Box',
+        unit2Mode: true,
+        note: () => 'Unit 2 box photos.',
+        skipIf: (d) => d.setMatch !== 'set-now' || d.unit2HasBox !== 'Yes' },
+
+      // ── SET UNIT 3 section (ABA only) ──
+      { id: '_set3Divider', title: 'Now for the third unit (A)',          type: 'divider',
+        subtitle: () => 'Finally, the second A unit to complete the ABA set.',
+        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
+      { id: 'unit3Condition', title: 'What condition is the third unit?', type: 'slider', min:1, max:10,
+        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
+      { id: 'unit3AllOriginal', title: 'Is the third unit all original?', type: 'choice3', choices: ['Yes','No','Unknown'],
+        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
+      { id: 'unit3HasBox',    title: 'Did the third unit come with a box?', type: 'choice2', choices: ['Yes','No'],
+        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
+      { id: 'unit3BoxCond',   title: 'What condition is the third unit box?', type: 'slider', min:1, max:10,
+        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' || d.unit3HasBox !== 'Yes' },
+      { id: 'photosUnit3Item', title: 'Add photos of the third unit',    type: 'drivePhotos', label: 'Item',
+        unit3Mode: true,
+        note: () => 'Photos for unit 3 (second A unit).',
+        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
+      { id: 'photosUnit3Box',  title: 'Add photos of the third unit box', type: 'drivePhotos', label: 'Box',
+        unit3Mode: true,
+        note: () => 'Unit 3 box photos.',
+        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' || d.unit3HasBox !== 'Yes' },
+
       // ── COMBINED pricing (only when paired, replaces individual price) ──
       { id: 'pricePaid',    title: 'What did you pay?',                    type: 'pricePaid',
         skipIf: (d) => isPaired(d) },
-      { id: 'combinedPrice', title: 'What did you pay for the engine and tender together?', type: 'money', placeholder: '0.00', optional: true,
-        note: () => 'This combined price will be split evenly between the engine and tender rows.',
-        skipIf: (d) => !isPaired(d) },
+      { id: 'combinedPrice', title: 'What did you pay for all units together?', type: 'money', placeholder: '0.00', optional: true,
+        note: (d) => d.setMatch === 'set-now'
+          ? 'Combined price — split evenly between all units in the set.'
+          : 'Combined price — split evenly between engine and tender.',
+        skipIf: (d) => !isPaired(d) && d.setMatch !== 'set-now' },
       { id: 'datePurchased', title: 'When did you purchase?',               type: 'date',     optional: true },
       { id: 'userEstWorth',  title: (d) => isPaired(d) ? 'What do you estimate the engine and tender are worth together?' : 'What do you estimate it is worth?',
         type: 'money', placeholder: '0.00', optional: true,
@@ -2717,6 +2823,7 @@ function renderWizardStep() {
   document.getElementById('wizard-progress').style.width = pct + '%';
   document.getElementById('wizard-back-btn').style.display = step > 0 ? 'inline-flex' : 'none';
   const autoAdvanceTypes = new Set(['choice','choice2','choice3','variation','divider','pickRow','pickSoldItem']);
+  // setMatch and setUnit2Num need Next button (user may interact multiple times)
   const nextBtn = document.getElementById('wizard-next-btn');
   if (s.type === 'confirm') {
     nextBtn.textContent = '✓ Save';
@@ -2922,6 +3029,107 @@ function renderWizardStep() {
         ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(245,166,35,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
       </div>`;
+
+  } else if (s.type === 'setMatch') {
+    const itemNum = (wizard.data.itemNum || '').trim();
+    const partner = getSetPartner(itemNum);
+    const unitType = itemNum.endsWith('C') ? 'B unit' : 'A unit';
+    const current = wizard.data.setMatch || '';
+
+    // Check if user already owns a unit from this set
+    const baseNum = itemNum.endsWith('C') ? itemNum.slice(0,-1) : itemNum;
+    const ownedPartner = Object.values(state.personalData).find(pd =>
+      pd.itemNum === baseNum || pd.itemNum === baseNum + 'C'
+    );
+
+    const smContainer = document.createElement('div');
+    smContainer.style.cssText = 'padding-top:0.5rem';
+
+    const intro = document.createElement('div');
+    intro.style.cssText = 'font-size:0.85rem;color:var(--text-dim);margin-bottom:1rem';
+    intro.textContent = 'This is a ' + unitType + ' that can be part of a multi-unit diesel set' + (partner ? ' (partner: ' + partner + ')' : '') + '.';
+    smContainer.appendChild(intro);
+
+    const opts = [
+      { val: 'set-now',   icon: '🚂🚂', label: 'Adding as a set now',        desc: 'Walk through all units together' },
+      { val: 'link',      icon: '🔗',   label: 'Link to unit already owned', desc: ownedPartner ? 'Found: ' + ownedPartner.itemNum + ' in your collection' : 'Assign same Set ID as existing unit', disabled: !ownedPartner },
+      { val: 'standalone',icon: '🚂',   label: 'Standalone / no set',        desc: 'Save this unit by itself' },
+    ];
+
+    opts.forEach(function(opt) {
+      const btn = document.createElement('button');
+      const sel = current === opt.val;
+      btn.style.cssText = 'text-align:left;padding:0.85rem 1rem;border-radius:10px;cursor:pointer;width:100%;margin-bottom:0.5rem;'
+        + 'border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
+        + 'background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--surface2)') + ';'
+        + 'color:' + (opt.disabled ? 'var(--text-dim)' : 'var(--text)') + ';font-family:var(--font-body)';
+      btn.disabled = opt.disabled;
+      btn.onclick = function() {
+        wizard.data.setMatch = opt.val;
+        if (opt.val === 'set-now') {
+          wizard.data._setId = genSetId(baseNum);
+          wizard.data.unit2ItemNum = partner || baseNum + 'C';
+        }
+        if (opt.val === 'link' && ownedPartner) {
+          wizard.data._setId = ownedPartner.setId || genSetId(baseNum);
+        }
+        renderWizardStep();
+      };
+      const top = document.createElement('div');
+      top.style.cssText = 'display:flex;align-items:center;gap:0.75rem';
+      const iconEl = document.createElement('span');
+      iconEl.style.cssText = 'font-size:1.3rem';
+      iconEl.textContent = opt.icon;
+      const labelEl = document.createElement('div');
+      labelEl.innerHTML = '<div style="font-weight:600;color:' + (sel?'var(--accent)':'inherit') + '">' + opt.label + '</div>'
+        + '<div style="font-size:0.78rem;color:var(--text-dim)">' + opt.desc + '</div>';
+      top.appendChild(iconEl);
+      top.appendChild(labelEl);
+      btn.appendChild(top);
+      smContainer.appendChild(btn);
+    });
+
+    // Set type selector (AA/AB/ABA) — only show when 'set-now' selected
+    if (current === 'set-now') {
+      const typeDiv = document.createElement('div');
+      typeDiv.style.cssText = 'margin-top:0.75rem;padding:0.75rem;background:var(--bg);border-radius:8px;border:1px solid var(--border)';
+      typeDiv.innerHTML = '<div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:0.5rem">What type of set?</div>';
+      const btnRow = document.createElement('div');
+      btnRow.style.cssText = 'display:flex;gap:0.5rem';
+      ['AA','AB','ABA'].forEach(function(t) {
+        const tb = document.createElement('button');
+        const tsel = wizard.data.setType === t;
+        tb.style.cssText = 'flex:1;padding:0.5rem;border-radius:7px;font-weight:600;cursor:pointer;font-family:var(--font-head);'
+          + 'border:2px solid ' + (tsel?'var(--accent2)':'var(--border)') + ';'
+          + 'background:' + (tsel?'rgba(245,166,35,0.15)':'var(--surface2)') + ';'
+          + 'color:' + (tsel?'var(--accent2)':'var(--text-mid)');
+        tb.textContent = t;
+        tb.onclick = function() { wizard.data.setType = t; renderWizardStep(); };
+        btnRow.appendChild(tb);
+      });
+      typeDiv.appendChild(btnRow);
+      smContainer.appendChild(typeDiv);
+    }
+
+    const hint = document.createElement('div');
+    hint.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-top:0.75rem';
+    hint.textContent = 'Optional — press Next to skip';
+    smContainer.appendChild(hint);
+
+    body.innerHTML = '';
+    body.appendChild(smContainer);
+
+  } else if (s.type === 'setUnit2Num') {
+    // Pre-filled unit 2 number — let user confirm or change
+    const suggested = wizard.data.unit2ItemNum || '';
+    const curr = wizard.data.unit2ItemNum || suggested;
+    body.innerHTML = '<div style="padding-top:0.75rem">'
+      + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.5rem">Second unit item number (pre-filled from partner — edit if needed)</div>'
+      + '<input type="text" id="wiz-unit2-num" value="' + curr + '" '
+      + 'style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none" '
+      + 'oninput="wizard.data.unit2ItemNum=this.value">'
+      + '</div>';
+    setTimeout(function() { const i = document.getElementById('wiz-unit2-num'); if(i) i.focus(); }, 50);
 
   } else if (s.type === 'divider') {
     const sub = s.subtitle ? s.subtitle(wizard.data) : '';
@@ -3211,10 +3419,16 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
   const d = wizard.data;
   // For tender/set photo steps, use the tender or engine item number for the Drive folder
   const isTenderPhotoStep = stepId === 'photosTenderItem' || stepId === 'photosTenderBox';
+  const isUnit2PhotoStep = stepId === 'photosUnit2Item' || stepId === 'photosUnit2Box';
+  const isUnit3PhotoStep = stepId === 'photosUnit3Item' || stepId === 'photosUnit3Box';
   const isSetPhotoStep = stepId === 'photosTogether';
   const itemNum = isTenderPhotoStep
     ? (d.tenderMatch || d.itemNum || 'unknown').trim()
-    : (d.itemNum || 'unknown').trim();
+    : isUnit2PhotoStep
+      ? (d.unit2ItemNum || d.itemNum || 'unknown').trim()
+      : isUnit3PhotoStep
+        ? (d.itemNum || 'unknown').trim()  // unit3 = second A unit, same number
+        : (d.itemNum || 'unknown').trim();
   const variation = (d.variation || '').trim();
 
   // Show progress overlay
@@ -3522,9 +3736,73 @@ async function saveWizardItem() {
           d.datePurchased || '',
           engineWorth,
           d.tenderMatch && d.tenderMatch !== 'none' ? d.tenderMatch : '',
+          '',  // Set ID — filled in after save if set unit
         ];
       }
-      // ── PAIRED SAVE: if engine+tender together, save a second row for the tender ──
+      // ── SET UNIT SAVE: if diesel set, save unit2 (and unit3) rows with shared Set ID ──
+  const isSetSave = d.setMatch === 'set-now';
+  const setId = d._setId || '';
+
+  if (isSetSave && d.unit2ItemNum) {
+    const u2Num = (d.unit2ItemNum || '').trim();
+    const unitCount = d.setType === 'ABA' ? 3 : 2;
+    const priceEach = d.combinedPrice ? (parseFloat(d.combinedPrice) / unitCount).toFixed(2) : '';
+    const worthEach = d.userEstWorth  ? (parseFloat(d.userEstWorth)  / unitCount).toFixed(2) : '';
+
+    const u2Row = [
+      u2Num, '',
+      d.unit2Condition || '',
+      d.unit2AllOriginal || '',
+      priceEach, '', priceEach,
+      d.unit2HasBox || 'No',
+      d.unit2BoxCond || '',
+      '', '',
+      (d.notes || '').trim(),
+      d.datePurchased || '',
+      worthEach,
+      itemNum,   // matchedTo = A unit
+      setId,
+    ];
+    await sheetsAppend(state.personalSheetId, 'My Collection', [u2Row]);
+
+    // Unit 3 (ABA second A unit = same item number as unit 1)
+    if (d.setType === 'ABA') {
+      const u3Row = [
+        itemNum, '',
+        d.unit3Condition || '',
+        d.unit3AllOriginal || '',
+        priceEach, '', priceEach,
+        d.unit3HasBox || 'No',
+        d.unit3BoxCond || '',
+        '', '',
+        (d.notes || '').trim(),
+        d.datePurchased || '',
+        worthEach,
+        u2Num,   // matchedTo = B unit
+        setId,
+      ];
+      await sheetsAppend(state.personalSheetId, 'My Collection', [u3Row]);
+    }
+
+    // Update unit 1 row to include setId
+    row[15] = setId;
+    row[14] = row[14] || u2Num; // matchedTo
+  }
+
+  // Link-to-existing: just tag unit 1 with the existing set's setId
+  if (d.setMatch === 'link' && d._setId) {
+    row[15] = d._setId;
+    // Update the existing unit's setId if it doesn't have one
+    const existingUnit = Object.values(state.personalData).find(pd =>
+      pd.itemNum === (itemNum.endsWith('C') ? itemNum.slice(0,-1) : itemNum+'C')
+    );
+    if (existingUnit && existingUnit.row && !existingUnit.setId) {
+      sheetsUpdate(state.personalSheetId, 'My Collection!P' + existingUnit.row, [[d._setId]])
+        .catch(e => console.warn('Set ID backfill:', e));
+    }
+  }
+
+  // ── PAIRED SAVE: if engine+tender together, save a second row for the tender ──
   const isPairedSave = d.tenderMatch && d.tenderMatch !== 'none';
   if (isPairedSave) {
     const tNum = d.tenderMatch.trim();
