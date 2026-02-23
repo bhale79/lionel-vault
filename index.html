@@ -1165,32 +1165,31 @@ async function initPersonalSheet(sheetId) {
     // Has title but missing/old headers — rewrite row 2
     await sheetsUpdate(sheetId, 'My Collection!A2:N2', [PERSONAL_HEADERS]);
   }
-  // Create Sold + Want List tabs and write their headers
-  try {
-    await sheetsUpdate(sheetId, 'Sold!A1:A1', [['Sold']]);
-    await sheetsUpdate(sheetId, 'Sold!A2:H2', [SOLD_HEADERS]);
-  } catch(e) {
-    await createSoldTab(sheetId);
-    await sheetsUpdate(sheetId, 'Sold!A1:A1', [['Sold']]);
-    await sheetsUpdate(sheetId, 'Sold!A2:H2', [SOLD_HEADERS]);
-  }
-  try {
-    await sheetsUpdate(sheetId, 'Want List!A1:A1', [['Want List']]);
-    await sheetsUpdate(sheetId, 'Want List!A2:E2', [WANT_HEADERS]);
-  } catch(e) {}
-}
+  // Get existing sheet tab names
+  const metaRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const meta = await metaRes.json();
+  const existingTabs = (meta.sheets || []).map(s => s.properties.title);
 
-async function createSoldTab(sheetId) {
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      requests: [
-        { addSheet: { properties: { title: 'Sold' } } },
-        { addSheet: { properties: { title: 'Want List' } } }
-      ]
-    })
-  });
+  // Build list of tabs to create
+  const toCreate = [];
+  if (!existingTabs.includes('Sold'))      toCreate.push({ addSheet: { properties: { title: 'Sold' } } });
+  if (!existingTabs.includes('Want List')) toCreate.push({ addSheet: { properties: { title: 'Want List' } } });
+
+  if (toCreate.length > 0) {
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: toCreate }),
+    });
+  }
+
+  // Write headers to all tabs
+  await sheetsUpdate(sheetId, 'Sold!A1:A1',      [['Sold']]);
+  await sheetsUpdate(sheetId, 'Sold!A2:H2',      [SOLD_HEADERS]);
+  await sheetsUpdate(sheetId, 'Want List!A1:A1', [['Want List']]);
   await sheetsUpdate(sheetId, 'Want List!A2:E2', [WANT_HEADERS]);
 }
 
