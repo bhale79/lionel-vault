@@ -1604,9 +1604,9 @@ async function driveEnsureItemFolder(itemNum) {
 
 async function driveGetFolderPhotos(folderLink) {
   const match = (folderLink || '').match(/folders\/([a-zA-Z0-9_-]+)/);
-  if (!match) return null; // null = folder link bad
+  if (!match) return null;
   const folderId = match[1];
-  if (!accessToken) return null; // null = not ready
+  if (!accessToken) return null;
   try {
     const q = encodeURIComponent(`'${folderId}' in parents and mimeType contains 'image/' and trashed=false`);
     const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&orderBy=name`);
@@ -1615,11 +1615,38 @@ async function driveGetFolderPhotos(folderLink) {
       return {
         id: f.id,
         name: f.name,
-        thumb: 'https://drive.google.com/thumbnail?id=' + f.id + '&sz=w240',
-        view:  'https://drive.google.com/file/d/' + f.id + '/view',
+        // Use authenticated media download URL — fetch as blob in loadThumb()
+        mediaUrl: 'https://www.googleapis.com/drive/v3/files/' + f.id + '?alt=media',
+        view: 'https://drive.google.com/file/d/' + f.id + '/view',
       };
     });
   } catch(e) { console.error('driveGetFolderPhotos:', e); return null; }
+}
+
+// Fetch a Drive file as an authenticated blob URL for use in <img src>
+const _blobCache = {};
+async function loadDriveThumb(fileId, imgEl, containerEl) {
+  const cacheKey = fileId;
+  if (_blobCache[cacheKey]) { imgEl.src = _blobCache[cacheKey]; return; }
+  try {
+    // Use thumbnail endpoint with size parameter (requires auth)
+    const thumbUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&acknowledgeAbuse=true`;
+    const res = await fetch(thumbUrl, {
+      headers: { Authorization: 'Bearer ' + accessToken }
+    });
+    console.log('Drive thumb fetch', fileId, 'status:', res.status, 'type:', res.headers.get('content-type'));
+    if (!res.ok) {
+      containerEl.innerHTML = '<span style="font-size:0.65rem;color:var(--text-dim)">⚠ ' + res.status + '</span>';
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    _blobCache[cacheKey] = url;
+    imgEl.src = url;
+  } catch(e) {
+    console.error('loadDriveThumb error:', e);
+    containerEl.innerHTML = '<span style="font-size:0.65rem;color:var(--text-dim)">⚠ err</span>';
+  }
 }
 
 function driveFolderLink(folderId) {
@@ -2573,17 +2600,20 @@ function showItemPanel(idx, pdKey, mode) {
 
       tr2.innerHTML = '';
       photos.forEach(function(p) {
+        const isRSV = p.name.toUpperCase().includes('RSV');
         const a = document.createElement('a');
-        a.href = p.view; a.target = '_blank'; a.title = p.name.replace(/\.[^.]+$/, '');
-        a.style.cssText = 'display:inline-block;border-radius:8px;overflow:hidden;border:2px solid ' + (p.name.toUpperCase().includes('RSV') ? '#2980b9' : 'var(--border)') + ';flex-shrink:0;position:relative';
+        a.href = p.view; a.target = '_blank';
+        a.title = p.name.replace(/\.[^.]+$/, '');
+        a.style.cssText = 'display:inline-block;border-radius:8px;overflow:hidden;border:2px solid '
+          + (isRSV ? '#2980b9' : 'var(--border)') + ';flex-shrink:0';
         const img = document.createElement('img');
-        img.src = p.thumb;
-        img.style.cssText = 'width:80px;height:80px;object-fit:cover;display:block';
-        img.onerror = function() { a.style.display = 'none'; };
-        // Label below
+        img.style.cssText = 'width:80px;height:80px;object-fit:cover;display:block;background:var(--surface2)';
+        img.alt = p.name.replace(/\.[^.]+$/, '').split(' ').pop();
+        // Authenticated load using file ID
+        loadDriveThumb(p.id, img, a);
         const lbl = document.createElement('div');
         lbl.style.cssText = 'font-size:0.55rem;text-align:center;padding:2px 0;background:var(--surface2);color:var(--text-dim);letter-spacing:0.03em';
-        lbl.textContent = p.name.replace(/\.[^.]+$/, '').split(' ').pop(); // last word = view abbr
+        lbl.textContent = p.name.replace(/\.[^.]+$/, '').split(' ').pop();
         a.appendChild(img);
         a.appendChild(lbl);
         tr2.appendChild(a);
