@@ -2510,10 +2510,12 @@ function showItemPanel(idx, pdKey, mode) {
 
   photoContainer.appendChild(photoSection);
 
-  // Async load photos
+  // Async load photos — use direct references (element not in DOM yet when IIFE fires)
+  const _thumbRowRef = thumbRow;
+  const _folderLinkRef = folderLinkEl;
   (async function() {
-    const tr2 = document.getElementById('item-panel-thumb-row');
-    const fl2 = document.getElementById('item-panel-folder-link');
+    const tr2 = _thumbRowRef;
+    const fl2 = _folderLinkRef;
     try {
       // Wait for accessToken to be available (max 5s)
       let waited = 0;
