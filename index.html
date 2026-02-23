@@ -294,6 +294,47 @@
   }
   #wizard-modal .modal {
     overflow: hidden; display: flex; flex-direction: column;
+    transition: background 0.3s, border-color 0.3s;
+  }
+  /* Wizard tab themes */
+  #wizard-modal .modal.wiz-collection {
+    background: #1a0e08;
+    border-color: rgba(232,64,28,0.4);
+  }
+  #wizard-modal .modal.wiz-collection .modal-header {
+    background: #1a0e08;
+    border-bottom-color: rgba(232,64,28,0.25);
+  }
+  #wizard-modal .modal.wiz-collection #wizard-progress { background: #e8401c; }
+  #wizard-modal .modal.wiz-collection .modal-footer {
+    background: #1a0e08;
+    border-top-color: rgba(232,64,28,0.25);
+  }
+  #wizard-modal .modal.wiz-want {
+    background: #08101a;
+    border-color: rgba(41,128,185,0.4);
+  }
+  #wizard-modal .modal.wiz-want .modal-header {
+    background: #08101a;
+    border-bottom-color: rgba(41,128,185,0.25);
+  }
+  #wizard-modal .modal.wiz-want #wizard-progress { background: #2980b9; }
+  #wizard-modal .modal.wiz-want .modal-footer {
+    background: #08101a;
+    border-top-color: rgba(41,128,185,0.25);
+  }
+  #wizard-modal .modal.wiz-sold {
+    background: #081a0e;
+    border-color: rgba(46,204,113,0.4);
+  }
+  #wizard-modal .modal.wiz-sold .modal-header {
+    background: #081a0e;
+    border-bottom-color: rgba(46,204,113,0.25);
+  }
+  #wizard-modal .modal.wiz-sold #wizard-progress { background: #2ecc71; }
+  #wizard-modal .modal.wiz-sold .modal-footer {
+    background: #081a0e;
+    border-top-color: rgba(46,204,113,0.25);
   }
   .modal-overlay.open .modal { transform: translateY(0); }
 
@@ -2829,6 +2870,29 @@ function renderWizardStep() {
   const current = steps.slice(0, step).filter(st => !st.skipIf || !st.skipIf(wizard.data)).length + 1;
   const pct = Math.round((current / total) * 100);
 
+  // Apply color theme based on tab
+  const wizModal = document.querySelector('#wizard-modal .modal');
+  if (wizModal) {
+    wizModal.classList.remove('wiz-collection','wiz-want','wiz-sold');
+    if (wizard.tab === 'collection') wizModal.classList.add('wiz-collection');
+    else if (wizard.tab === 'want')   wizModal.classList.add('wiz-want');
+    else if (wizard.tab === 'sold')   wizModal.classList.add('wiz-sold');
+  }
+  // Also theme the progress bar overlay
+  const progBar = document.getElementById('wizard-progress');
+  if (progBar) {
+    if (wizard.tab === 'collection') progBar.style.background = '#e8401c';
+    else if (wizard.tab === 'want')  progBar.style.background = '#2980b9';
+    else if (wizard.tab === 'sold')  progBar.style.background = '#2ecc71';
+    else                             progBar.style.background = 'var(--accent)';
+  }
+  // Theme the Next/Save button
+  if (nextBtn) {
+    if (wizard.tab === 'want')       { nextBtn.style.background='#2980b9'; nextBtn.style.borderColor='#2980b9'; }
+    else if (wizard.tab === 'sold')  { nextBtn.style.background='#2ecc71'; nextBtn.style.borderColor='#2ecc71'; nextBtn.style.color='#081a0e'; }
+    else                             { nextBtn.style.background=''; nextBtn.style.borderColor=''; nextBtn.style.color=''; }
+  }
+
   document.getElementById('wizard-step-label').textContent = `Step ${current} of ${total}`;
   document.getElementById('wizard-title').textContent = s.title;
   document.getElementById('wizard-progress').style.width = pct + '%';
@@ -3403,7 +3467,6 @@ function wizardChooseTab(tab) {
   wizard.tab = tab;
   wizard.data.tab = tab;
   wizard.steps = getSteps(tab);
-  // Re-render with highlighted selection
   renderWizardStep();
 }
 
