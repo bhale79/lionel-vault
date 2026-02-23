@@ -2650,6 +2650,15 @@ function getSteps(tab) {
       { id: 'setMatch', title: 'Multi-unit diesel set',                    type: 'setMatch',
         skipIf: (d) => !isF3AlcoUnit((d.itemNum || '').trim())
       },
+      { id: 'unitPower', title: 'Is this a powered or dummy unit?',       type: 'choice2',
+        choices: ['Powered', 'Dummy'],
+        note: () => 'Lionel used the same item number for both. This will be saved as e.g. 2343-P or 2343-D.',
+        skipIf: (d) => {
+          const num = (d.itemNum || '').trim();
+          // Only ask for A units (not B/C units — those are always unpowered dummies)
+          return num.endsWith('C') || !isF3AlcoUnit(num);
+        }
+      },
       { id: 'hasBox',       title: 'Did the engine come with a box?',       type: 'choice2',  choices: ['Yes','No'], skipIf: (d) => !!d._attachToBox },
       { id: 'boxCond',      title: 'What condition is the engine box?',     type: 'slider',   min:1, max:10, skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox },
       { id: 'photosItem',   title: 'Add photos of the engine',              type: 'drivePhotos', label: 'Item',
@@ -2704,6 +2713,13 @@ function getSteps(tab) {
       // ── SET UNIT 3 section (ABA only) ──
       { id: '_set3Divider', title: 'Now for the third unit (A)',          type: 'divider',
         subtitle: () => 'Finally, the second A unit to complete the ABA set.',
+        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
+      { id: 'unit3ItemNum',   title: 'Confirm third unit item number',    type: 'setUnit2Num',
+        unit3: true,
+        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
+      { id: 'unit3Power',     title: 'Is the third unit powered or dummy?', type: 'choice2',
+        choices: ['Powered', 'Dummy'],
+        note: () => 'Will be saved as e.g. 2343-P or 2343-D.',
         skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
       { id: 'unit3Condition', title: 'What condition is the third unit?', type: 'slider', min:1, max:10,
         skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
@@ -3073,6 +3089,7 @@ function renderWizardStep() {
         if (opt.val === 'set-now') {
           wizard.data._setId = genSetId(baseNum);
           wizard.data.unit2ItemNum = partner || baseNum + 'C';
+          wizard.data.unit3ItemNum = wizard.data.itemNum; // ABA: third unit = same A number
         }
         if (opt.val === 'link' && ownedPartner) {
           wizard.data._setId = ownedPartner.setId || genSetId(baseNum);
@@ -3124,16 +3141,21 @@ function renderWizardStep() {
     body.appendChild(smContainer);
 
   } else if (s.type === 'setUnit2Num') {
-    // Pre-filled unit 2 number — let user confirm or change
-    const suggested = wizard.data.unit2ItemNum || '';
-    const curr = wizard.data.unit2ItemNum || suggested;
+    // Pre-filled unit number — let user confirm or change
+    const isUnit3 = !!s.unit3;
+    const field = isUnit3 ? 'unit3ItemNum' : 'unit2ItemNum';
+    const curr = wizard.data[field] || '';
+    const label = isUnit3
+      ? 'Third unit item number (second A unit — edit if needed)'
+      : 'Second unit item number (pre-filled from partner — edit if needed)';
     body.innerHTML = '<div style="padding-top:0.75rem">'
-      + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.5rem">Second unit item number (pre-filled from partner — edit if needed)</div>'
-      + '<input type="text" id="wiz-unit2-num" value="' + curr + '" '
+      + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.5rem">' + label + '</div>'
+      + '<input type="text" id="wiz-unit-num" value="' + curr + '" '
       + 'style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none" '
-      + 'oninput="wizard.data.unit2ItemNum=this.value">'
+      + 'oninput="wizard.data['' + field + '']=this.value"'
+      + 'onkeydown="if(event.key==='Enter')wizardNext()">'
       + '</div>';
-    setTimeout(function() { const i = document.getElementById('wiz-unit2-num'); if(i) i.focus(); }, 50);
+    setTimeout(function() { const i = document.getElementById('wiz-unit-num'); if(i) i.focus(); }, 50);
 
   } else if (s.type === 'divider') {
     const sub = s.subtitle ? s.subtitle(wizard.data) : '';
@@ -3757,7 +3779,13 @@ async function wizardNext() {
 async function saveWizardItem() {
   const d = wizard.data;
   const tab = wizard.tab;
-  const itemNum = (d.itemNum || '').trim();
+  // Apply powered/dummy suffix to A units (B units ending in C are never powered)
+  const _rawItemNum = (d.itemNum || '').trim();
+  const _pdSuffix = (raw, power) => {
+    if (!power || raw.endsWith('C')) return raw;
+    return raw + (power === 'Powered' ? '-P' : '-D');
+  };
+  const itemNum = _pdSuffix(_rawItemNum, d.unitPower);
   const variation = (d.variation || '').trim();
   const key = `${itemNum}|${variation}`;
   // Photos are now Drive URL objects keyed by view
@@ -3876,15 +3904,16 @@ async function saveWizardItem() {
       setPriceNote((d.notes || '').trim(), itemNum),
       d.datePurchased || '',
       '',           // $0 worth — worth is on unit 1
-      itemNum,      // matchedTo = A unit
+      itemNum,      // matchedTo = suffixed A unit
       setId,
     ];
     await sheetsAppend(state.personalSheetId, 'My Collection', [u2Row]);
 
     // Unit 3 (ABA second A unit)
     if (d.setType === 'ABA') {
+      const u3Num = _pdSuffix((d.unit3ItemNum || _rawItemNum).trim(), d.unit3Power);
       const u3Row = [
-        itemNum, '',
+        u3Num, '',
         d.unit3Condition || '',
         d.unit3AllOriginal || '',
         '', '', '',   // $0 — price is on unit 1
@@ -3898,6 +3927,8 @@ async function saveWizardItem() {
         setId,
       ];
       await sheetsAppend(state.personalSheetId, 'My Collection', [u3Row]);
+      // Update u2Row matchedTo to also reference u3Num
+
     }
 
     // Update unit 1 row to include setId
