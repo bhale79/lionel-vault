@@ -837,7 +837,8 @@
           </div>
         </div>
 
-        <div class="table-wrap">
+        <div id="sold-cards" style="display:none;flex-direction:column;gap:0.6rem"></div>
+        <div class="table-wrap" id="sold-table-wrap">
           <table class="item-table">
             <thead>
               <tr>
@@ -2202,7 +2203,7 @@ function renderBrowse() {
     const marketVal  = item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '';
 
     if (isMobile) {
-      return `<div class="browse-card" onclick="openItem(${globalIdx})">
+      return `<div class="browse-card" onclick="browseRowClick(event,${globalIdx})">
         <div class="browse-card-left">
           <div class="browse-card-num">${item.itemNum}${item.variation ? ' <span style="font-size:0.75rem;color:var(--text-dim)">${item.variation}</span>' : ''}</div>
           <div class="browse-card-name">${item.roadName || item.itemType || '—'}</div>
@@ -2212,6 +2213,7 @@ function renderBrowse() {
           <span class="owned-badge ${badgeClass}">${badgeText}</span>
           ${cond ? `<span style="font-size:0.75rem"><span class="condition-pip ${condClass}"></span>${cond}</span>` : ''}
           ${marketVal ? `<span class="market-val" style="font-size:0.78rem">${marketVal}</span>` : ''}
+          <span id="cam-${item.itemNum}-${item.variation||''}-m" style="font-size:0.85rem;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')">📷</span>
         </div>
       </div>`;
     } else {
@@ -2254,8 +2256,11 @@ function renderBrowse() {
       if (!camEl) return;
       if (pd2.photoItem) {
         driveGetFolderPhotos(pd2.photoItem).then(function(photos) {
-          if (photos.length > 0 && document.getElementById('cam-' + item.itemNum + '-' + (item.variation || ''))) {
-            camEl.style.display = 'inline';
+          if (photos.length > 0) {
+            const c1 = document.getElementById('cam-' + item.itemNum + '-' + (item.variation || ''));
+            const c2 = document.getElementById('cam-' + item.itemNum + '-' + (item.variation || '') + '-m');
+            if (c1) c1.style.display = 'inline';
+            if (c2) c2.style.display = 'inline';
           }
         });
       }
@@ -3214,7 +3219,8 @@ function buildWantPage() {
       const master = state.masterData.find(m => m.itemNum === w.itemNum && (!w.variation || m.variation === w.variation));
       const name = master ? (master.roadName || master.description || master.itemType || '') : '';
       const pColor = priorityColor[w.priority] || 'var(--text-dim)';
-      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;display:flex;align-items:center;gap:0.75rem">
+      const masterIdx2 = master ? state.masterData.indexOf(master) : -1;
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;display:flex;align-items:center;gap:0.75rem;cursor:pointer" onclick="${masterIdx2>=0?`openItem(${masterIdx2})`:''}" >
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:0.5rem">
             <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${w.itemNum}</span>
@@ -3350,19 +3356,45 @@ function buildSoldPage() {
     }
   } catch(e) {}
 
-  tbody.innerHTML = soldEntries.length ? soldEntries.map(sd => {
-    // Look up master data for type/road info
-    const master = state.masterData.find(i => i.itemNum === sd.itemNum && i.variation === sd.variation) || {};
-    return `<tr>
-      <td><span class="item-num">${sd.itemNum}</span></td>
-      <td><span class="tag">${master.itemType || '—'}</span></td>
-      <td>${master.roadName || '—'}</td>
-      <td>${sd.variation || '—'}</td>
-      <td>${sd.condition || '—'}</td>
-      <td class="market-val">${sd.salePrice ? '$' + parseFloat(sd.salePrice).toLocaleString() : '—'}</td>
-      <td class="text-dim">${sd.dateSold || '—'}</td>
-    </tr>`;
-  }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">💰</div><p>No sold items yet</p></div></td></tr>';
+  const isMobileSold = window.innerWidth <= 640;
+  const soldCardsEl = document.getElementById('sold-cards');
+  const soldTableWrap = document.getElementById('sold-table-wrap');
+
+  if (isMobileSold) {
+    if (soldCardsEl) soldCardsEl.style.display = 'flex';
+    if (soldTableWrap) soldTableWrap.style.display = 'none';
+    if (soldCardsEl) soldCardsEl.innerHTML = soldEntries.length ? soldEntries.map(sd => {
+      const master = state.masterData.find(i => i.itemNum === sd.itemNum && i.variation === sd.variation) || {};
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${sd.itemNum}</span>
+            ${sd.variation ? `<span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.4rem">${sd.variation}</span>` : ''}
+            ${master.roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${master.roadName}</div>` : ''}
+            <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[master.itemType, sd.condition ? 'Cond: '+sd.condition : '', sd.dateSold].filter(Boolean).join(' · ')}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            ${sd.salePrice ? `<div style="font-family:var(--font-mono);color:#2ecc71;font-size:1.1rem;font-weight:600">$${parseFloat(sd.salePrice).toLocaleString()}</div>` : '<div style="color:var(--text-dim);font-size:0.8rem">No price</div>'}
+          </div>
+        </div>
+      </div>`;
+    }).join('') : '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">💰</div><p>No sold items yet</p></div>';
+  } else {
+    if (soldCardsEl) soldCardsEl.style.display = 'none';
+    if (soldTableWrap) soldTableWrap.style.display = '';
+    tbody.innerHTML = soldEntries.length ? soldEntries.map(sd => {
+      const master = state.masterData.find(i => i.itemNum === sd.itemNum && i.variation === sd.variation) || {};
+      return `<tr>
+        <td><span class="item-num">${sd.itemNum}</span></td>
+        <td><span class="tag">${master.itemType || '—'}</span></td>
+        <td>${master.roadName || '—'}</td>
+        <td>${sd.variation || '—'}</td>
+        <td>${sd.condition || '—'}</td>
+        <td class="market-val">${sd.salePrice ? '$' + parseFloat(sd.salePrice).toLocaleString() : '—'}</td>
+        <td class="text-dim">${sd.dateSold || '—'}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">💰</div><p>No sold items yet</p></div></td></tr>';
+  }
 
   document.getElementById('nav-sold').textContent = soldEntries.length;
 }
