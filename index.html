@@ -687,15 +687,13 @@
           My Collection
           <span class="nav-badge green" id="nav-owned">—</span>
         </button>
-        <button class="nav-item" onclick="showPage('browse', this); filterWanted()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
-          Want List
-          <span class="nav-badge" id="nav-wanted" style="background:var(--accent2);color:#000">—</span>
-        </button>
+
         <button class="nav-item" onclick="showPage('want', this); buildWantPage();">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
           Want List
-             <button class="nav-item" onclick="showPage('sold', this)">
+          <span class="nav-badge" id="nav-wanted2" style="background:var(--accent2);color:#000">—</span>
+        </button>
+        <button class="nav-item" onclick="showPage('sold', this)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           Sold Items
           <span class="nav-badge" id="nav-sold" style="background:#9b59b6">—</span>
@@ -1957,7 +1955,7 @@ function buildDashboard() {
   document.getElementById('nav-total').textContent = total.toLocaleString();
   document.getElementById('nav-owned').textContent = owned.toLocaleString();
   const wantListCount = Object.keys(state.wantData).length;
-  document.getElementById('nav-wanted').textContent = wantListCount.toLocaleString();
+  document.getElementById('nav-wanted2').textContent = wantListCount.toLocaleString();
   if (document.getElementById('nav-sold')) document.getElementById('nav-sold').textContent = soldCount;
 
   // Category breakdown
@@ -2532,6 +2530,9 @@ function exportReport() {
 function buildWantPage() {
   const isMobile = window.innerWidth <= 640;
   const entries = Object.values(state.wantData);
+  // Keep count badge in sync
+  const countBadge = document.getElementById('nav-wanted2');
+  if (countBadge) countBadge.textContent = entries.length.toLocaleString();
   const cardsEl = document.getElementById('want-cards');
   const tableEl = document.getElementById('want-table');
   const tbody   = document.getElementById('want-tbody');
@@ -2577,17 +2578,38 @@ function buildWantPage() {
     tbody.innerHTML = entries.map(w => {
       const master = state.masterData.find(m => m.itemNum === w.itemNum && (!w.variation || m.variation === w.variation));
       const name = master ? (master.roadName || master.description || '') : '';
+      const fullDesc = master ? (master.description || '') : '';
       const pColor = priorityColor[w.priority] || 'var(--text-dim)';
+      const shortName = name.length > 28 ? name.substring(0, 28) + '…' : name;
+      const nameCell = name
+        ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border)" onclick="showWantDesc(${JSON.stringify(name)},${JSON.stringify(fullDesc)})">${shortName}</span>`
+        : '<span class="text-dim">—</span>';
       return `<tr>
         <td><span class="item-num">${w.itemNum}</span></td>
-        <td>${name || '<span class="text-dim">—</span>'}</td>
+        <td>${nameCell}</td>
         <td>${w.variation || '<span class="text-dim">—</span>'}</td>
         <td><span style="color:${pColor};font-weight:500">${w.priority || 'Medium'}</span></td>
         <td class="market-val">${w.expectedPrice ? '$' + parseFloat(w.expectedPrice).toLocaleString() : '<span class="text-dim">—</span>'}</td>
-        <td class="text-dim">${w.notes || '—'}</td>
+        <td class="text-dim" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${w.notes || '—'}</td>
       </tr>`;
     }).join('') || '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">No items on want list</td></tr>';
   }
+}
+
+function showWantDesc(name, desc) {
+  const existing = document.getElementById('want-desc-modal');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'want-desc-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.5rem;position:relative">
+      <button onclick="document.getElementById('want-desc-modal').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;line-height:1">✕</button>
+      <div style="font-family:var(--font-head);font-size:1rem;color:var(--accent2);margin-bottom:0.75rem">${name}</div>
+      <div style="font-size:0.85rem;color:var(--text-mid);line-height:1.7">${desc || name}</div>
+    </div>`;
+  document.body.appendChild(overlay);
 }
 
 function buildSoldPage() {
