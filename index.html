@@ -1563,17 +1563,15 @@ async function createPersonalSheet() {
 async function loadAllData() {
   showLoading();
   try {
-    console.log('loadAllData: starting, accessToken present:', !!accessToken);
     await loadMasterData();
-    console.log('loadAllData: master loaded, rows:', state.masterData.length);
     await loadPersonalData();
-    console.log('loadAllData: personal loaded, keys:', Object.keys(state.personalData).length);
     buildApp();
-    console.log('loadAllData: buildApp done');
+    // Re-render dashboard after short delay to ensure DOM is ready (fixes mobile timing)
+    setTimeout(() => { buildDashboard(); renderBrowse(); }, 300);
   } catch(e) {
     console.error('Load error:', e.message, e.stack);
     showToast('Error loading data: ' + e.message);
-    document.getElementById('browse-tbody').innerHTML = 
+    document.getElementById('browse-tbody').innerHTML =
       '<tr><td colspan="8" style="padding:2rem;color:var(--red);text-align:center">Error loading data: ' + e.message + '<br><small>Pull down to refresh</small></td></tr>';
   }
 }
