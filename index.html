@@ -1566,8 +1566,10 @@ async function loadAllData() {
     await loadMasterData();
     await loadPersonalData();
     buildApp();
-    // Re-render dashboard after short delay to ensure DOM is ready (fixes mobile timing)
-    setTimeout(() => { buildDashboard(); renderBrowse(); }, 300);
+    // Re-render multiple times to fix mobile timing issues
+    setTimeout(() => buildDashboard(), 500);
+    setTimeout(() => buildDashboard(), 1500);
+    setTimeout(() => buildDashboard(), 3000);
   } catch(e) {
     console.error('Load error:', e.message, e.stack);
     showToast('Error loading data: ' + e.message);
