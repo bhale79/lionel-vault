@@ -1601,6 +1601,25 @@ async function driveEnsureItemFolder(itemNum) {
   return folderId;
 }
 
+async function driveGetFolderPhotos(folderLink) {
+  // Extract folder ID from link
+  const match = (folderLink || '').match(/folders\/([a-zA-Z0-9_-]+)/);
+  if (!match) return [];
+  const folderId = match[1];
+  try {
+    const q = encodeURIComponent(`'${folderId}' in parents and mimeType contains 'image/' and trashed=false`);
+    const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&orderBy=name&spaces=drive`);
+    return (res.files || []).map(function(f) {
+      return {
+        id: f.id,
+        name: f.name,
+        thumb: 'https://drive.google.com/thumbnail?id=' + f.id + '&sz=w240',
+        view:  'https://drive.google.com/file/d/' + f.id + '/view',
+      };
+    });
+  } catch(e) { return []; }
+}
+
 function driveFolderLink(folderId) {
   return `https://drive.google.com/drive/folders/${folderId}`;
 }
@@ -2369,6 +2388,42 @@ function showItemPanel(idx, pdKey, mode) {
     { label: 'Date Purchased',key: 'datePurchased', val: pd.datePurchased || '—', type: 'date' },
     { label: 'Notes',         key: 'notes',         val: pd.notes || '—',         type: 'text' },
   ];
+
+  // ── Photos section ──
+  const photoSection = document.createElement('div');
+  photoSection.id = 'item-panel-photos';
+  photoSection.style.cssText = 'padding:0.75rem 0;border-bottom:1px solid var(--border);margin-bottom:0.25rem';
+  if (pd.photoItem) {
+    photoSection.innerHTML = '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:0.08em">Photos</div>'
+      + '<div id="photo-thumb-row" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">'
+      + '<div style="font-size:0.75rem;color:var(--text-dim)">Loading photos…</div></div>'
+      + '<a href="' + pd.photoItem + '" target="_blank" style="font-size:0.72rem;color:#2980b9;display:inline-block;margin-top:0.4rem">📁 Open Drive Folder ↗</a>';
+    body.appendChild(photoSection);
+    // Load thumbnails async
+    driveGetFolderPhotos(pd.photoItem).then(function(photos) {
+      const thumbRow = document.getElementById('photo-thumb-row');
+      if (!thumbRow) return;
+      if (photos.length === 0) {
+        thumbRow.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">No photos yet</span>';
+        return;
+      }
+      thumbRow.innerHTML = '';
+      photos.forEach(function(p) {
+        const a = document.createElement('a');
+        a.href = p.view; a.target = '_blank'; a.title = p.name;
+        a.style.cssText = 'display:inline-block;border-radius:8px;overflow:hidden;border:1px solid var(--border);flex-shrink:0';
+        const img = document.createElement('img');
+        img.src = p.thumb;
+        img.style.cssText = 'width:72px;height:72px;object-fit:cover;display:block';
+        img.onerror = function() { a.style.display = 'none'; };
+        a.appendChild(img);
+        thumbRow.appendChild(a);
+      });
+    });
+  } else {
+    photoSection.innerHTML = '<div style="font-size:0.75rem;color:var(--text-dim)">No photos on file</div>';
+    body.appendChild(photoSection);
+  }
 
   // Track which field is being edited
   let editingKey = null;
