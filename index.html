@@ -653,10 +653,7 @@
       <div style="font-size:1.4rem;letter-spacing:0.05em;color:#2980b9">My Train Collection</div>
       <div style="font-size:0.65rem;letter-spacing:0.12em;color:#2980b9;opacity:0.8;margin-top:1px">POST WAR &nbsp;1945–1969</div>
     </div>
-    <div class="header-search">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input id="global-search" type="text" placeholder="Search item number, road name, description…" oninput="onGlobalSearch(this.value)">
-    </div>
+
     <div class="header-right">
       <div class="user-chip">
         <div class="user-avatar" id="user-avatar">?</div>
@@ -781,7 +778,10 @@
           <select class="filter-select" id="filter-road" onchange="applyFilters()">
             <option value="">All Roads</option>
           </select>
-
+          <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.35rem 0.65rem;flex:1;max-width:320px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input id="browse-search" type="text" placeholder="Search item #, road, description…" oninput="onPageSearch(this.value,"browse")" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:100%">
+          </div>
           <span style="margin-left:auto;font-size:0.8rem;color:var(--text-dim)" id="result-count"></span>
         </div>
 
@@ -837,6 +837,12 @@
           </div>
         </div>
 
+        <div style="margin-bottom:0.75rem">
+          <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.35rem 0.65rem;flex:1;max-width:320px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input id="sold-search" type="text" placeholder="Search item #, road, type…" oninput="onPageSearch(this.value,"sold")" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:100%">
+          </div>
+        </div>
         <div id="sold-cards" style="display:none;flex-direction:column;gap:0.6rem"></div>
         <div class="table-wrap" id="sold-table-wrap">
           <table class="item-table">
@@ -864,6 +870,12 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
             Add to Want List
           </button>
+        </div>
+        <div style="margin-bottom:0.75rem">
+          <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.35rem 0.65rem;flex:1;max-width:320px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input id="want-search" type="text" placeholder="Search item #, road, notes…" oninput="onPageSearch(this.value,"want")" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:100%">
+          </div>
         </div>
         <div id="want-cards" style="display:flex;flex-direction:column;gap:0.6rem"></div>
         <div class="table-wrap" style="margin-top:0">
@@ -2145,10 +2157,19 @@ function filterWanted() {
 }
 function filterByType(type) { document.getElementById('filter-type').value = type; showPage('browse'); applyFilters(); }
 
-function onGlobalSearch(val) {
-  state.filters.search = val.toLowerCase();
-  state.currentPage = 1;
-  renderBrowse();
+function onPageSearch(val, page) {
+  const q = val.toLowerCase();
+  if (page === 'browse') {
+    state.filters.search = q;
+    state.currentPage = 1;
+    renderBrowse();
+  } else if (page === 'sold') {
+    state._soldSearch = q;
+    buildSoldPage();
+  } else if (page === 'want') {
+    state._wantSearch = q;
+    buildWantPage();
+  }
 }
 
 function buildBrowse() { renderBrowse(); }
@@ -3267,7 +3288,16 @@ function exportReport() {
 // ── NAVIGATION ──────────────────────────────────────────────────
 function buildWantPage() {
   const isMobile = window.innerWidth <= 640;
-  const entries = Object.values(state.wantData);
+  const _wq = (state._wantSearch || '').toLowerCase();
+  const entries = Object.values(state.wantData).filter(w => {
+    if (!_wq) return true;
+    const master = state.masterData.find(m => m.itemNum === w.itemNum && (!w.variation || m.variation === w.variation)) || {};
+    return (w.itemNum||'').toLowerCase().includes(_wq)
+      || (master.roadName||'').toLowerCase().includes(_wq)
+      || (master.itemType||'').toLowerCase().includes(_wq)
+      || (w.variation||'').toLowerCase().includes(_wq)
+      || (w.notes||'').toLowerCase().includes(_wq);
+  });
   // Keep count badge in sync
   const countBadge = document.getElementById('nav-wanted2');
   if (countBadge) countBadge.textContent = entries.length.toLocaleString();
@@ -3412,7 +3442,15 @@ function toggleSoldSummary() {
 }
 
 function buildSoldPage() {
-  const soldEntries = Object.values(state.soldData);
+  const _sq = (state._soldSearch || '').toLowerCase();
+  const soldEntries = Object.values(state.soldData).filter(sd => {
+    if (!_sq) return true;
+    const master = state.masterData.find(i => i.itemNum === sd.itemNum && i.variation === sd.variation) || {};
+    return (sd.itemNum||'').toLowerCase().includes(_sq)
+      || (master.roadName||'').toLowerCase().includes(_sq)
+      || (master.itemType||'').toLowerCase().includes(_sq)
+      || (sd.variation||'').toLowerCase().includes(_sq);
+  });
   const tbody = document.getElementById('sold-tbody');
 
   // Populate summary stats
@@ -3473,6 +3511,12 @@ function buildSoldPage() {
   }
 
   document.getElementById('nav-sold').textContent = soldEntries.length;
+}
+
+function clearPageSearch(name) {
+  const map = { browse: 'browse-search', sold: 'sold-search', want: 'want-search' };
+  const el = document.getElementById(map[name]);
+  // Don't clear — keep search term when returning to same page
 }
 
 function showPage(name, clickedEl) {
