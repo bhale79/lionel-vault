@@ -3,12 +3,23 @@
 <head>
 <meta charset="UTF-8">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🚂</text></svg>">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230e0f11'/><text y='0.9em' font-size='80'>🚂</text></svg>">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Lionel Vault">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0e0f11">
+  <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Lionel Vault&quot;,&quot;short_name&quot;:&quot;Lionel Vault&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%230e0f11&quot;,&quot;theme_color&quot;:&quot;%230e0f11&quot;,&quot;icons&quot;:[{&quot;src&quot;:&quot;data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230e0f11'/><text y='0.9em' font-size='80'>🚂</text></svg>&quot;,&quot;sizes&quot;:&quot;any&quot;,&quot;type&quot;:&quot;image/svg+xml&quot;}]}">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Lionel Vault — Postwar Collector's Inventory</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   /* ── Reset & Variables ─────────────────────────────────────── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  /* Prevent iOS auto-zoom on inputs */
+  @media (max-width: 640px) {
+    input, select, textarea { font-size: 16px !important; }
+  }
 
   :root {
     --bg:        #0e0f11;
@@ -447,12 +458,82 @@
     transition: color 0.15s; border-radius: 8px;
   }
   .mobile-nav-item.active { color: var(--accent); }
+  .mobile-add-btn { color: var(--text-dim) !important; padding-top: 0 !important; }
 
   @media (max-width: 640px) {
+    /* Layout */
     .sidebar { display: none; }
     .mobile-nav { display: block; }
-    .main { padding: 1rem; }
+    .app-layout { padding-bottom: 64px; } /* room for bottom nav */
+    .main { padding: 0.75rem 0.75rem 1rem; }
     .stats-grid { grid-template-columns: 1fr 1fr; }
+
+    /* Browse — switch from table to cards on mobile */
+    .browse-table-wrap { overflow-x: visible !important; }
+    .item-table { display: none; }
+    #browse-cards { display: flex; flex-direction: column; gap: 0.5rem; }
+    .browse-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      transition: background 0.15s;
+    }
+    .browse-card:active { background: var(--surface2); }
+    .browse-card-left { flex: 1; min-width: 0; }
+    .browse-card-num { font-family: var(--font-head); font-size: 1.1rem; color: var(--accent); }
+    .browse-card-name { font-size: 0.85rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .browse-card-sub { font-size: 0.72rem; color: var(--text-dim); margin-top: 0.15rem; }
+    .browse-card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; flex-shrink: 0; }
+
+    /* Filters bar on mobile */
+    .filter-bar { gap: 0.4rem; flex-wrap: wrap; }
+    .filter-bar input { font-size: 16px !important; } /* prevent iOS zoom */
+
+    /* Wizard modal — full screen on mobile */
+    .wizard-modal-inner {
+      width: 100% !important;
+      max-width: 100% !important;
+      height: 100dvh !important;
+      max-height: 100dvh !important;
+      border-radius: 0 !important;
+      margin: 0 !important;
+    }
+
+    /* Photo grid — single column on small screens */
+    #photo-grid { grid-template-columns: 1fr 1fr 1fr !important; gap: 0.4rem !important; }
+
+    /* Buttons — bigger tap targets */
+    .btn { min-height: 44px; }
+    .page-btn { min-width: 40px; min-height: 40px; }
+
+    /* Modal full screen */
+    .modal-inner { width: 100% !important; max-width: 100% !important;
+      margin: 0 !important; border-radius: 0 !important;
+      max-height: 100dvh !important; height: 100dvh !important; }
+
+    /* Fix safe areas for notched phones */
+    .mobile-nav {
+      padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+      height: calc(60px + env(safe-area-inset-bottom));
+    }
+    .app-layout { padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
+    .main {
+      padding-top: 0.75rem;
+      padding-left: max(0.75rem, env(safe-area-inset-left));
+      padding-right: max(0.75rem, env(safe-area-inset-right));
+    }
+    /* Bigger stat cards on mobile */
+    .stat-card { padding: 1rem; }
+    .stat-val { font-size: 1.6rem; }
+    /* Search bar full width */
+    #search-input { width: 100%; }
+    /* Dashboard recent items as cards */
+    .two-col { gap: 0.75rem; }
   }
 
   /* ── Utility ───────────────────────────────────────────────── */
@@ -679,6 +760,7 @@
             </thead>
             <tbody id="browse-tbody"></tbody>
           </table>
+          <div id="browse-cards" style="display:none"></div>
           <div class="table-pagination">
             <span id="page-info"></span>
             <div class="pagination-btns" id="pagination-btns"></div>
@@ -742,20 +824,26 @@
   <!-- Mobile nav -->
   <nav class="mobile-nav">
     <div class="mobile-nav-items">
-      <button class="mobile-nav-item active" onclick="showPage('dashboard', this)">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      <button class="mobile-nav-item active" id="mnav-dashboard" onclick="showPage('dashboard', this)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         Dashboard
       </button>
-      <button class="mobile-nav-item" onclick="showPage('browse', this)">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      <button class="mobile-nav-item" id="mnav-browse" onclick="showPage('browse', this); resetFilters(); renderBrowse();">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         Browse
       </button>
-      <button class="mobile-nav-item" onclick="showPage('sold', this)">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      <button class="mobile-nav-item mobile-add-btn" onclick="openWizard()">
+        <div style="width:44px;height:44px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:-8px;box-shadow:0 4px 12px rgba(232,64,28,0.5)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+        Add
+      </button>
+      <button class="mobile-nav-item" id="mnav-sold" onclick="showPage('sold', this)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         Sold
       </button>
-      <button class="mobile-nav-item" onclick="showPage('reports', this)">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+      <button class="mobile-nav-item" id="mnav-reports" onclick="showPage('reports', this)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         Reports
       </button>
     </div>
@@ -1761,24 +1849,65 @@ function renderBrowse() {
 
   // Rows
   const tbody = document.getElementById('browse-tbody');
-  tbody.innerHTML = pageData.map((item, i) => {
+  const isMobile = window.innerWidth <= 640;
+  const cardsEl = document.getElementById('browse-cards');
+  const tableEl = document.querySelector('.item-table');
+
+  if (isMobile) {
+    if (tableEl) tableEl.style.display = 'none';
+    if (cardsEl) cardsEl.style.display = 'flex';
+  } else {
+    if (tableEl) tableEl.style.display = '';
+    if (cardsEl) cardsEl.style.display = 'none';
+  }
+
+  const rowsHtml = pageData.map((item, i) => {
     const pd = findPD(item.itemNum, item.variation);
     const isOwned = pd?.owned || false;
     const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
     const cond = pd?.condition ? parseInt(pd.condition) : null;
     const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
     const globalIdx = state.masterData.indexOf(item);
-    return `<tr onclick="openItem(${globalIdx})">
-      <td><span class="item-num">${item.itemNum}</span></td>
-      <td><span class="tag">${item.itemType || '—'}</span></td>
-      <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
-      <td>${item.variation || '<span class="text-dim">—</span>'}</td>
-      <td class="text-dim">${item.yearProd || '—'}</td>
-      <td><span class="owned-badge ${isOwned ? 'yes' : isWanted ? 'want' : 'no'}">${isOwned ? '✓ Owned' : isWanted ? '★ Want' : '—'}</span></td>
-      <td>${cond ? `<span class="condition-pip ${condClass}"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
-      <td class="market-val">${item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '<span class="text-dim">—</span>'}</td>
-    </tr>`;
-  }).join('') || '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p></div></td></tr>';
+    const badgeClass = isOwned ? 'yes' : isWanted ? 'want' : 'no';
+    const badgeText  = isOwned ? '✓ Owned' : isWanted ? '★ Want' : '—';
+    const marketVal  = item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '';
+
+    if (isMobile) {
+      return `<div class="browse-card" onclick="openItem(${globalIdx})">
+        <div class="browse-card-left">
+          <div class="browse-card-num">${item.itemNum}${item.variation ? ' <span style="font-size:0.75rem;color:var(--text-dim)">${item.variation}</span>' : ''}</div>
+          <div class="browse-card-name">${item.roadName || item.itemType || '—'}</div>
+          <div class="browse-card-sub">${[item.itemType, item.yearProd].filter(Boolean).join(' · ')}</div>
+        </div>
+        <div class="browse-card-right">
+          <span class="owned-badge ${badgeClass}">${badgeText}</span>
+          ${cond ? `<span style="font-size:0.75rem"><span class="condition-pip ${condClass}"></span>${cond}</span>` : ''}
+          ${marketVal ? `<span class="market-val" style="font-size:0.78rem">${marketVal}</span>` : ''}
+        </div>
+      </div>`;
+    } else {
+      return `<tr onclick="openItem(${globalIdx})">
+        <td><span class="item-num">${item.itemNum}</span></td>
+        <td><span class="tag">${item.itemType || '—'}</span></td>
+        <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
+        <td>${item.variation || '<span class="text-dim">—</span>'}</td>
+        <td class="text-dim">${item.yearProd || '—'}</td>
+        <td><span class="owned-badge ${badgeClass}">${badgeText}</span></td>
+        <td>${cond ? `<span class="condition-pip ${condClass}"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
+        <td class="market-val">${item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '<span class="text-dim">—</span>'}</td>
+      </tr>`;
+    }
+  });
+
+  const emptyHtml = isMobile
+    ? '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔍</div><p>No items match your filters</p></div>'
+    : '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p></div></td></tr>';
+
+  if (isMobile) {
+    if (cardsEl) cardsEl.innerHTML = rowsHtml.join('') || emptyHtml;
+  } else {
+    tbody.innerHTML = rowsHtml.join('') || emptyHtml;
+  }
 
   // Pagination
   const paginEl = document.getElementById('pagination-btns');
@@ -2489,7 +2618,7 @@ function renderWizardStep() {
                 <div style="color:white;font-size:0.75rem">Uploading…</div>
               </div>
             </div>
-            <input type="file" id="file-${s.id}-${v.key}" accept="image/*" style="display:none"
+            <input type="file" id="file-${s.id}-${v.key}" accept="image/*" capture="environment" style="display:none"
               onchange="handlePhotoFile(event,'${s.id}','${v.key}')">`;
           }).join('')}
         </div>
