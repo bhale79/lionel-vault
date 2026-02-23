@@ -1130,9 +1130,8 @@ function initGoogle() {
     state.user = JSON.parse(savedUser);
     state.personalSheetId = savedPersonalId;
     showApp();
-    showLoading(); // show spinner immediately — data loads after token arrives
+    showLoading(); // show spinner — onTokenReceived will call loadAllData once token is ready
     const savedEmail = state.user?.email || '';
-    // Use login_hint so Google skips the account picker on mobile
     tokenClient.requestAccessToken({ prompt: '', login_hint: savedEmail });
   }
 }
@@ -1183,14 +1182,17 @@ function onTokenReceived(resp) {
     updateUserUI();
   }
 
-  // Master sheet is hardcoded — no setup step needed
+  // Master sheet is hardcoded
   state.masterSheetId = '1cLmCcI4Ekao2gn-TntAGjhsPrIYe39-cX6rV1WAyDCM';
   localStorage.setItem('lv_master_id', state.masterSheetId);
+
+  // Always re-read personalSheetId from localStorage (mobile may not have it in state yet)
   state.personalSheetId = localStorage.getItem('lv_personal_id');
+  console.log('onTokenReceived: personalSheetId =', state.personalSheetId, '| token ok =', !!accessToken);
+
   if (!state.personalSheetId) {
     createPersonalSheet().then(loadAllData);
   } else {
-    // Warm up drive cache for existing users
     driveEnsureSetup().catch(e => console.warn('Drive setup:', e));
     loadAllData();
   }
@@ -1560,13 +1562,18 @@ async function createPersonalSheet() {
 async function loadAllData() {
   showLoading();
   try {
+    console.log('loadAllData: starting, accessToken present:', !!accessToken);
     await loadMasterData();
+    console.log('loadAllData: master loaded, rows:', state.masterData.length);
     await loadPersonalData();
+    console.log('loadAllData: personal loaded, keys:', Object.keys(state.personalData).length);
     buildApp();
+    console.log('loadAllData: buildApp done');
   } catch(e) {
-    console.error('Load error:', e);
+    console.error('Load error:', e.message, e.stack);
+    showToast('Error loading data: ' + e.message);
     document.getElementById('browse-tbody').innerHTML = 
-      '<tr><td colspan="8" style="padding:2rem;color:var(--red);text-align:center">Error loading data: ' + e.message + '<br><small>Check that your Master Sheet is shared as \'Anyone with the link can view\'</small></td></tr>';
+      '<tr><td colspan="8" style="padding:2rem;color:var(--red);text-align:center">Error loading data: ' + e.message + '<br><small>Pull down to refresh</small></td></tr>';
   }
 }
 
@@ -1691,6 +1698,19 @@ function showLoading() {
 }
 
 // ── DASHBOARD ───────────────────────────────────────────────────
+function showDebugInfo() {
+  const info = [
+    'personalSheetId: ' + (state.personalSheetId || 'MISSING'),
+    'masterSheetId: ' + (state.masterSheetId || 'MISSING'),
+    'accessToken: ' + (accessToken ? 'YES (' + accessToken.substring(0,10) + '...)' : 'MISSING'),
+    'masterData rows: ' + state.masterData.length,
+    'personalData keys: ' + Object.keys(state.personalData).length,
+    'lv_personal_id: ' + (localStorage.getItem('lv_personal_id') || 'MISSING'),
+    'lv_vault_id: ' + (localStorage.getItem('lv_vault_id') || 'MISSING'),
+  ].join('\n');
+  alert(info);
+}
+
 function buildDashboard() {
   const total = state.masterData.length;
   // Count ALL owned entries including box-only rows
