@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="Lionel Vault">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0e0f11">
-  <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Lionel Vault&quot;,&quot;short_name&quot;:&quot;Lionel Vault&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%230e0f11&quot;,&quot;theme_color&quot;:&quot;%230e0f11&quot;,&quot;icons&quot;:[{&quot;src&quot;:&quot;data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230e0f11'/><text y='0.9em' font-size='80'>🚂</text></svg>&quot;,&quot;sizes&quot;:&quot;any&quot;,&quot;type&quot;:&quot;image/svg+xml&quot;}]}">
+  <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Lionel Vault&quot;,&quot;short_name&quot;:&quot;Lionel Vault&quot;,&quot;start_url&quot;:&quot;/lionel-vault/&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%230e0f11&quot;,&quot;theme_color&quot;:&quot;%230e0f11&quot;,&quot;icons&quot;:[{&quot;src&quot;:&quot;data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230e0f11'/><text y='0.9em' font-size='80'>🚂</text></svg>&quot;,&quot;sizes&quot;:&quot;any&quot;,&quot;type&quot;:&quot;image/svg+xml&quot;}]}">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Lionel Vault — Postwar Collector's Inventory</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -2397,7 +2397,7 @@ function buildWantPage() {
   const priorityColor = { High: 'var(--accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
 
   if (entries.length === 0) {
-    const empty = '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">❤️</div><p>Your want list is empty</p><p style="font-size:0.8rem;margin-top:0.5rem">Add items you're looking for</p></div>';
+    const empty = `<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">❤️</div><p>Your want list is empty</p><p style="font-size:0.8rem;margin-top:0.5rem">Add items you're looking for</p></div>`;
     if (cardsEl) cardsEl.innerHTML = empty;
     if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">No items on want list</td></tr>';
     return;
