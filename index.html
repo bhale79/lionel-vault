@@ -1154,7 +1154,7 @@ const PERSONAL_HEADERS = [
   'Item Number','Variation','Condition (1-10)','All Original',
   'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
   'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes',
-  'Date Purchased','User Est. Worth','Matched Tender/Engine','Set ID'
+  'Date Purchased','User Est. Worth','Matched Tender/Engine','Set ID','Year Made'
 ];
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
@@ -1417,10 +1417,10 @@ async function initPersonalSheet(sheetId) {
   if (rows.length === 0 || !rows[0] || rows[0].length === 0) {
     // Brand new sheet — write title row 1 and headers row 2
     await sheetsUpdate(sheetId, 'My Collection!A1:A1', [['My Collection']]);
-    await sheetsUpdate(sheetId, 'My Collection!A2:P2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:Q2', [PERSONAL_HEADERS]);
   } else if (rows.length === 1 || !rows[1] || rows[1].length < 13) {
     // Has title but missing/old headers — rewrite row 2
-    await sheetsUpdate(sheetId, 'My Collection!A2:P2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:Q2', [PERSONAL_HEADERS]);
   }
   // Get existing sheet tab names
   const metaRes = await fetch(
@@ -1757,7 +1757,7 @@ async function createPersonalSheet() {
 
   // 3. Write headers and create all tabs
   await sheetsUpdate(state.personalSheetId, 'My Collection!A1:A1', [['My Collection']]);
-  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:P2', [PERSONAL_HEADERS]);
+  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:Q2', [PERSONAL_HEADERS]);
   await initPersonalSheet(state.personalSheetId);
 
   // 4. Move the sheet file into the vault folder
@@ -1856,6 +1856,7 @@ async function loadPersonalData() {
       userEstWorth: r[13] || '',
       matchedTo:    r[14] || '',
       setId:        r[15] || '',
+      yearMade:     r[16] || '',
     };
   });
   } catch(e) { console.error('My Collection load error:', e); }
@@ -2865,6 +2866,7 @@ function getSteps(tab) {
       // ── PRICING (pricePaid handles all cases; save logic splits if paired/set) ──
       { id: 'pricePaid',    title: 'What did you pay?',                    type: 'pricePaid',
         note: (d) => isPaired(d) || d.setMatch === 'set-now' ? 'Full price goes to the first unit — other units will reference it in their notes.' : '' },
+      { id: 'yearMade', title: 'What year do you think this was made?',      type: 'yearMade', optional: true },
       { id: 'datePurchased', title: 'When did you purchase?',               type: 'date',     optional: true },
       { id: 'userEstWorth',  title: 'What do you estimate it is worth?',
         type: 'money', placeholder: '0.00', optional: true,
@@ -3184,6 +3186,30 @@ function renderWizardStep() {
         ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
       </div>`;
     setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
+
+  } else if (s.type === 'yearMade') {
+    const wData = wizard.data;
+    const itemNum  = (wData.itemNum  || '').trim();
+    const variation = (wData.variation || '').trim();
+    // Find the production year range from master data for this item/variation
+    const match = state.masterData.find(m =>
+        normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum) &&
+        (!variation || m.variation === variation)
+      ) || state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum));
+    const yearRange = match ? (match.yearProd || '') : '';
+    const curr = wData.yearMade || '';
+    body.innerHTML = '<div style="padding-top:0.75rem">'
+      + (yearRange
+          ? '<div style="font-size:0.82rem;margin-bottom:0.75rem;padding:0.6rem 0.85rem;border-radius:8px;background:rgba(41,128,185,0.1);border:1px solid rgba(41,128,185,0.3);color:#2980b9">'
+            + '<span style="font-weight:600">Production range for this variation:</span> ' + yearRange
+            + '</div>'
+          : '')
+      + '<input type="number" id="wiz-year-input" value="' + curr + '" placeholder="e.g. 1952" min="1945" max="1969" '
+      + 'style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;color:var(--text);font-family:var(--font-mono);font-size:1.2rem;outline:none;letter-spacing:0.1em" '
+      + 'oninput="wizard.data.yearMade=this.value" onkeydown="if(event.key==='Enter')wizardNext()">'
+      + '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — if no year entered, the production range above will be used.</div>'
+      + '</div>';
+    setTimeout(function() { const i = document.getElementById('wiz-year-input'); if(i) i.focus(); }, 50);
 
   } else if (s.type === 'date') {
     const val = wizard.data[s.id] || '';
@@ -4093,6 +4119,7 @@ async function saveWizardItem() {
           engineWorth,
           d.tenderMatch && d.tenderMatch !== 'none' ? d.tenderMatch : '',
           '',  // Set ID — filled in after save if set unit
+          d.yearMade || '',  // Year Made (col Q)
         ];
       }
       // ── SET UNIT SAVE: if diesel set, save unit2 (and unit3) rows with shared Set ID ──
