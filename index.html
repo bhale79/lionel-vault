@@ -2618,7 +2618,7 @@ function getSteps(tab) {
         type: 'choice2', choices: ['Yes','No'], skipIf: (d) => !isPaired(d) },
       { id: 'photosTogether',   title: 'Add photos of the engine and tender together',
         type: 'drivePhotos', label: 'Set',
-        note: () => 'These photos will be filed under the engine's Drive folder.',
+        note: () => 'These photos will be filed under the engine Drive folder.',
         skipIf: (d) => !isPaired(d) || d.wantTogetherPhotos !== 'Yes' },
 
       { id: 'notes',        title: 'Any notes?',                           type: 'textarea', optional: true },
