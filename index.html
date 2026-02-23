@@ -1547,15 +1547,23 @@ async function ensureEphemeraSheets(sheetId) {
       body: JSON.stringify({ requests: toCreate }),
     });
   }
-  // Write headers
-  await sheetsUpdate(sheetId, 'Catalogs!A1:A1',    [['Catalogs']]);
-  await sheetsUpdate(sheetId, 'Catalogs!A2:H2',    [CATALOG_HEADERS]);
-  await sheetsUpdate(sheetId, 'Paper Items!A1:A1', [['Paper Items']]);
-  await sheetsUpdate(sheetId, 'Paper Items!A2:J2', [EPHEMERA_HEADERS]);
-  await sheetsUpdate(sheetId, 'Mock-Ups!A1:A1',    [['Mock-Ups']]);
-  await sheetsUpdate(sheetId, 'Mock-Ups!A2:O2',    [MOCKUP_HEADERS]);
-  await sheetsUpdate(sheetId, 'Other Lionel!A1:A1',[['Other Lionel']]);
-  await sheetsUpdate(sheetId, 'Other Lionel!A2:J2',[EPHEMERA_HEADERS]);
+  // Write headers — clear extra columns first to fix any stale headers
+  // Clear row 1 and row 2 across all ephemera tabs (A1:P covers any previous wide headers)
+  const _clearReqs = ['Catalogs','Paper Items','Mock-Ups','Other Lionel'].map(t => ({
+    updateCells: {
+      range: { sheetId: 0, startRowIndex: 0, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 16 },
+      fields: 'userEnteredValue',
+    }
+  }));
+  // Use values API to clear then rewrite cleanly
+  await sheetsUpdate(sheetId, 'Catalogs!A1:P1',    [['Catalogs','','','','','','','','','','','','','','','']]);
+  await sheetsUpdate(sheetId, 'Catalogs!A2:P2',    [CATALOG_HEADERS.concat(['','','','','','','',''])]);
+  await sheetsUpdate(sheetId, 'Paper Items!A1:P1', [['Paper Items','','','','','','','','','','','','','','','']]);
+  await sheetsUpdate(sheetId, 'Paper Items!A2:P2', [EPHEMERA_HEADERS.concat(['','','','','',''])]);
+  await sheetsUpdate(sheetId, 'Mock-Ups!A1:P1',    [['Mock-Ups','','','','','','','','','','','','','','','']]);
+  await sheetsUpdate(sheetId, 'Mock-Ups!A2:P2',    [MOCKUP_HEADERS.concat([''])]);
+  await sheetsUpdate(sheetId, 'Other Lionel!A1:P1',[['Other Lionel','','','','','','','','','','','','','','','']]);
+  await sheetsUpdate(sheetId, 'Other Lionel!A2:P2',[EPHEMERA_HEADERS.concat(['','','','','',''])]);
 }
 
 
@@ -2129,9 +2137,9 @@ async function loadPersonalData() {
   }
   // Catalogs have their own column layout
   (catRes.values || []).forEach((r, idx) => {
-    if (!r[0] || r[0] === 'Type') return;
+    if (!r[0] || r[0] === 'Type' || r[0] === 'Catalogs') return;
     const key = idx + 3;
-    const title = [r[1], r[0]].filter(Boolean).join(' '); // "Year Type"
+    const title = [r[1], r[0], r[0] ? 'Catalog' : ''].filter(Boolean).join(' '); // "1957 Advance Catalog"
     state.ephemeraData.catalogs[key] = {
       row: key, title,
       catType: r[0]||'', year: r[1]||'', hasMailer: r[2]||'No',
@@ -2141,6 +2149,14 @@ async function loadPersonalData() {
   });
   parseEphemeraRows(paperRes.values, state.ephemeraData.paper);
   parseEphemeraRows(otherRes.values, state.ephemeraData.other);
+  // Re-populate type filter now that ephemera data is loaded (only if already populated)
+  if (typeof populateFilters === 'function' && document.getElementById('filter-type') &&
+      document.getElementById('filter-type').options.length > 1) {
+    document.getElementById('filter-type').innerHTML = '<option value="">All Types</option>';
+    document.getElementById('filter-road').innerHTML = '<option value="">All Roads</option>';
+    populateFilters();
+  }
+
   // User-defined tabs — load their sheet data
   for (const ut of (state.userDefinedTabs||[])) {
     try {
@@ -2321,6 +2337,40 @@ function populateFilters() {
   const typeEl = document.getElementById('filter-type');
   types.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; typeEl.appendChild(o); });
 
+  // Add ephemera types as a group
+  const ephemeraTypes = ['Catalog','Paper Item','Mock-Up','Other Lionel'];
+  // Also add catalog sub-types actually present in data
+  const catSubTypes = [...new Set(
+    Object.values(state.ephemeraData.catalogs||{}).map(it=>it.catType).filter(Boolean)
+  )].sort();
+  const hasCatalogs = Object.keys(state.ephemeraData.catalogs||{}).length > 0;
+  const hasOtherEph = ['paper','mockups','other'].some(k => Object.keys(state.ephemeraData[k]||{}).length > 0);
+  const userEph = (state.userDefinedTabs||[]).filter(t => Object.keys(state.ephemeraData[t.id]||{}).length > 0);
+
+  if (hasCatalogs || hasOtherEph || userEph.length) {
+    const sep = document.createElement('option');
+    sep.disabled = true; sep.textContent = '── Other Items ──';
+    typeEl.appendChild(sep);
+    if (hasCatalogs) {
+      const o = document.createElement('option'); o.value = 'Catalog'; o.textContent = '📒 Catalogs (all)'; typeEl.appendChild(o);
+      catSubTypes.forEach(ct => {
+        const o2 = document.createElement('option'); o2.value = ct; o2.textContent = '  ' + ct + ' Catalog'; typeEl.appendChild(o2);
+      });
+    }
+    if (Object.keys(state.ephemeraData.paper||{}).length) {
+      const o = document.createElement('option'); o.value = 'Paper Item'; o.textContent = '📄 Paper Items'; typeEl.appendChild(o);
+    }
+    if (Object.keys(state.ephemeraData.mockups||{}).length) {
+      const o = document.createElement('option'); o.value = 'Mock-Up'; o.textContent = '🔩 Mock-Ups'; typeEl.appendChild(o);
+    }
+    if (Object.keys(state.ephemeraData.other||{}).length) {
+      const o = document.createElement('option'); o.value = 'Other Lionel'; o.textContent = '📦 Other Lionel'; typeEl.appendChild(o);
+    }
+    userEph.forEach(t => {
+      const o = document.createElement('option'); o.value = t.label; o.textContent = '⭐ ' + t.label; typeEl.appendChild(o);
+    });
+  }
+
   const roadEl = document.getElementById('filter-road');
   roads.slice(0, 80).forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; roadEl.appendChild(o); });
 }
@@ -2433,7 +2483,16 @@ function renderBrowse() {
     if (owned && !isOwned) return false;
     if (unowned && (isOwned || isWanted)) return false;
     if (boxed && !hasBox) return false;
-    if (type && item.itemType !== type) return false;
+    // If type filter is an ephemera category, hide train rows
+    if (type) {
+      const _ephTypeKeys = ['Catalog','Paper Item','Mock-Up','Other Lionel',
+        ...(state.userDefinedTabs||[]).map(t=>t.label)];
+      // Check for catalog subtype match too (e.g. "Advance")
+      const _isEphFilter = _ephTypeKeys.some(k=>k.toLowerCase()===type.toLowerCase())
+        || Object.values(state.ephemeraData.catalogs||{}).some(it=>(it.catType||'').toLowerCase()===type.toLowerCase());
+      if (_isEphFilter) return false; // hide all train rows when filtering to ephemera
+      if (item.itemType !== type) return false;
+    }
     if (road && item.roadName !== road) return false;
     if (search) {
       const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''}`.toLowerCase();
@@ -2447,21 +2506,37 @@ function renderBrowse() {
   const start = (state.currentPage - 1) * state.pageSize;
   const pageData = state.filteredData.slice(start, start + state.pageSize);
 
-  // Ephemera items — shown at bottom when in owned/collection view
+  // Ephemera items — shown when owned filter is on OR search has text OR type filter matches an ephemera category
   const _ephemeraRows = [];
-  if (state.filters.owned || state.filters._showEphemera) {
-    const _ephLabels = { catalogs:'Catalog', paper:'Paper Item', mockups:'Mock-Up', other:'Other Lionel' };
-    const _ephEmojis = { catalogs:'📒', paper:'📄', mockups:'🔩', other:'📦' };
-    const _ephColors = { catalogs:'#e67e22', paper:'#3498db', mockups:'#9b59b6', other:'#27ae60' };
+  const _ephLabels = { catalogs:'Catalog', paper:'Paper Item', mockups:'Mock-Up', other:'Other Lionel' };
+  const _ephEmojis = { catalogs:'📒', paper:'📄', mockups:'🔩', other:'📦' };
+  const _ephColors = { catalogs:'#e67e22', paper:'#3498db', mockups:'#9b59b6', other:'#27ae60' };
+  const _ephTypeMap = { 'Catalog':'catalogs', 'Paper Item':'paper', 'Mock-Up':'mockups', 'Other Lionel':'other' };
+  const sq = (state.filters.search||'').toLowerCase();
+  const tf = (state.filters.type||'').toLowerCase();
+  // Show ephemera if: owned view, searching, or type filter is an ephemera category
+  const _showEph = state.filters.owned || sq || Object.keys(_ephTypeMap).some(k => k.toLowerCase() === tf);
+  if (_showEph) {
     Object.entries(state.ephemeraData || {}).forEach(([tabId, bucket]) => {
       const items = Object.values(bucket);
       if (!items.length) return;
       const label = _ephLabels[tabId] || ((state.userDefinedTabs||[]).find(t=>t.id===tabId)||{}).label || tabId;
       const emoji = _ephEmojis[tabId] || '⭐';
       const color = _ephColors[tabId] || '#f39c12';
-      // Search filter
-      const sq = (state.filters.search||'').toLowerCase();
-      const filtered = sq ? items.filter(it => `${it.title||''} ${it.year||''} ${it.notes||''} ${it.catType||''}`.toLowerCase().includes(sq)) : items;
+      // Type filter: if a specific ephemera type is selected, only show that bucket
+      if (tf && Object.keys(_ephTypeMap).some(k=>k.toLowerCase()===tf) && label.toLowerCase() !== tf) return;
+      // Also filter by catType if type filter matches a subtype like "Advance", "Consumer"
+      const filtered = items.filter(it => {
+        // Search filter across all fields
+        if (sq && !`${it.title||''} ${it.year||''} ${it.notes||''} ${it.catType||''} ${label}`.toLowerCase().includes(sq)) return false;
+        // Type dropdown filter — match label (Catalog) or catType (Advance/Consumer/Dealer)
+        if (tf) {
+          const matchesLabel = label.toLowerCase().includes(tf);
+          const matchesCatType = (it.catType||'').toLowerCase().includes(tf);
+          if (!matchesLabel && !matchesCatType) return false;
+        }
+        return true;
+      });
       if (!filtered.length) return;
       _ephemeraRows.push({ _divider: true, label: emoji + ' ' + label + 's', color });
       filtered.sort((a,b)=>(b.row||0)-(a.row||0)).forEach(it => {
@@ -5569,21 +5644,43 @@ async function saveCatalogItem() {
     photoFolderLink,
   ];
   try {
-    await sheetsAppend(state.personalSheetId, 'Catalogs', [row]);
-    const newKey = Date.now();
+    // Ensure Catalogs tab exists with proper headers before appending
+    await ensureEphemeraSheets(state.personalSheetId);
+    console.log('[Catalog save] Writing row:', JSON.stringify(row));
+    const appendResult = await sheetsAppend(state.personalSheetId, 'Catalogs!A:H', [row]);
+    console.log('[Catalog save] Append result:', JSON.stringify(appendResult));
+    // Reload catalog rows from sheet to get accurate row numbers
     if (!state.ephemeraData.catalogs) state.ephemeraData.catalogs = {};
-    state.ephemeraData.catalogs[newKey] = {
-      row: newKey, title,
-      catType: d.cat_type || '', year: d.cat_year || '',
-      hasMailer: d.cat_hasMailer || 'No', condition: d.cat_condition || '',
-      estValue: d.cat_estValue || '', dateAcquired: d.cat_dateAcquired || '',
-      notes: d.cat_notes || '', photoLink: photoFolderLink,
-    };
+    try {
+      const freshCat = await sheetsGet(state.personalSheetId, 'Catalogs!A3:H');
+      state.ephemeraData.catalogs = {};
+      (freshCat.values || []).forEach((r, idx) => {
+        if (!r[0] || r[0] === 'Type' || r[0] === 'Catalogs') return;
+        const key = idx + 3;
+        const t = [r[1], r[0], 'Catalog'].filter(Boolean).join(' ');
+        state.ephemeraData.catalogs[key] = {
+          row: key, title: t,
+          catType: r[0]||'', year: r[1]||'', hasMailer: r[2]||'No',
+          condition: r[3]||'', estValue: r[4]||'', dateAcquired: r[5]||'',
+          notes: r[6]||'', photoLink: r[7]||'',
+        };
+      });
+    } catch(e) {
+      // Fallback: add optimistically
+      const newKey = Date.now();
+      state.ephemeraData.catalogs[newKey] = {
+        row: newKey, title,
+        catType: d.cat_type || '', year: d.cat_year || '',
+        hasMailer: d.cat_hasMailer || 'No', condition: d.cat_condition || '',
+        estValue: d.cat_estValue || '', dateAcquired: d.cat_dateAcquired || '',
+        notes: d.cat_notes || '', photoLink: photoFolderLink,
+      };
+    }
     showToast('✓ ' + title + ' saved!');
     closeWizard();
     buildDashboard(); // refresh stats
-    // Ephemera integrated into My Collection — refresh browse if active
-    if (state.filters.owned) renderBrowse();
+    populateFilters(); // refresh type dropdown to include new catalog type
+    renderBrowse();    // always refresh so it appears immediately
   } catch(e) {
     showToast('Error saving: ' + e.message);
   }
