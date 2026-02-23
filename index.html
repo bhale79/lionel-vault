@@ -1188,12 +1188,38 @@ function onTokenReceived(resp) {
   state.masterSheetId = '1cLmCcI4Ekao2gn-TntAGjhsPrIYe39-cX6rV1WAyDCM';
   localStorage.setItem('lv_master_id', state.masterSheetId);
 
-  // Always re-read personalSheetId from localStorage (mobile may not have it in state yet)
+  // Try localStorage first, then fall back to Drive config file
   state.personalSheetId = localStorage.getItem('lv_personal_id');
-  console.log('onTokenReceived: personalSheetId =', state.personalSheetId, '| token ok =', !!accessToken);
 
   if (!state.personalSheetId) {
-    createPersonalSheet().then(loadAllData);
+    // New device — check Drive for existing config
+    console.log('No local personalSheetId — checking Drive config...');
+    driveReadConfig().then(config => {
+      if (config && config.personalSheetId) {
+        console.log('Found personalSheetId in Drive config:', config.personalSheetId);
+        state.personalSheetId = config.personalSheetId;
+        localStorage.setItem('lv_personal_id', config.personalSheetId);
+        if (config.vaultId) {
+          driveCache.vaultId = config.vaultId;
+          localStorage.setItem('lv_vault_id', config.vaultId);
+        }
+        if (config.photosId) {
+          driveCache.photosId = config.photosId;
+          localStorage.setItem('lv_photos_id', config.photosId);
+        }
+        if (config.soldPhotosId) {
+          driveCache.soldPhotosId = config.soldPhotosId;
+          localStorage.setItem('lv_sold_photos_id', config.soldPhotosId);
+        }
+        driveEnsureSetup().catch(e => console.warn('Drive setup:', e));
+        loadAllData();
+      } else {
+        console.log('No Drive config found — creating new personal sheet...');
+        createPersonalSheet().then(loadAllData);
+      }
+    }).catch(() => {
+      createPersonalSheet().then(loadAllData);
+    });
   } else {
     driveEnsureSetup().catch(e => console.warn('Drive setup:', e));
     loadAllData();
@@ -1393,6 +1419,15 @@ async function driveSetupVault() {
     try { await driveMoveSheetToVault(sheetId); } catch(e) { console.warn('Sheet move:', e); }
   }
 
+  // Save config so other devices can discover these IDs
+  if (state.personalSheetId) {
+    driveWriteConfig({
+      personalSheetId: state.personalSheetId,
+      vaultId: driveCache.vaultId,
+      photosId: driveCache.photosId,
+      soldPhotosId: driveCache.soldPhotosId,
+    }).catch(e => console.warn('Config write:', e));
+  }
   console.log('Vault ready:', driveCache.vaultId, '| Photos:', driveCache.photosId, '| Sold:', driveCache.soldPhotosId);
   return driveCache.vaultId;
 }
@@ -1447,6 +1482,56 @@ async function driveMoveToSold(itemNum) {
     await driveMoveFileToFolder(fId, driveCache.photosId, driveCache.soldPhotosId);
     delete driveCache.itemFolders[key];
   }
+}
+
+// ── DRIVE CONFIG FILE ───────────────────────────────────────────
+// Stores personalSheetId in a small JSON file in Drive root
+// so any device can find the right sheet after signing in
+
+const CONFIG_FILENAME = 'lionel-vault-config.json';
+
+async function driveReadConfig() {
+  try {
+    // Search for config file in Drive root
+    const q = encodeURIComponent(`name='${CONFIG_FILENAME}' and trashed=false`);
+    const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&spaces=drive`);
+    if (!res.files || res.files.length === 0) return null;
+    // Read file contents
+    const fileId = res.files[0].id;
+    const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+      headers: { Authorization: 'Bearer ' + accessToken }
+    });
+    return await r.json();
+  } catch(e) { console.warn('driveReadConfig error:', e); return null; }
+}
+
+async function driveWriteConfig(data) {
+  try {
+    const json = JSON.stringify(data);
+    const blob = new Blob([json], { type: 'application/json' });
+    // Check if file already exists
+    const q = encodeURIComponent(`name='${CONFIG_FILENAME}' and trashed=false`);
+    const res = await driveRequest('GET', `/files?q=${q}&fields=files(id)&spaces=drive`);
+    if (res.files && res.files.length > 0) {
+      // Update existing file
+      const fileId = res.files[0].id;
+      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+        body: blob,
+      });
+    } else {
+      // Create new file
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify({ name: CONFIG_FILENAME, mimeType: 'application/json' })], { type: 'application/json' }));
+      form.append('file', blob);
+      await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + accessToken },
+        body: form,
+      });
+    }
+  } catch(e) { console.warn('driveWriteConfig error:', e); }
 }
 
 // Move sheet into vault folder after creation
@@ -1556,6 +1641,14 @@ async function createPersonalSheet() {
 
   // 4. Move the sheet file into the vault folder
   try { await driveMoveSheetToVault(state.personalSheetId); } catch(e) { console.warn('Could not move sheet to vault:', e); }
+
+  // 5. Write config to Drive so other devices can find this sheet
+  await driveWriteConfig({
+    personalSheetId: state.personalSheetId,
+    vaultId: driveCache.vaultId,
+    photosId: driveCache.photosId,
+    soldPhotosId: driveCache.soldPhotosId,
+  });
 
   return state.personalSheetId;
 }
@@ -1748,7 +1841,9 @@ function buildDashboard() {
   const pdCount = Object.keys(state.personalData).length;
   // Show visible status on mobile for debugging
   const dbgEl = document.getElementById('dash-debug-line');
-  if (dbgEl) dbgEl.textContent = 'pd keys: ' + pdCount + ' | master: ' + total + ' @ ' + new Date().toLocaleTimeString();
+  const lsId = localStorage.getItem('lv_personal_id') || 'NULL';
+  const stId = state.personalSheetId || 'NULL';
+  if (dbgEl) dbgEl.textContent = 'pd:' + pdCount + ' ls:' + lsId.substring(0,8) + ' st:' + stId.substring(0,8) + ' @' + new Date().toLocaleTimeString();
   // Count ALL owned entries including box-only rows
   const allOwned = Object.values(state.personalData).filter(pd => {
     if (!pd.owned) return false;
