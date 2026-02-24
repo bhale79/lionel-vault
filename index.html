@@ -5709,6 +5709,10 @@ function wizardBack() {
 }
 
 async function wizardNext() {
+  // Prevent double-save from rapid clicks
+  const _nextBtn = document.getElementById('wizard-next-btn');
+  if (_nextBtn && _nextBtn.disabled) return;
+
   const steps = wizard.steps;
   const s = steps[wizard.step];
 
@@ -5734,26 +5738,34 @@ async function wizardNext() {
 
   // Instruction Sheet confirm
   if (s.id === 'is_confirm') {
-    await saveInstructionSheet();
+    if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
+    try { await saveInstructionSheet(); } catch(e) { showToast('Error: '+e.message); }
+    if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
     return;
   }
 
   // Catalog confirm — must be checked BEFORE generic confirm
   if (s.id === 'cat_confirm') {
-    await saveCatalogItem();
+    if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
+    try { await saveCatalogItem(); } catch(e) { showToast('Error: '+e.message); }
+    if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
     return;
   }
 
   // Ephemera confirm — must be checked BEFORE generic confirm
   const _ephTabIds = ['paper','mockups','other',...(state.userDefinedTabs||[]).map(t=>t.id)];
   if (s.id === 'eph_confirm' || (s.type === 'confirm' && _ephTabIds.includes(wizard.tab))) {
-    await saveEphemeraItem();
+    if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
+    try { await saveEphemeraItem(); } catch(e) { showToast('Error: '+e.message); }
+    if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
     return;
   }
 
   // Generic confirm — train/collection/sold/want items
   if (s.type === 'confirm') {
-    await saveWizardItem();
+    if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
+    try { await saveWizardItem(); } catch(e) { showToast('Error: '+e.message); }
+    if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
     return;
   }
 
@@ -5795,18 +5807,9 @@ function generateEphemeraItemNum(tabId, year, catType) {
   else if (tabId === 'other')     { suffix = 'OTH'; }
   else { suffix = 'USR'; }
 
-  const candidate = base + '-' + suffix;
-
-  // Check for duplicates across all ephemera data and increment
-  const allNums = new Set(
-    Object.values(state.ephemeraData || {}).flatMap(bucket =>
-      Object.values(bucket).map(it => it.itemNum || '')
-    )
-  );
-  if (!allNums.has(candidate)) return candidate;
-  let seq = 2;
-  while (allNums.has(candidate + '-' + seq)) seq++;
-  return candidate + '-' + seq;
+  // Return the base number — collectors can own multiples of the same item
+  // and they all share the same item number (like real Lionel catalog numbers)
+  return base + '-' + suffix;
 }
 
 async function saveInstructionSheet() {
