@@ -1319,7 +1319,7 @@ let state = {
   filteredData: [],
   currentPage: 1,
   pageSize: 50,
-  filters: { owned: false, unowned: false, boxed: false, wantList: false, type: '', road: '', search: '' },
+  filters: { owned: false, unowned: false, boxed: false, wantList: false, type: '', road: '', search: '', quickEntry: '' },
   currentItem: null,
 };
 
@@ -1500,10 +1500,10 @@ async function initPersonalSheet(sheetId) {
   if (rows.length === 0 || !rows[0] || rows[0].length === 0) {
     // Brand new sheet — write title row 1 and headers row 2
     await sheetsUpdate(sheetId, 'My Collection!A1:A1', [['My Collection']]);
-    await sheetsUpdate(sheetId, 'My Collection!A2:Q2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
   } else if (rows.length === 1 || !rows[1] || rows[1].length < 13) {
     // Has title but missing/old headers — rewrite row 2
-    await sheetsUpdate(sheetId, 'My Collection!A2:Q2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
   }
   // Get existing sheet tab names
   const metaRes = await fetch(
@@ -1974,7 +1974,7 @@ async function createPersonalSheet() {
 
   // 3. Write headers and create all tabs
   await sheetsUpdate(state.personalSheetId, 'My Collection!A1:A1', [['My Collection']]);
-  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:Q2', [PERSONAL_HEADERS]);
+  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
   await initPersonalSheet(state.personalSheetId);
 
   // 4. Move the sheet file into the vault folder
@@ -2090,7 +2090,7 @@ async function loadPersonalData() {
   // Fetch all tabs in parallel
   const [collRes, soldRes, wantRes,
          catRes, paperRes, mockRes, otherRes, isRes] = await Promise.all([
-    sheetsGet(state.personalSheetId, 'My Collection!A3:Q').catch(() => ({values:[]})),
+    sheetsGet(state.personalSheetId, 'My Collection!A3:T').catch(() => ({values:[]})),
     sheetsGet(state.personalSheetId, 'Sold!A3:H').catch(() => ({values:[]})),
     sheetsGet(state.personalSheetId, 'Want List!A3:E').catch(() => ({values:[]})),
     sheetsGet(state.personalSheetId, 'Catalogs!A3:I').catch(() => ({values:[]})),
@@ -3656,6 +3656,7 @@ async function saveItem() {
 
   if (currentStatus === 'Owned') {
     // Write/update in My Collection tab
+    const _ex = state.personalData[key] || {};
     const ownedRow = [
       item.itemNum, item.variation || '', copy, condition,
       document.getElementById('fc-original').value,
@@ -3667,12 +3668,16 @@ async function saveItem() {
       document.getElementById('fc-photo-item').value,
       document.getElementById('fc-photo-box').value,
       document.getElementById('fc-notes').value,
+      _ex.datePurchased || '', _ex.userEstWorth || '',
+      _ex.matchedTo || '', _ex.setId || '', _ex.yearMade || '',
+      _ex.isError || '', _ex.errorDesc || '',
+      _ex.quickEntry ? 'Yes' : '',  // preserve Quick Entry flag
     ];
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:N${existing.row}`, [ownedRow]);
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:T${existing.row}`, [ownedRow]);
     } else {
-      await sheetsAppend(state.personalSheetId, 'My Collection!A:N', [ownedRow]);
+      await sheetsAppend(state.personalSheetId, 'My Collection!A:T', [ownedRow]);
     }
     // Remove from Sold tab if it was there
     const soldEntry = state.soldData[key];
@@ -3689,7 +3694,7 @@ async function saveItem() {
     // Remove from My Collection
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:N${existing.row}`, [['','','','','','','','','','','','','']]);
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:T${existing.row}`, [['','','','','','','','','','','','','','','','','','','','']]);  // 20 cols A-T
     }
     // Write to Sold tab
     const soldRow = [
@@ -3710,7 +3715,7 @@ async function saveItem() {
     // Remove from My Collection if present
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:N${existing.row}`, [['','','','','','','','','','','','','']]);
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:T${existing.row}`, [['','','','','','','','','','','','','','','','','','','','']]);  // 20 cols A-T
     }
     // Write/update Want List tab
     const wantRow = [
@@ -6484,7 +6489,7 @@ async function saveWizardItem() {
         await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:N${existing.row}`, [row]);
       } else {
         // Always append for a plain new collection add — never overwrite existing rows
-        await sheetsAppend(state.personalSheetId, 'My Collection!A:N', [row]);
+        await sheetsAppend(state.personalSheetId, 'My Collection!A:T', [row]);
       }
 
     } else if (tab === 'sold') {
