@@ -4990,7 +4990,7 @@ function renderWizardStep() {
           autocomplete="off"
           oninput="wizard.data['${s.id}']=this.value; if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='itemNum') updateItemSuggestions(this.value)"
           onkeydown="handleSuggestionKey(event)">
-        <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:2px;margin-top:4px;max-height:220px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px"></div>
+        <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>
         ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
         <div id="wiz-match" style="margin-top:0.75rem"></div>
         ${showBoxOnly ? `
@@ -5931,14 +5931,14 @@ function updateUnitNumSuggestions(query, field) {
     return a.num.localeCompare(b.num);
   });
 
-  const top = candidates.slice(0, 10);
-  if (top.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  if (candidates.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const top = candidates;
 
   el.innerHTML = '';
   top.forEach(function(c) {
     const btn = document.createElement('button');
-    btn.style.cssText = 'text-align:left;width:100%;padding:0.5rem 0.75rem;border:none;background:transparent;'
-      + 'border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);display:flex;align-items:baseline;gap:0.5rem';
+    btn.style.cssText = 'text-align:left;width:100%;padding:0.65rem 0.75rem;border:none;background:transparent;'
+      + 'border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);display:flex;align-items:baseline;gap:0.5rem;min-height:44px';
     btn.onmouseenter = function() { btn.style.background = 'var(--surface2)'; };
     btn.onmouseleave = function() { btn.style.background = 'transparent'; };
     btn.onclick = function() {
@@ -6011,17 +6011,22 @@ function updateItemSuggestions(query) {
     return a.num.localeCompare(b.num);
   });
 
-  candidates = candidates.slice(0, 12);
-
   if (candidates.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
   _suggestionIndex = -1;
   el.innerHTML = '';
+
+  // Count header so user knows how many matches exist
+  const countBar = document.createElement('div');
+  countBar.style.cssText = 'padding:0.3rem 0.75rem 0.4rem;font-size:0.72rem;color:var(--text-dim);border-bottom:1px solid var(--border);margin-bottom:2px;flex-shrink:0';
+  countBar.textContent = candidates.length + ' match' + (candidates.length !== 1 ? 'es' : '') + ' — tap to select or keep typing to filter';
+  el.appendChild(countBar);
+
   candidates.forEach(function(c, i) {
     const btn = document.createElement('button');
     btn.dataset.idx = i;
-    btn.style.cssText = 'text-align:left;width:100%;padding:0.5rem 0.75rem;border:none;background:transparent;'
-      + 'border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);display:flex;align-items:baseline;gap:0.5rem';
+    btn.style.cssText = 'text-align:left;width:100%;padding:0.65rem 0.75rem;border:none;background:transparent;'
+      + 'border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);display:flex;align-items:baseline;gap:0.5rem;min-height:44px';
     btn.onmouseenter = function() { highlightSuggestion(i); };
     btn.onclick = function() { selectSuggestion(c.num); };
     const numSpan = document.createElement('span');
