@@ -823,11 +823,7 @@
           <select class="filter-select" id="filter-type" onchange="applyFilters()">
             <option value="">All Types</option>
           </select>
-          <select class="filter-select" id="filter-quick" onchange="applyFilters()" title="Quick Entry filter">
-            <option value="">All Items</option>
-            <option value="quick">⚡ Quick Entry</option>
-            <option value="complete">✓ Complete</option>
-          </select>
+
           <select class="filter-select" id="filter-road" onchange="applyFilters()">
             <option value="">All Roads</option>
           </select>
@@ -2501,7 +2497,7 @@ function populateFilters() {
 
 function applyFilters() {
   state.filters.type = document.getElementById('filter-type').value;
-  state.filters.quickEntry = document.getElementById('filter-quick')?.value || '';
+  state.filters.quickEntry = ''; // QE filter only applies in My Collection view
   state.filters.road = document.getElementById('filter-road').value;
   state.filters.wantList = false;
   state.currentPage = 1;
@@ -2516,21 +2512,55 @@ function toggleFilter(name) {
 }
 
 function resetFilters() {
+  removeQEFilter();
   state.filters.owned = false;
   state.filters.unowned = false;
   state.filters.boxed = false;
   state.filters.wantList = false;
   state.filters.type = '';
   state.filters.road = '';
+  state.filters.quickEntry = '';
   state.currentPage = 1;
   document.getElementById('filter-type').value = '';
-  const _fq = document.getElementById('filter-quick'); if (_fq) _fq.value = '';
-  state.filters.quickEntry = '';
   document.getElementById('filter-road').value = '';
-
 }
 
-function filterOwned() { resetFilters(); state.filters.owned = true; renderBrowse(); }
+function filterOwned(qe) {
+  resetFilters();
+  state.filters.owned = true;
+  if (qe) state.filters.quickEntry = qe;
+  renderBrowse();
+  // Show QE filter toggle in filter bar when in My Collection
+  setTimeout(function() {
+    var existing = document.getElementById('filter-quick-inline');
+    if (!existing) {
+      var fb = document.querySelector('.filter-bar');
+      if (!fb) return;
+      var sel = document.createElement('select');
+      sel.id = 'filter-quick-inline';
+      sel.className = 'filter-select';
+      sel.title = 'Quick Entry filter';
+      sel.innerHTML = '<option value="">All Items</option>'
+        + '<option value="quick">&#9889; Quick Entry</option>'
+        + '<option value="complete">&#10003; Complete</option>';
+      sel.value = state.filters.quickEntry || '';
+      sel.onchange = function() { state.filters.quickEntry = this.value; renderBrowse(); };
+      // Insert after first child (type filter)
+      var typeFilter = fb.querySelector('#filter-type');
+      if (typeFilter && typeFilter.nextSibling) {
+        fb.insertBefore(sel, typeFilter.nextSibling);
+      } else {
+        fb.appendChild(sel);
+      }
+    }
+  }, 50);
+}
+
+function removeQEFilter() {
+  var el = document.getElementById('filter-quick-inline');
+  if (el) el.remove();
+  state.filters.quickEntry = '';
+}
 
 function buildQuickEntryList() {
   const container = document.getElementById('qe-list-container');
