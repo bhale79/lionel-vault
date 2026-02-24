@@ -787,6 +787,11 @@
           <select class="filter-select" id="filter-type" onchange="applyFilters()">
             <option value="">All Types</option>
           </select>
+          <select class="filter-select" id="filter-quick" onchange="applyFilters()" title="Quick Entry filter">
+            <option value="">All Items</option>
+            <option value="quick">⚡ Quick Entry</option>
+            <option value="complete">✓ Complete</option>
+          </select>
           <select class="filter-select" id="filter-road" onchange="applyFilters()">
             <option value="">All Roads</option>
           </select>
@@ -1204,7 +1209,7 @@ const PERSONAL_HEADERS = [
   'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
   'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes',
   'Date Purchased','User Est. Worth','Matched Tender/Engine','Set ID','Year Made',
-  'Is Error','Error Description'
+  'Is Error','Error Description','Quick Entry'
 ];
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
@@ -2110,6 +2115,8 @@ async function loadPersonalData() {
       notes: r[11]||'', datePurchased: r[12]||'',
       userEstWorth: r[13]||'', matchedTo: r[14]||'',
       setId: r[15]||'', yearMade: r[16]||'',
+      isError: r[17]||'', errorDesc: r[18]||'',
+      quickEntry: r[19] === 'Yes',
     };
   });
 
@@ -2244,6 +2251,9 @@ function buildDashboard() {
   // Count ALL owned entries including box-only rows
   const allOwned = Object.values(state.personalData).filter(pd => {
     if (!pd.owned) return false;
+      const _qf = state.filters.quickEntry || '';
+      if (_qf === 'quick' && !pd.quickEntry) return false;
+      if (_qf === 'complete' && pd.quickEntry) return false;
     // Exclude pure box-only rows (has box but NO item condition AND NO item price)
     const condVal = pd.condition?.toString().trim();
     const priceVal = pd.priceItem?.toString().trim();
@@ -2422,6 +2432,7 @@ function populateFilters() {
 
 function applyFilters() {
   state.filters.type = document.getElementById('filter-type').value;
+  state.filters.quickEntry = document.getElementById('filter-quick')?.value || '';
   state.filters.road = document.getElementById('filter-road').value;
   state.filters.wantList = false;
   state.currentPage = 1;
@@ -2444,6 +2455,8 @@ function resetFilters() {
   state.filters.road = '';
   state.currentPage = 1;
   document.getElementById('filter-type').value = '';
+  const _fq = document.getElementById('filter-quick'); if (_fq) _fq.value = '';
+  state.filters.quickEntry = '';
   document.getElementById('filter-road').value = '';
 
 }
@@ -2702,9 +2715,10 @@ function renderBrowse() {
         ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="event.stopPropagation();showVarDescPopup(${globalIdx})">${vdShort}</span>`
         : '<span class="text-dim">—</span>';
       const _isErrCar = pd && pd.isError;
-      return `<tr onclick="browseRowClick(event, ${globalIdx})" style="cursor:pointer" title="${_isErrCar ? '⚠ Error car: ' + (pd.errorDesc||'see notes') : ''}">
+      const _isQuick = pd && pd.quickEntry;
+      return `<tr onclick="browseRowClick(event, ${globalIdx})" style="cursor:pointer${_isQuick ? ';opacity:0.78' : ''}" title="${_isErrCar ? '⚠ Error car: ' + (pd.errorDesc||'see notes') : _isQuick ? '⚡ Quick Entry — details not yet filled in' : ''}">
         <td>
-          <span class="item-num">${item.itemNum}${_isErrCar ? '<sup style="color:var(--accent);font-size:0.65rem">*</sup>' : ''}</span>
+          <span class="item-num">${item.itemNum}${_isErrCar ? '<sup style="color:var(--accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? ' <span style="font-size:0.6rem;background:#27ae60;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600">⚡</span>' : ''}</span>
           <span id="cam-${item.itemNum}-${item.variation||''}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')" title="Open photo folder">📷</span>
         </td>
         <td><span class="tag">${item.itemType || '—'}</span></td>
@@ -2791,9 +2805,10 @@ function openPhotoWizard(itemNum, variation, pdKey) {
   document.getElementById('wizard-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
   // Skip to the photosItem step
-  const autoSkip = new Set(['tab','itemNum','variation','condition','allOriginal','hasBox',
-    'boxCond','hasIS','is_sheetNum','is_condition','pricePaid','datePurchased','userEstWorth','yearMade',
-    'wantTenderPhotos','tenderMatch','dieselSetQ','setMatch','setType',
+  const autoSkip = new Set(['tab','itemNum','variation','condition','allOriginal','notOriginalDesc',
+    'hasBox','boxCond','hasIS','is_sheetNum','is_condition','pricePaid','datePurchased','userEstWorth','yearMade',
+    'tenderAllOriginal','tenderNotOriginalDesc','unit2AllOriginal','unit2NotOriginalDesc',
+    'unit3AllOriginal','unit3NotOriginalDesc','wantTenderPhotos','tenderMatch','dieselSetQ','setMatch','setType',
     'unit2ItemNum','unit3ItemNum','setUnit2Num','setUnit3Num',
     'wantTogetherPhotos','photosTogether','boxOnly','wantBoxPhotos',
     'purchaseDate','photosBox']);
@@ -4355,147 +4370,191 @@ function getSteps(tab) {
       { id: 'itemCategory', title: 'What would you like to add?', type: 'itemCategory',
         skipIf: (d) => !!d.itemCategory },
       ...base,
-      // ── ENGINE section ──
-      { id: 'condition',    title: (d) => 'What condition is the ' + getItemLabel(d) + '?',         type: 'slider',   min:1, max:10, skipIf: () => false },
-      { id: 'allOriginal',  title: (d) => 'Is the ' + getItemLabel(d) + ' all original parts?',             type: 'choice3',  choices: ['Yes','No','Unknown'] },
-      { id: 'tenderMatch',  title: 'Tender / Engine matching',              type: 'tenderMatch',
+
+      // ── ITEM CONDITION ──
+      { id: 'condition',       title: (d) => 'What condition is the ' + getItemLabel(d) + '?',
+        type: 'slider', min:1, max:10 },
+      { id: 'allOriginal',     title: (d) => 'Is the ' + getItemLabel(d) + ' all original?',
+        type: 'choice3', choices: ['Yes','No','Unknown'] },
+      { id: 'notOriginalDesc', title: (d) => 'What has been done to the ' + getItemLabel(d) + '?',
+        type: 'textarea', optional: true,
+        placeholder: 'e.g. Repaint, touch-ups, reproduction parts, re-wired, replaced wheels…',
+        note: () => 'Common examples: repaint, partial repaint, touch-ups, reproduction decals, reproduction parts, re-wired, replaced wheels, replaced motor',
+        skipIf: (d) => d.allOriginal !== 'No' },
+
+      // ── MATCHING / SET ──
+      { id: 'tenderMatch',  title: 'Tender / Engine matching', type: 'tenderMatch',
         skipIf: (d) => {
           const num = (d.itemNum || '').trim();
           return getMatchingTenders(num).length === 0 && getMatchingLocos(num).length === 0;
         }
       },
-      { id: 'setMatch', title: 'Multi-unit diesel set',                    type: 'setMatch',
-        skipIf: (d) => !isF3AlcoUnit((d.itemNum || '').trim())
-      },
-      { id: 'unitPower', title: 'Is this a powered or dummy unit?',       type: 'choice2',
+      { id: 'setMatch',     title: 'Multi-unit diesel set',    type: 'setMatch',
+        skipIf: (d) => !isF3AlcoUnit((d.itemNum || '').trim()) },
+      { id: 'unitPower',    title: 'Is this a powered or dummy unit?', type: 'choice2',
         choices: ['Powered', 'Dummy'],
         note: () => 'Lionel used the same item number for both. This will be saved as e.g. 2343-P or 2343-D.',
         skipIf: (d) => {
           const num = (d.itemNum || '').trim();
-          // Only ask for A units (not B/C units — those are always unpowered dummies)
           return num.endsWith('C') || !isF3AlcoUnit(num);
         }
       },
-      { id: 'hasBox',       title: (d) => 'Did the ' + getItemLabel(d) + ' come with a box?', type: 'choice2',  choices: ['Yes','No'], skipIf: (d) => !!d._attachToBox },
-      { id: 'boxCond',      title: (d) => 'What condition is the ' + getItemLabel(d) + ' box?', type: 'slider',   min:1, max:10, skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox },
-      { id: 'hasIS',        title: 'Does it have the instruction sheet?', type: 'choice2', choices: ['Yes','No'] },
-      { id: 'is_sheetNum',  title: 'What is the instruction sheet number?', type: 'text',
-        placeholder: 'e.g. 924-6, 1-1957, 726-13', optional: true,
-        skipIf: d => d.hasIS !== 'Yes' },
-      { id: 'is_condition', title: 'What condition is the instruction sheet?', type: 'slider', min:1, max:10,
-        skipIf: d => d.hasIS !== 'Yes' },
-      { id: 'photosIS',     title: 'Add photos of the instruction sheet', type: 'drivePhotos', label: 'IS',
-        views: [
-          { key: 'IS-FRONT', label: 'Front Side', abbr: 'IS-FRONT' },
-          { key: 'IS-BACK',  label: 'Back Side',  abbr: 'IS-BACK'  },
-        ],
-        optional: true, skipIf: d => d.hasIS !== 'Yes' },
-      { id: 'photosItem',   title: (d) => 'Add photos of the ' + getItemLabel(d), type: 'drivePhotos', label: 'Item',
+
+      // ── BOX ──
+      { id: 'hasBox',  title: (d) => 'Did the ' + getItemLabel(d) + ' come with a box?',
+        type: 'choice2', choices: ['Yes','No'], skipIf: (d) => !!d._attachToBox },
+      { id: 'boxCond', title: (d) => 'What condition is the ' + getItemLabel(d) + ' box?',
+        type: 'slider', min:1, max:10,
+        skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox },
+
+      // ── ITEM PHOTOS (main item + box) ──
+      { id: 'photosItem', title: (d) => 'Add photos of the ' + getItemLabel(d),
+        type: 'drivePhotos', label: 'Item',
         note: (d) => isPaired(d) ? 'Engine photos only — tender photos will be added next. Each item is filed in its own Drive folder.' : '' },
-      { id: 'photosBox',    title: (d) => 'Add photos of the ' + getItemLabel(d) + ' box', type: 'drivePhotos', label: 'Box',
+      { id: 'photosBox',  title: (d) => 'Add photos of the ' + getItemLabel(d) + ' box',
+        type: 'drivePhotos', label: 'Box',
         skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox,
         note: (d) => isPaired(d) ? 'Engine box photos only — tender box photos will be added next.' : '' },
 
+      // ── TOGETHER PHOTOS — right after item photos, before tender/set ──
+      { id: 'wantTogetherPhotos', title: (d) => 'Would you like to add photos of the ' + getItemLabel(d) + ' and tender together?',
+        type: 'choice2', choices: ['Yes','No'], skipIf: (d) => !isPaired(d) },
+      { id: 'photosTogether', title: (d) => 'Add photos of the ' + getItemLabel(d) + ' and tender together',
+        type: 'drivePhotos', label: 'Set',
+        note: () => 'These photos will be filed under the engine Drive folder.',
+        skipIf: (d) => !isPaired(d) || d.wantTogetherPhotos !== 'Yes' },
+
       // ── TENDER section (only shown when paired) ──
-      { id: '_tenderDivider', title: 'Now for the tender',                  type: 'divider',
+      { id: '_tenderDivider',   title: 'Now for the tender', type: 'divider',
         subtitle: (d) => 'Next we will record details for the matching tender (' + d.tenderMatch + '). It will be saved as a separate item in your collection.',
         skipIf: (d) => !isPaired(d) },
-      { id: 'tenderCondition',  title: 'What condition is the tender?',     type: 'slider',   min:1, max:10, skipIf: (d) => !isPaired(d) },
-      { id: 'tenderAllOriginal', title: 'Is the tender all original?',      type: 'choice3',  choices: ['Yes','No','Unknown'], skipIf: (d) => !isPaired(d) },
-      { id: 'tenderHasBox',   title: 'Did the tender come with a box?',     type: 'choice2',  choices: ['Yes','No'], skipIf: (d) => !isPaired(d) },
-      { id: 'tenderBoxCond',  title: 'What condition is the tender box?',   type: 'slider',   min:1, max:10, skipIf: (d) => !isPaired(d) || d.tenderHasBox !== 'Yes' },
-      { id: 'photosTenderItem', title: 'Add photos of the tender',          type: 'drivePhotos', label: 'Item',
-        tenderMode: true,
-        note: () => 'Tender photos only — filed under the tender own Drive folder.',
+      { id: 'tenderCondition',  title: 'What condition is the tender?',
+        type: 'slider', min:1, max:10, skipIf: (d) => !isPaired(d) },
+      { id: 'tenderAllOriginal', title: 'Is the tender all original?',
+        type: 'choice3', choices: ['Yes','No','Unknown'], skipIf: (d) => !isPaired(d) },
+      { id: 'tenderNotOriginalDesc', title: 'What has been done to the tender?',
+        type: 'textarea', optional: true,
+        placeholder: 'e.g. Repaint, touch-ups, reproduction parts, re-wired, replaced wheels…',
+        note: () => 'Common examples: repaint, partial repaint, touch-ups, reproduction decals, reproduction parts, re-wired, replaced wheels',
+        skipIf: (d) => !isPaired(d) || d.tenderAllOriginal !== 'No' },
+      { id: 'tenderHasBox',     title: 'Did the tender come with a box?',
+        type: 'choice2', choices: ['Yes','No'], skipIf: (d) => !isPaired(d) },
+      { id: 'tenderBoxCond',    title: 'What condition is the tender box?',
+        type: 'slider', min:1, max:10, skipIf: (d) => !isPaired(d) || d.tenderHasBox !== 'Yes' },
+      { id: 'photosTenderItem', title: 'Add photos of the tender',
+        type: 'drivePhotos', label: 'Item', tenderMode: true,
+        note: () => 'Tender photos only — filed under the tender's own Drive folder.',
         skipIf: (d) => !isPaired(d) },
-      { id: 'photosTenderBox',  title: 'Add photos of the tender box',      type: 'drivePhotos', label: 'Box',
-        tenderMode: true,
+      { id: 'photosTenderBox',  title: 'Add photos of the tender box',
+        type: 'drivePhotos', label: 'Box', tenderMode: true,
         note: () => 'Tender box photos only.',
         skipIf: (d) => !isPaired(d) || d.tenderHasBox !== 'Yes' },
 
-      // ── SET UNIT 2 section (only shown when buying as diesel set) ──
-      { id: '_setDivider', title: 'Now for the second unit',             type: 'divider',
+      // ── SET UNIT 2 section ──
+      { id: '_setDivider',    title: 'Now for the second unit', type: 'divider',
         subtitle: (d) => {
           const partner = getSetPartner((d.itemNum||'').trim()) || ((d.itemNum||'').trim()+'C');
           return 'Next we will record details for the ' + (d.setType||'AB') + ' set partner (' + partner + '). It will be saved as a separate item with the same Set ID.';
         },
         skipIf: (d) => d.setMatch !== 'set-now' },
-      { id: 'unit2ItemNum',   title: 'Confirm second unit item number',   type: 'setUnit2Num',
-        skipIf: (d) => d.setMatch !== 'set-now' },
-      { id: 'unit2Condition', title: (d) => 'What condition is the second unit (' + (d.unit2ItemNum || 'B unit') + ')?', type: 'slider', min:1, max:10,
-        skipIf: (d) => d.setMatch !== 'set-now' },
-      { id: 'unit2AllOriginal', title: (d) => 'Is the second unit (' + (d.unit2ItemNum || 'B unit') + ') all original?', type: 'choice3', choices: ['Yes','No','Unknown'],
-        skipIf: (d) => d.setMatch !== 'set-now' },
-      { id: 'unit2HasBox',    title: (d) => 'Did the second unit (' + (d.unit2ItemNum || 'B unit') + ') come with a box?', type: 'choice2', choices: ['Yes','No'],
-        skipIf: (d) => d.setMatch !== 'set-now' },
-      { id: 'unit2BoxCond',   title: (d) => 'What condition is the second unit (' + (d.unit2ItemNum || 'B unit') + ') box?', type: 'slider', min:1, max:10,
-        skipIf: (d) => d.setMatch !== 'set-now' || d.unit2HasBox !== 'Yes' },
-      { id: 'photosUnit2Item', title: (d) => 'Add photos of the second unit (' + (d.unit2ItemNum || 'B unit') + ')',    type: 'drivePhotos', label: 'Item',
-        unit2Mode: true,
+      { id: 'unit2ItemNum',      title: 'Confirm second unit item number',
+        type: 'setUnit2Num', skipIf: (d) => d.setMatch !== 'set-now' },
+      { id: 'unit2Condition',    title: (d) => 'What condition is the second unit (' + (d.unit2ItemNum || 'B unit') + ')?',
+        type: 'slider', min:1, max:10, skipIf: (d) => d.setMatch !== 'set-now' },
+      { id: 'unit2AllOriginal',  title: (d) => 'Is the second unit (' + (d.unit2ItemNum || 'B unit') + ') all original?',
+        type: 'choice3', choices: ['Yes','No','Unknown'], skipIf: (d) => d.setMatch !== 'set-now' },
+      { id: 'unit2NotOriginalDesc', title: (d) => 'What has been done to the ' + (d.unit2ItemNum || 'B unit') + '?',
+        type: 'textarea', optional: true,
+        placeholder: 'e.g. Repaint, touch-ups, reproduction parts, re-wired…',
+        skipIf: (d) => d.setMatch !== 'set-now' || d.unit2AllOriginal !== 'No' },
+      { id: 'unit2HasBox',       title: (d) => 'Did the second unit (' + (d.unit2ItemNum || 'B unit') + ') come with a box?',
+        type: 'choice2', choices: ['Yes','No'], skipIf: (d) => d.setMatch !== 'set-now' },
+      { id: 'unit2BoxCond',      title: (d) => 'What condition is the second unit (' + (d.unit2ItemNum || 'B unit') + ') box?',
+        type: 'slider', min:1, max:10, skipIf: (d) => d.setMatch !== 'set-now' || d.unit2HasBox !== 'Yes' },
+      { id: 'photosUnit2Item',   title: (d) => 'Add photos of the ' + (d.unit2ItemNum || 'B unit'),
+        type: 'drivePhotos', label: 'Item', unit2Mode: true,
         note: () => 'Photos for unit 2 — filed under its own Drive folder.',
         skipIf: (d) => d.setMatch !== 'set-now' },
-      { id: 'photosUnit2Box',  title: (d) => 'Add photos of the second unit (' + (d.unit2ItemNum || 'B unit') + ') box', type: 'drivePhotos', label: 'Box',
-        unit2Mode: true,
+      { id: 'photosUnit2Box',    title: (d) => 'Add photos of the ' + (d.unit2ItemNum || 'B unit') + ' box',
+        type: 'drivePhotos', label: 'Box', unit2Mode: true,
         note: () => 'Unit 2 box photos.',
         skipIf: (d) => d.setMatch !== 'set-now' || d.unit2HasBox !== 'Yes' },
 
       // ── SET UNIT 3 section (ABA only) ──
-      { id: '_set3Divider', title: 'Now for the third unit (A)',          type: 'divider',
+      { id: '_set3Divider',   title: 'Now for the third unit (A)', type: 'divider',
         subtitle: () => 'Finally, the second A unit to complete the ABA set.',
         skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'unit3ItemNum',   title: 'Confirm third unit item number',    type: 'setUnit2Num',
-        unit3: true,
-        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'unit3Power',     title: 'Is the third unit powered or dummy?', type: 'choice2',
-        choices: ['Powered', 'Dummy'],
+      { id: 'unit3ItemNum',      title: 'Confirm third unit item number',
+        type: 'setUnit2Num', unit3: true, skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
+      { id: 'unit3Power',        title: 'Is the third unit powered or dummy?',
+        type: 'choice2', choices: ['Powered', 'Dummy'],
         note: () => 'Will be saved as e.g. 2343-P or 2343-D.',
         skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'unit3Condition', title: (d) => 'What condition is the third unit (' + (d.unit3ItemNum || 'A unit') + ')?', type: 'slider', min:1, max:10,
-        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'unit3AllOriginal', title: (d) => 'Is the third unit (' + (d.unit3ItemNum || 'A unit') + ') all original?', type: 'choice3', choices: ['Yes','No','Unknown'],
-        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'unit3HasBox',    title: (d) => 'Did the third unit (' + (d.unit3ItemNum || 'A unit') + ') come with a box?', type: 'choice2', choices: ['Yes','No'],
-        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'unit3BoxCond',   title: (d) => 'What condition is the third unit (' + (d.unit3ItemNum || 'A unit') + ') box?', type: 'slider', min:1, max:10,
-        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' || d.unit3HasBox !== 'Yes' },
-      { id: 'photosUnit3Item', title: (d) => 'Add photos of the third unit (' + (d.unit3ItemNum || 'A unit') + ')',    type: 'drivePhotos', label: 'Item',
-        unit3Mode: true,
+      { id: 'unit3Condition',    title: (d) => 'What condition is the third unit (' + (d.unit3ItemNum || 'A unit') + ')?',
+        type: 'slider', min:1, max:10, skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
+      { id: 'unit3AllOriginal',  title: (d) => 'Is the third unit (' + (d.unit3ItemNum || 'A unit') + ') all original?',
+        type: 'choice3', choices: ['Yes','No','Unknown'], skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
+      { id: 'unit3NotOriginalDesc', title: (d) => 'What has been done to the ' + (d.unit3ItemNum || 'A unit') + '?',
+        type: 'textarea', optional: true,
+        placeholder: 'e.g. Repaint, touch-ups, reproduction parts, re-wired…',
+        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' || d.unit3AllOriginal !== 'No' },
+      { id: 'unit3HasBox',       title: (d) => 'Did the third unit (' + (d.unit3ItemNum || 'A unit') + ') come with a box?',
+        type: 'choice2', choices: ['Yes','No'], skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
+      { id: 'unit3BoxCond',      title: (d) => 'What condition is the third unit (' + (d.unit3ItemNum || 'A unit') + ') box?',
+        type: 'slider', min:1, max:10, skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' || d.unit3HasBox !== 'Yes' },
+      { id: 'photosUnit3Item',   title: (d) => 'Add photos of the ' + (d.unit3ItemNum || 'A unit'),
+        type: 'drivePhotos', label: 'Item', unit3Mode: true,
         note: () => 'Photos for unit 3 (second A unit).',
         skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'photosUnit3Box',  title: (d) => 'Add photos of the third unit (' + (d.unit3ItemNum || 'A unit') + ') box', type: 'drivePhotos', label: 'Box',
-        unit3Mode: true,
+      { id: 'photosUnit3Box',    title: (d) => 'Add photos of the ' + (d.unit3ItemNum || 'A unit') + ' box',
+        type: 'drivePhotos', label: 'Box', unit3Mode: true,
         note: () => 'Unit 3 box photos.',
         skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' || d.unit3HasBox !== 'Yes' },
 
-      // ── PRICING (pricePaid handles all cases; save logic splits if paired/set) ──
-      { id: 'pricePaid',    title: 'What did you pay?',                    type: 'pricePaid',
+      // ── INSTRUCTION SHEET — after all unit photos, before pricing ──
+      { id: 'hasIS',        title: (d) => 'Does it have an instruction sheet?',
+        type: 'choice2', choices: ['Yes','No'] },
+      { id: 'is_sheetNum',  title: 'What is the instruction sheet number?',
+        type: 'text', placeholder: 'e.g. 924-6, 1-1957, 726-13', optional: true,
+        skipIf: d => d.hasIS !== 'Yes' },
+      { id: 'is_condition', title: 'What condition is the instruction sheet?',
+        type: 'slider', min:1, max:10, skipIf: d => d.hasIS !== 'Yes' },
+      { id: 'photosIS',     title: 'Add photos of the instruction sheet',
+        type: 'drivePhotos', label: 'IS',
+        views: [
+          { key: 'IS-FRONT', label: 'Front Side', abbr: 'Front' },
+          { key: 'IS-BACK',  label: 'Back Side',  abbr: 'Back'  },
+        ],
+        optional: true, skipIf: d => d.hasIS !== 'Yes' },
+
+      // ── PRICING ──
+      { id: 'pricePaid',     title: 'What did you pay?', type: 'pricePaid',
         note: (d) => isPaired(d) || d.setMatch === 'set-now' ? 'Full price goes to the first unit — other units will reference it in their notes.' : '' },
-      { id: 'yearMade', title: 'What year do you think this was made?',      type: 'yearMade', optional: true },
-      { id: 'datePurchased', title: 'When did you purchase?',               type: 'date',     optional: true },
+      { id: 'yearMade',      title: 'What year do you think this was made?',
+        type: 'yearMade', optional: true },
+      { id: 'datePurchased', title: 'When did you purchase?',
+        type: 'date', optional: true },
       { id: 'userEstWorth',  title: 'What do you estimate it is worth?',
         type: 'money', placeholder: '0.00', optional: true,
         note: (d) => (isPaired(d) || d.setMatch === 'set-now') ? 'Full estimated value goes to the first unit.' : (d.hasBox === 'Yes' ? 'Include the value of both the item and the box.' : '') },
 
-      // ── TOGETHER photos (only when paired) ──
-      { id: 'wantTogetherPhotos', title: (d) => 'Would you like to add photos of the ' + getItemLabel(d) + ' and tender together?',
-        type: 'choice2', choices: ['Yes','No'], skipIf: (d) => !isPaired(d) },
-      { id: 'photosTogether',   title: 'Add photos of the engine and tender together',
-        type: 'drivePhotos', label: 'Set',
-        note: () => 'These photos will be filed under the engine Drive folder.',
-        skipIf: (d) => !isPaired(d) || d.wantTogetherPhotos !== 'Yes' },
-
-      { id: 'notes',        title: 'Any notes?',                           type: 'textarea', optional: true },
-      { id: 'isError',      title: 'Is this an error car?',                  type: 'choice2', choices: ['No','Yes'],
-        note: () => 'Error cars have factory mistakes like double-stamping, missing lettering or decoration, wrong color, etc.' },
-      { id: 'errorDesc',    title: 'Describe the error',                     type: 'textarea', optional: true,
+      // ── NOTES & ERROR ──
+      { id: 'notes',           title: (d) => 'Any notes about this ' + getItemLabel(d) + '?',
+        type: 'textarea', optional: true },
+      { id: 'isError',         title: (d) => 'Is this ' + getItemLabel(d) + ' an error item?',
+        type: 'choice2', choices: ['No','Yes'],
+        note: () => 'Error items have factory mistakes like double-stamping, missing lettering or decoration, wrong color, etc.' },
+      { id: 'errorDesc',       title: 'Describe the error',
+        type: 'textarea', optional: true,
         placeholder: 'e.g. Double-stamped road name, missing decoration on left side',
         skipIf: d => d.isError !== 'Yes' },
-      { id: 'wantErrorPhotos', title: 'Add close-up photos of the error?',   type: 'choice2', choices: ['Yes','No'],
-        skipIf: d => d.isError !== 'Yes' },
-      { id: 'photosError',  title: 'Add close-up photos of the error',       type: 'drivePhotos', label: 'Error', views: ERROR_VIEWS,
+      { id: 'wantErrorPhotos', title: 'Add close-up photos of the error?',
+        type: 'choice2', choices: ['Yes','No'], skipIf: d => d.isError !== 'Yes' },
+      { id: 'photosError',     title: 'Add close-up photos of the error',
+        type: 'drivePhotos', label: 'Error', views: ERROR_VIEWS,
         note: () => 'Close-ups of the error — e.g. double-stamp area, missing lettering. Filed in the same Drive folder.',
         skipIf: d => d.isError !== 'Yes' || d.wantErrorPhotos !== 'Yes' },
-      { id: 'confirm',      title: 'Ready to save!',                       type: 'confirm' },
+      { id: 'confirm',         title: 'Ready to save!', type: 'confirm' },
     ];
   } else if (tab === 'sold') {
     return [
@@ -4698,6 +4757,12 @@ function renderWizardStep() {
             ? '<a href="' + singleItem.refLink + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(245,166,35,0.3);border-radius:6px;background:rgba(245,166,35,0.08)">View on COTT ↗</a>'
             : '';
         })()}
+          <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)">
+            <button onclick="quickEntryAdd()" style="width:100%;padding:0.65rem 1rem;border-radius:10px;border:1.5px dashed #27ae60;background:rgba(39,174,96,0.07);color:#27ae60;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;display:flex;align-items:flex-start;gap:0.6rem">
+              <span style="font-size:1.1rem;flex-shrink:0">⚡</span>
+              <span><strong>Quick Entry</strong> — Skip all questions and photos. This item will be marked so you can find and complete it later using the Quick Entry filter.</span>
+            </button>
+          </div>
         </div>`;
       setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
     } else {
@@ -4724,12 +4789,22 @@ function renderWizardStep() {
           </div>
           <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Selecting a variation will auto-advance</div>
           ${(() => {
-            // Show COTT link for the selected variation, or the first variation if none selected
             const cottItem = variations.find(v => v.variation === val) || variations[0];
             return cottItem && cottItem.refLink
               ? '<a href="' + cottItem.refLink + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(245,166,35,0.3);border-radius:6px;background:rgba(245,166,35,0.08)">View ' + (val ? val : 'item') + ' on COTT ↗</a>'
               : '';
           })()}
+          <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)">
+            <button onclick="quickEntryAdd()" style="
+              width:100%;padding:0.65rem 1rem;border-radius:10px;
+              border:1.5px dashed #27ae60;background:rgba(39,174,96,0.07);
+              color:#27ae60;font-family:var(--font-body);font-size:0.85rem;
+              cursor:pointer;text-align:left;display:flex;align-items:flex-start;gap:0.6rem;
+              transition:background 0.15s">
+              <span style="font-size:1.1rem;flex-shrink:0">⚡</span>
+              <span><strong>Quick Entry</strong> — Skip all questions and photos. This item will be marked so you can find and complete it later using the Quick Entry filter.</span>
+            </button>
+          </div>
         </div>`;
     }
 
@@ -5320,6 +5395,8 @@ function renderWizardStep() {
     const _keyLabels = {
       itemCategory:'Category', cat_type:'Type', cat_year:'Year',
       hasIS:'Has Instruction Sheet', is_sheetNum:'Sheet #', is_condition:'Sheet Condition',
+      notOriginalDesc:'Modifications', tenderNotOriginalDesc:'Tender Modifications',
+      unit2NotOriginalDesc:'Unit 2 Modifications', unit3NotOriginalDesc:'Unit 3 Modifications',
       cat_hasMailer:'Has Envelope/Mailer', cat_condition:'Condition',
       cat_estValue:'Est. Value', cat_dateAcquired:'Date Acquired', cat_notes:'Notes',
       eph_title:'Title', eph_description:'Description', eph_year:'Year',
@@ -6252,7 +6329,7 @@ async function saveWizardItem() {
           d.boxCond || '',
           photos[0] || '',
           boxPhotos[0] || '',
-          ( d.notes || '' ).trim(),
+          [d.notOriginalDesc ? 'Modifications: ' + d.notOriginalDesc.trim() : '', (d.notes || '').trim()].filter(Boolean).join(' | '),
           d.datePurchased || '',
           engineWorth,
           d.tenderMatch && d.tenderMatch !== 'none' ? d.tenderMatch : '',
@@ -6260,6 +6337,7 @@ async function saveWizardItem() {
           d.yearMade || '',  // Year Made (col Q)
         d.isError === 'Yes' ? 'Yes' : 'No',  // Is Error (col R)
         d.isError === 'Yes' ? (d.errorDesc || '') : '',  // Error Description (col S)
+        '',  // Quick Entry (col T) — blank = normal full entry
         ];
       }
       // ── SET UNIT SAVE: if diesel set, save unit2 (and unit3) rows with shared Set ID ──
@@ -6498,6 +6576,49 @@ async function saveWizardItem() {
   } catch(e) {
     console.error('Save error:', e);
     alert('Error saving: ' + e.message);
+  }
+}
+
+async function quickEntryAdd() {
+  const d = wizard.data;
+  const itemNum = (d.itemNum || '').trim();
+  if (!itemNum) { showToast('Please enter an item number first'); return; }
+  const variation = (d.variation || '').trim();
+
+  // Cols: ItemNum, Variation, Cond, AllOrig, PriceItem, PriceBox, Complete,
+  //       HasBox, BoxCond, PhotoItem, PhotoBox, Notes, DatePurch, EstWorth,
+  //       MatchedTo, SetId, YearMade, IsError, ErrDesc, QuickEntry
+  const row = [
+    itemNum, variation,
+    '','','','','','','','','',
+    '','','','','','',
+    '','',
+    'Yes'  // col T — Quick Entry flag
+  ];
+  try {
+    const _nextBtn = document.getElementById('wizard-next-btn');
+    if (_nextBtn) { _nextBtn.disabled = true; }
+    await ensureEphemeraSheets(state.personalSheetId);
+    await sheetsAppend(state.personalSheetId, 'My Collection!A:T', [row]);
+    // Add to local state immediately
+    const rowNum = Date.now();
+    const key = `${itemNum}|${variation}|${rowNum}`;
+    state.personalData[key] = {
+      row: rowNum, itemNum, variation,
+      status: 'Owned', owned: true,
+      condition: '', allOriginal: '', priceItem: '', priceBox: '', priceComplete: '',
+      hasBox: '', boxCond: '', photoItem: '', photoBox: '',
+      notes: '', datePurchased: '', userEstWorth: '', matchedTo: '',
+      setId: '', yearMade: '', isError: '', errorDesc: '',
+      quickEntry: true,
+    };
+    closeWizard();
+    showToast('⚡ ' + itemNum + ' added (Quick Entry)');
+    buildDashboard();
+    renderBrowse();
+    if (_nextBtn) { _nextBtn.disabled = false; }
+  } catch(e) {
+    showToast('Error: ' + e.message);
   }
 }
 
