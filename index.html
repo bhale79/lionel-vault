@@ -772,7 +772,12 @@
           <div class="stat-card" style="--accent-color: var(--accent2)">
             <div class="stat-label">Collection Value</div>
             <div class="stat-value" id="stat-value">—</div>
-            <div class="stat-sub">based on what you paid</div>
+            <div class="stat-sub">per user</div>
+          </div>
+          <div class="stat-card" style="--accent-color: #9b59b6">
+            <div class="stat-label">Est. Market Value</div>
+            <div class="stat-value" id="stat-market-value">—</div>
+            <div class="stat-sub">est. value mined from auction sites</div>
           </div>
         </div>
 
@@ -2351,6 +2356,19 @@ function buildDashboard() {
   document.getElementById('stat-owned').textContent = totalOwned.toLocaleString();
   document.getElementById('stat-owned-pct').textContent = `${pct}% of catalog${ephemeraCount > 0 ? ' + ' + ephemeraCount + ' other' : ''}`;
   document.getElementById('stat-value').textContent = totalValue > 0 ? `$${Math.round(totalValue).toLocaleString()}` : '—';
+
+  // Market value — sum from master sheet marketVal for all owned items
+  let totalMarketVal = 0;
+  allOwnedEntries.forEach(function(pd) {
+    const masterItem = state.masterData.find(function(m) {
+      return m.itemNum === pd.itemNum && (!pd.variation || m.variation === pd.variation);
+    }) || state.masterData.find(function(m) { return m.itemNum === pd.itemNum; });
+    if (masterItem && masterItem.marketVal) {
+      totalMarketVal += parseFloat(masterItem.marketVal) || 0;
+    }
+  });
+  const mvEl = document.getElementById('stat-market-value');
+  if (mvEl) mvEl.textContent = totalMarketVal > 0 ? '$' + Math.round(totalMarketVal).toLocaleString() : '—';
 
   const soldCount = Object.keys(state.soldData).length;
   const wantCount = total - owned - soldCount;
