@@ -2012,9 +2012,9 @@ async function loadAllData() {
 
   } catch(e) {
     console.error('Load error:', e.message, e.stack);
-    showToast('Error loading data: ' + e.message);
+    showToast('Load error: ' + e.message);
     document.getElementById('browse-tbody').innerHTML =
-      '<tr><td colspan="8" style="padding:2rem;color:var(--red);text-align:center">Error loading data: ' + e.message + '<br><small>Pull down to refresh</small></td></tr>';
+      '<tr><td colspan="8" style="padding:2rem;color:var(--red);text-align:center">Error: ' + e.message + '<br><small>' + (e.stack||'').split('\n')[1] + '</small></td></tr>';
   }
 }
 
@@ -2230,13 +2230,13 @@ async function loadPersonalData() {
 
 // ── BUILD APP ───────────────────────────────────────────────────
 function buildApp() {
-  showApp();
-  populateFilters();
-  buildDashboard();
-  buildBrowse();
-  buildSoldPage();
-  buildWantPage();
-  buildReport();
+  try { showApp(); } catch(e) { console.error('CRASH showApp:', e); }
+  try { populateFilters(); } catch(e) { console.error('CRASH populateFilters:', e); }
+  try { buildDashboard(); } catch(e) { console.error('CRASH buildDashboard:', e); }
+  try { buildBrowse(); } catch(e) { console.error('CRASH buildBrowse:', e); }
+  try { buildSoldPage(); } catch(e) { console.error('CRASH buildSoldPage:', e); }
+  try { buildWantPage(); } catch(e) { console.error('CRASH buildWantPage:', e); }
+  try { buildReport(); } catch(e) { console.error('CRASH buildReport:', e); }
 }
 
 function showLoading() {
