@@ -1531,7 +1531,9 @@ async function initPersonalSheet(sheetId) {
   await ensureEphemeraSheets(sheetId);
 }
 
+let _ensureEphemDone = false;
 async function ensureEphemeraSheets(sheetId) {
+  if (_ensureEphemDone) return;  // Only run once per session — tabs and headers don't change
   const metaRes = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -1567,6 +1569,7 @@ async function ensureEphemeraSheets(sheetId) {
   await sheetsUpdate(sheetId, 'Mock-Ups!A2:P2',    [MOCKUP_HEADERS.concat([''])]);
   await sheetsUpdate(sheetId, 'Other Lionel!A1:P1',[['Other Lionel','','','','','','','','','','','','','','','']]);
   await sheetsUpdate(sheetId, 'Other Lionel!A2:P2',[EPHEMERA_HEADERS.concat(['','','','',''])]);
+  _ensureEphemDone = true;  // Don't run again this session
   // Instruction Sheets tab
   if (!existingTabs.includes('Instruction Sheets')) {
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
@@ -1631,8 +1634,8 @@ const BOX_VIEWS = [
 const driveCache = {
   vaultId: null,       // "Lionel Vault - My Collection" root
   photosId: null,      // "My Collection Photos"
-  catalogsId: null,    // "Catalog Photos" subfolder
-  isPhotosId: null,    // "Instruction Sheet Photos" subfolder
+  catalogsId: localStorage.getItem('lv_catalogs_id') || null,
+  isPhotosId: localStorage.getItem('lv_is_id') || null,
   soldPhotosId: null,  // "My Sold Collection Photos"
   itemFolders: {},     // itemNum -> folderId
 };
@@ -1715,7 +1718,6 @@ async function driveSetupVault() {
       soldPhotosId: driveCache.soldPhotosId,
     }).catch(e => console.warn('Config write:', e));
   }
-  console.log('Vault ready:', driveCache.vaultId, '| Photos:', driveCache.photosId, '| Sold:', driveCache.soldPhotosId);
   return driveCache.vaultId;
 }
 
@@ -1915,7 +1917,6 @@ async function sheetsAppend(spreadsheetId, range, values) {
     }
   );
   const result = await res.json();
-  console.log('sheetsAppend result:', JSON.stringify(result));
   return result;
 }
 
@@ -2087,7 +2088,7 @@ async function loadPersonalData() {
     sheetsGet(state.personalSheetId, 'My Collection!A3:Q').catch(() => ({values:[]})),
     sheetsGet(state.personalSheetId, 'Sold!A3:H').catch(() => ({values:[]})),
     sheetsGet(state.personalSheetId, 'Want List!A3:E').catch(() => ({values:[]})),
-    sheetsGet(state.personalSheetId, 'Catalogs!A3:J').catch(() => ({values:[]})),
+    sheetsGet(state.personalSheetId, 'Catalogs!A3:I').catch(() => ({values:[]})),
     sheetsGet(state.personalSheetId, 'Paper Items!A3:J').catch(() => ({values:[]})),
     sheetsGet(state.personalSheetId, 'Mock-Ups!A3:O').catch(() => ({values:[]})),
     sheetsGet(state.personalSheetId, 'Other Lionel!A3:J').catch(() => ({values:[]})),
@@ -2135,7 +2136,8 @@ async function loadPersonalData() {
 
   // Instruction Sheets
   state.isData = {};
-  (isRes && isRes.values || []).forEach((r, idx) => {
+  const _isRows = (isRes && isRes.values) || [];
+  _isRows.forEach((r, idx) => {
     if (!r[0] || r[0] === 'Sheet #' || r[0] === 'Instruction Sheets') return;
     const key = idx + 3;
     state.isData[key] = {
@@ -3202,7 +3204,11 @@ function showItemPanel(idx, pdKey, mode) {
   renderFields(null);
 
   // Instruction Sheets linked to this item
-  const _linkedIS = Object.values(state.isData || {}).filter(s => s.linkedItem && s.linkedItem.trim() === item.itemNum);
+  const _liNum = (item.itemNum || '').replace(/-[PD]$/,'').trim();
+  const _linkedIS = Object.values(state.isData || {}).filter(s => {
+    const li = (s.linkedItem || '').trim();
+    return li === _liNum || li === item.itemNum;
+  });
   if (_linkedIS.length) {
     const isSection = document.createElement('div');
     isSection.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:2px solid rgba(22,160,133,0.3)';
@@ -5865,6 +5871,7 @@ async function saveCatalogItem() {
       // Create "Catalogs" subfolder under vault if needed
       if (!driveCache.catalogsId) {
         driveCache.catalogsId = await driveFindOrCreateFolder('Catalog Photos', driveCache.vaultId);
+        localStorage.setItem('lv_catalogs_id', driveCache.catalogsId);
       }
       const catFolderId = await driveFindOrCreateFolder(folderName, driveCache.catalogsId);
       photoFolderLink = 'https://drive.google.com/drive/folders/' + catFolderId;
@@ -5893,13 +5900,11 @@ async function saveCatalogItem() {
   try {
     // Ensure Catalogs tab exists with proper headers before appending
     await ensureEphemeraSheets(state.personalSheetId);
-    console.log('[Catalog save] Writing row:', JSON.stringify(row));
     const appendResult = await sheetsAppend(state.personalSheetId, 'Catalogs!A:I', [row]);
-    console.log('[Catalog save] Append result:', JSON.stringify(appendResult));
     // Reload catalog rows from sheet to get accurate row numbers
     if (!state.ephemeraData.catalogs) state.ephemeraData.catalogs = {};
     try {
-      const freshCat = await sheetsGet(state.personalSheetId, 'Catalogs!A3:H');
+      const freshCat = await sheetsGet(state.personalSheetId, 'Catalogs!A3:I');
       state.ephemeraData.catalogs = {};
       (freshCat.values || []).forEach((r, idx) => {
         if (!r[0] || r[0] === 'Item ID' || r[0] === 'Type' || r[0] === 'Catalogs') return;
@@ -5967,7 +5972,7 @@ async function saveEphemeraItem() {
   }
 
   try {
-    await sheetsAppend(state.personalSheetId, sheetName + '!A:K', [row]);
+    await sheetsAppend(state.personalSheetId, sheetName + '!A:P', [row]);
     // Add to local state
     const bucket = state.ephemeraData[tab] || {};
     const newKey = Date.now();
@@ -6083,8 +6088,7 @@ async function saveWizardItem() {
           return k.split('|')[0] === itemNum && pd.hasBox === 'Yes' && noCondition && noItemPrice;
         });
         if (boxKey) existing = state.personalData[boxKey];
-        console.log('_attachToBox lookup — boxKey:', boxKey, 'existing row:', existing?.row);
-      }
+        }
       let row;
       if (d.boxOnly) {
         const ex = existing || {};
@@ -6371,9 +6375,6 @@ async function saveWizardItem() {
     // Small delay to ensure Google Sheets has committed the data
     await new Promise(r => setTimeout(r, 800));
     await loadPersonalData();
-    console.log('After reload - personalData keys:', Object.keys(state.personalData));
-    console.log('After reload - soldData keys:', Object.keys(state.soldData));
-    console.log('After reload - wantData keys:', Object.keys(state.wantData));
     resetFilters();
     buildDashboard();
     buildSoldPage();
