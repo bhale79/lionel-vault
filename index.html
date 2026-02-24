@@ -1222,14 +1222,17 @@ const EPHEMERA_TABS = [
   { id: 'other',      label: 'Other Lionel',emoji: '📦', color: '#27ae60' },
 ];
 const EPHEMERA_HEADERS = [
-  'Title','Description','Year','Manufacturer','Condition (1-10)',
+  'Item ID','Title','Description','Year','Manufacturer','Condition (1-10)',
   'Quantity','Est. Value','Photo Link','Notes','Date Acquired'
 ];
 const CATALOG_HEADERS = [
-  'Type','Year','Has Envelope/Mailer','Condition (1-10)',
+  'Item ID','Type','Year','Has Envelope/Mailer','Condition (1-10)',
   'Est. Value','Date Acquired','Notes','Photo Link'
 ];
 // Mock-ups get extra columns
+const IS_HEADERS = [
+  'Sheet #','Linked Item #','Year/Date Printed','Condition (1-10)','Notes','Photo Link'
+];
 const MOCKUP_HEADERS = [
   'Title','Item Number Ref','Description','Year','Manufacturer',
   'Condition (1-10)','Production Status','Material','Dimensions',
@@ -1557,13 +1560,22 @@ async function ensureEphemeraSheets(sheetId) {
   }));
   // Use values API to clear then rewrite cleanly
   await sheetsUpdate(sheetId, 'Catalogs!A1:P1',    [['Catalogs','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Catalogs!A2:P2',    [CATALOG_HEADERS.concat(['','','','','','','',''])]);
+  await sheetsUpdate(sheetId, 'Catalogs!A2:P2',    [CATALOG_HEADERS.concat(['','','','','','',''])]);
   await sheetsUpdate(sheetId, 'Paper Items!A1:P1', [['Paper Items','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Paper Items!A2:P2', [EPHEMERA_HEADERS.concat(['','','','','',''])]);
+  await sheetsUpdate(sheetId, 'Paper Items!A2:P2', [EPHEMERA_HEADERS.concat(['','','','',''])]);
   await sheetsUpdate(sheetId, 'Mock-Ups!A1:P1',    [['Mock-Ups','','','','','','','','','','','','','','','']]);
   await sheetsUpdate(sheetId, 'Mock-Ups!A2:P2',    [MOCKUP_HEADERS.concat([''])]);
   await sheetsUpdate(sheetId, 'Other Lionel!A1:P1',[['Other Lionel','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Other Lionel!A2:P2',[EPHEMERA_HEADERS.concat(['','','','','',''])]);
+  await sheetsUpdate(sheetId, 'Other Lionel!A2:P2',[EPHEMERA_HEADERS.concat(['','','','',''])]);
+  // Instruction Sheets tab
+  if (!existingTabs.includes('Instruction Sheets')) {
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method:'POST', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+      body: JSON.stringify({ requests:[{ addSheet:{ properties:{ title:'Instruction Sheets' } } }] }),
+    });
+  }
+  await sheetsUpdate(sheetId, 'Instruction Sheets!A1:A1', [['Instruction Sheets']]);
+  await sheetsUpdate(sheetId, 'Instruction Sheets!A2:F2', [IS_HEADERS]);
 }
 
 
@@ -1620,6 +1632,7 @@ const driveCache = {
   vaultId: null,       // "Lionel Vault - My Collection" root
   photosId: null,      // "My Collection Photos"
   catalogsId: null,    // "Catalog Photos" subfolder
+  isPhotosId: null,    // "Instruction Sheet Photos" subfolder
   soldPhotosId: null,  // "My Sold Collection Photos"
   itemFolders: {},     // itemNum -> folderId
 };
@@ -2070,7 +2083,7 @@ async function loadPersonalData() {
 
   // Fetch all tabs in parallel
   const [collRes, soldRes, wantRes,
-         catRes, paperRes, mockRes, otherRes] = await Promise.all([
+         catRes, paperRes, mockRes, otherRes, isRes] = await Promise.all([
     sheetsGet(state.personalSheetId, 'My Collection!A3:Q').catch(() => ({values:[]})),
     sheetsGet(state.personalSheetId, 'Sold!A3:H').catch(() => ({values:[]})),
     sheetsGet(state.personalSheetId, 'Want List!A3:E').catch(() => ({values:[]})),
@@ -2078,6 +2091,7 @@ async function loadPersonalData() {
     sheetsGet(state.personalSheetId, 'Paper Items!A3:J').catch(() => ({values:[]})),
     sheetsGet(state.personalSheetId, 'Mock-Ups!A3:O').catch(() => ({values:[]})),
     sheetsGet(state.personalSheetId, 'Other Lionel!A3:J').catch(() => ({values:[]})),
+    sheetsGet(state.personalSheetId, 'Instruction Sheets!A3:F').catch(() => ({values:[]})),
   ]);
 
   // My Collection
@@ -2119,6 +2133,17 @@ async function loadPersonalData() {
     };
   });
 
+  // Instruction Sheets
+  state.isData = {};
+  (isRes && isRes.values || []).forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Sheet #' || r[0] === 'Instruction Sheets') return;
+    const key = idx + 3;
+    state.isData[key] = {
+      row: key, sheetNum: r[0]||'', linkedItem: r[1]||'', year: r[2]||'',
+      condition: r[3]||'', notes: r[4]||'', photoLink: r[5]||'',
+    };
+  });
+
   // Ephemera tabs
   state.ephemeraData = { catalogs:{}, paper:{}, mockups:{}, other:{} };
   // Initialize user-defined tab buckets
@@ -2126,25 +2151,40 @@ async function loadPersonalData() {
 
   function parseEphemeraRows(rows, bucket) {
     (rows || []).forEach((r, idx) => {
-      if (!r[0] || r[0] === 'Title') return;
+      if (!r[0] || r[0] === 'Item ID' || r[0] === 'Title') return;
       const key = idx + 3;
-      bucket[key] = {
-        row: key, title: r[0]||'', description: r[1]||'', year: r[2]||'',
-        manufacturer: r[3]||'Lionel', condition: r[4]||'', quantity: r[5]||'1',
-        estValue: r[6]||'', photoLink: r[7]||'', notes: r[8]||'', dateAcquired: r[9]||'',
-      };
+      // Detect old format (no Item ID): if r[0] looks like a title (not a system ID like 8157-PAP)
+      const hasItemId = /^\d{4}-[A-Z]+/.test(r[0]);
+      if (hasItemId) {
+        bucket[key] = {
+          row: key, itemNum: r[0]||'', title: r[1]||'', description: r[2]||'', year: r[3]||'',
+          manufacturer: r[4]||'Lionel', condition: r[5]||'', quantity: r[6]||'1',
+          estValue: r[7]||'', photoLink: r[8]||'', notes: r[9]||'', dateAcquired: r[10]||'',
+        };
+      } else {
+        // Legacy row without Item ID
+        bucket[key] = {
+          row: key, itemNum: '', title: r[0]||'', description: r[1]||'', year: r[2]||'',
+          manufacturer: r[3]||'Lionel', condition: r[4]||'', quantity: r[5]||'1',
+          estValue: r[6]||'', photoLink: r[7]||'', notes: r[8]||'', dateAcquired: r[9]||'',
+        };
+      }
     });
   }
   // Catalogs have their own column layout
   (catRes.values || []).forEach((r, idx) => {
-    if (!r[0] || r[0] === 'Type' || r[0] === 'Catalogs') return;
+    // Skip header rows: first cell is 'Item ID', 'Type', or 'Catalogs'
+    if (!r[0] || r[0] === 'Item ID' || r[0] === 'Type' || r[0] === 'Catalogs') return;
     const key = idx + 3;
-    const title = [r[1], r[0], r[0] ? 'Catalog' : ''].filter(Boolean).join(' '); // "1957 Advance Catalog"
+    // Columns: ItemID(0) Type(1) Year(2) HasMailer(3) Condition(4) EstValue(5) DateAcq(6) Notes(7) PhotoLink(8)
+    const catType = r[1]||'';
+    const year = r[2]||'';
+    const title = [year, catType, 'Catalog'].filter(Boolean).join(' ');
     state.ephemeraData.catalogs[key] = {
-      row: key, title,
-      catType: r[0]||'', year: r[1]||'', hasMailer: r[2]||'No',
-      condition: r[3]||'', estValue: r[4]||'', dateAcquired: r[5]||'',
-      notes: r[6]||'', photoLink: r[7]||'',
+      row: key, itemNum: r[0]||'', title,
+      catType, year, hasMailer: r[3]||'No',
+      condition: r[4]||'', estValue: r[5]||'', dateAcquired: r[6]||'',
+      notes: r[7]||'', photoLink: r[8]||'',
     };
   });
   parseEphemeraRows(paperRes.values, state.ephemeraData.paper);
@@ -2366,6 +2406,9 @@ function populateFilters() {
     if (Object.keys(state.ephemeraData.other||{}).length) {
       const o = document.createElement('option'); o.value = 'Other Lionel'; o.textContent = '📦 Other Lionel'; typeEl.appendChild(o);
     }
+    if (Object.keys(state.isData||{}).length) {
+      const o = document.createElement('option'); o.value = 'Instruction Sheet'; o.textContent = '📋 Instruction Sheets'; typeEl.appendChild(o);
+    }
     userEph.forEach(t => {
       const o = document.createElement('option'); o.value = t.label; o.textContent = '⭐ ' + t.label; typeEl.appendChild(o);
     });
@@ -2489,6 +2532,7 @@ function renderBrowse() {
         ...(state.userDefinedTabs||[]).map(t=>t.label)];
       // Check for catalog subtype match too (e.g. "Advance")
       const _isEphFilter = _ephTypeKeys.some(k=>k.toLowerCase()===type.toLowerCase())
+        || type.toLowerCase() === 'instruction sheet'
         || Object.values(state.ephemeraData.catalogs||{}).some(it=>(it.catType||'').toLowerCase()===type.toLowerCase());
       if (_isEphFilter) return false; // hide all train rows when filtering to ephemera
       if (item.itemType !== type) return false;
@@ -2516,6 +2560,24 @@ function renderBrowse() {
   const tf = (state.filters.type||'').toLowerCase();
   // Show ephemera if: owned view, searching, or type filter is an ephemera category
   const _showEph = state.filters.owned || sq || Object.keys(_ephTypeMap).some(k => k.toLowerCase() === tf);
+  // Instruction Sheets in browse
+  if (_showEph || tf === 'instruction sheet') {
+    const isItems = Object.values(state.isData || {});
+    const isFiltered = isItems.filter(it => {
+      if (sq && !`${it.sheetNum||''} ${it.linkedItem||''} ${it.year||''} ${it.notes||''}`.toLowerCase().includes(sq)) return false;
+      if (tf && tf !== 'instruction sheet' && tf !== 'catalog') {
+        // Check linked item match
+        if (!(it.linkedItem||'').toLowerCase().includes(tf) && !(it.sheetNum||'').toLowerCase().includes(tf)) return false;
+      }
+      return true;
+    });
+    if (isFiltered.length) {
+      _ephemeraRows.push({ _divider: true, label: '📋 Instruction Sheets', color: '#16a085' });
+      isFiltered.sort((a,b)=>(a.linkedItem||'').localeCompare(b.linkedItem||'')).forEach(it => {
+        _ephemeraRows.push({ _is: true, item: it, label:'Instruction Sheet', emoji:'📋', color:'#16a085' });
+      });
+    }
+  }
   if (_showEph) {
     Object.entries(state.ephemeraData || {}).forEach(([tabId, bucket]) => {
       const items = Object.values(bucket);
@@ -2561,9 +2623,22 @@ function renderBrowse() {
       const it = r.item;
       const cond = it.condition ? parseInt(it.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
+      if (r._is) {
+        return `<tr onclick="openISDetail(${it.row})" style="cursor:pointer">
+          <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:#16a085;font-weight:600">${it.sheetNum}</span></td>
+          <td><span class="tag" style="border-color:#16a085;color:#16a085;background:#16a08518">Instr. Sheet</span></td>
+          <td>For item #${it.linkedItem || '—'}</td>
+          <td>${it.year || '—'}</td>
+          <td></td><td></td>
+          <td><span class="owned-badge badge-owned">✓ Owned</span></td>
+          <td>${cond ? `<span class="condition-pip ${condClass}"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
+          <td class="market-val">—</td>
+        </tr>`;
+      }
       const val = it.estValue ? '$' + parseFloat(it.estValue).toLocaleString() : '—';
+      const _itmId = it.itemNum ? `<span style="font-family:var(--font-mono);font-size:0.78rem;color:${r.color};opacity:0.75;font-style:italic">${it.itemNum}</span>` : r.emoji;
       return `<tr onclick="openEphemeraDetail('${r.tabId}',${it.row})" style="cursor:pointer">
-        <td><span style="font-size:1rem">${r.emoji}</span></td>
+        <td>${_itmId}</td>
         <td><span class="tag" style="border-color:${r.color};color:${r.color};background:${r.color}18">${r.label}</span></td>
         <td>${it.title || '—'}</td>
         <td>${it.catType || it.year || '—'}</td>
@@ -2715,7 +2790,7 @@ function openPhotoWizard(itemNum, variation, pdKey) {
   document.body.style.overflow = 'hidden';
   // Skip to the photosItem step
   const autoSkip = new Set(['tab','itemNum','variation','condition','allOriginal','hasBox',
-    'boxCond','pricePaid','datePurchased','userEstWorth','yearMade',
+    'boxCond','hasIS','is_sheetNum','is_condition','pricePaid','datePurchased','userEstWorth','yearMade',
     'wantTenderPhotos','tenderMatch','dieselSetQ','setMatch','setType',
     'unit2ItemNum','unit3ItemNum','setUnit2Num','setUnit3Num',
     'wantTogetherPhotos','photosTogether','boxOnly','wantBoxPhotos',
@@ -2822,7 +2897,7 @@ function sellFromCollection(idx, pdKey) {
   document.getElementById('wizard-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
   // Skip tab, itemNum, variation steps
-  const autoSkip = new Set(['tab', 'itemNum', 'variation']);
+  const autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemCategory']);
   while (wizard.step < wizard.steps.length - 1) {
     const s = wizard.steps[wizard.step];
     if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) wizard.step++;
@@ -3125,6 +3200,22 @@ function showItemPanel(idx, pdKey, mode) {
   }
 
   renderFields(null);
+
+  // Instruction Sheets linked to this item
+  const _linkedIS = Object.values(state.isData || {}).filter(s => s.linkedItem && s.linkedItem.trim() === item.itemNum);
+  if (_linkedIS.length) {
+    const isSection = document.createElement('div');
+    isSection.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:2px solid rgba(22,160,133,0.3)';
+    isSection.innerHTML = '<div style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:#16a085;text-transform:uppercase;margin-bottom:0.5rem">📋 Instruction Sheets</div>'
+      + _linkedIS.map(s => `<div onclick="openISDetail(${s.row})" style="display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0.5rem;border-radius:8px;cursor:pointer;transition:background 0.1s" class="dash-row-hover">
+        <span style="font-family:var(--font-mono);font-size:0.85rem;color:#16a085;font-weight:600;min-width:80px">${s.sheetNum}</span>
+        <span style="font-size:0.8rem;color:var(--text-mid)">${s.year||''}</span>
+        ${s.condition?`<span style="font-size:0.78rem;color:var(--text-dim);margin-left:auto">Cond: ${s.condition}/10</span>`:''}
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      </div>`).join('');
+    body.appendChild(isSection);
+  }
+
   box.appendChild(body);
 
   // Footer buttons
@@ -3190,6 +3281,38 @@ function showItemPanel(idx, pdKey, mode) {
   document.body.appendChild(overlay);
 }
 
+
+function openISDetail(rowKey) {
+  const it = state.isData[rowKey];
+  if (!it) return;
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(22,160,133,0.4);border-radius:16px;max-width:460px;width:100%;padding:1.75rem;position:relative;max-height:88vh;overflow-y:auto';
+  const closeBtn = document.createElement('button');
+  closeBtn.innerHTML='✕'; closeBtn.style.cssText='position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
+  closeBtn.onclick=()=>overlay.remove();
+  box.appendChild(closeBtn);
+  box.innerHTML += `
+    <div style="font-family:var(--font-head);font-size:1rem;color:#16a085;margin-bottom:0.15rem">📋 Sheet # ${it.sheetNum}</div>
+    <div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:1.25rem">Instruction Sheet${it.linkedItem?' for Lionel No. '+it.linkedItem:''}</div>
+    <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.85rem">
+      ${[
+        ['Sheet #',       it.sheetNum||'—'],
+        ['Linked Item #', it.linkedItem||'—'],
+        ['Year / Date',   it.year||'—'],
+        ['Condition',     it.condition ? it.condition+'/10' : '—'],
+        ['Notes',         it.notes||'—'],
+      ].map(([l,v])=>`<div style="display:flex;gap:0.75rem;padding:0.45rem 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--text-dim);min-width:110px;flex-shrink:0">${l}</span>
+        <span>${v}</span>
+      </div>`).join('')}
+      ${it.photoLink?`<div style="margin-top:0.75rem"><a href="${it.photoLink}" target="_blank" rel="noopener" style="font-size:0.82rem;color:#16a085;text-decoration:none">📷 View Photos ↗</a></div>`:''}
+    </div>`;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
 
 function browseRowClick(event, idx) {
   // If click was on the varDesc popup span, don't intercept
@@ -3342,7 +3465,7 @@ function addFromBrowse(idx) {
   document.body.style.overflow = 'hidden';
   // Skip the tab picker (step 0) and itemNum step — advance past any steps
   // whose id is 'itemNum' or 'variation' (already known)
-  const autoSkip = new Set(['tab', 'itemNum', 'variation']);
+  const autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemCategory']);
   while (wizard.step < wizard.steps.length - 1) {
     const s = wizard.steps[wizard.step];
     if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) {
@@ -3772,6 +3895,7 @@ function openEphemeraDetail(tabId, rowKey) {
 
   const isCatalog3 = tabId === 'catalogs';
   const fields = isCatalog3 ? [
+    ['Item ID',           item.itemNum || '—'],
     ['Type',              item.catType || '—'],
     ['Year',              item.year || '—'],
     ['Has Envelope/Mailer', item.hasMailer || 'No'],
@@ -4105,12 +4229,33 @@ let wizard = {
 // Step definitions per tab
 function getSteps(tab) {
   // User-defined custom tabs — same flow as ephemera
-  const _allEphTabs = ['catalogs','paper','mockups','other',
+  const _allEphTabs = ['catalogs','paper','mockups','other','instrsheet',
     ...(state.userDefinedTabs||[]).map(t => t.id)];
   if (tab && _allEphTabs.includes(tab)) {
     const isMockup  = tab === 'mockups';
     const isCatalog = tab === 'catalogs';
     const _userTabDef = (state.userDefinedTabs||[]).find(t => t.id === tab);
+
+    // ── Instruction Sheet flow ──
+    if (tab === 'instrsheet') {
+      return [
+        { id: 'is_linkedItem', title: 'What Lionel item # does this sheet go with?', type: 'text',
+          placeholder: 'e.g. 726, 2046, 6464-1' },
+        { id: 'is_sheetNum',   title: 'What is the instruction sheet number?',       type: 'text',
+          placeholder: 'e.g. 924-6, 1-1957, 726-13' },
+        { id: 'is_year',       title: 'Year or date printed (if known)',              type: 'text',
+          placeholder: 'e.g. 1957, 1957-06', optional: true },
+        { id: 'is_condition',  title: 'What condition is the sheet?',                type: 'slider', min:1, max:10 },
+        { id: 'is_notes',      title: 'Any notes about this sheet?',                 type: 'textarea', optional: true,
+          placeholder: 'e.g. Early printing, double-sided, staple holes' },
+        { id: 'is_photos',     title: 'Add photos of the instruction sheet',         type: 'drivePhotos', label: 'IS',
+          views: [
+            { key: 'IS-FRONT', label: 'Front Side',  abbr: 'IS-FRONT' },
+            { key: 'IS-BACK',  label: 'Back Side',   abbr: 'IS-BACK'  },
+          ], optional: true },
+        { id: 'is_confirm',    title: 'Ready to save the instruction sheet!',        type: 'confirm' },
+      ];
+    }
 
     // ── Catalog-specific flow ──
     if (isCatalog) {
@@ -4227,6 +4372,18 @@ function getSteps(tab) {
       },
       { id: 'hasBox',       title: (d) => 'Did the ' + getItemLabel(d) + ' come with a box?', type: 'choice2',  choices: ['Yes','No'], skipIf: (d) => !!d._attachToBox },
       { id: 'boxCond',      title: (d) => 'What condition is the ' + getItemLabel(d) + ' box?', type: 'slider',   min:1, max:10, skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox },
+      { id: 'hasIS',        title: 'Does it have the instruction sheet?', type: 'choice2', choices: ['Yes','No'] },
+      { id: 'is_sheetNum',  title: 'What is the instruction sheet number?', type: 'text',
+        placeholder: 'e.g. 924-6, 1-1957, 726-13', optional: true,
+        skipIf: d => d.hasIS !== 'Yes' },
+      { id: 'is_condition', title: 'What condition is the instruction sheet?', type: 'slider', min:1, max:10,
+        skipIf: d => d.hasIS !== 'Yes' },
+      { id: 'photosIS',     title: 'Add photos of the instruction sheet', type: 'drivePhotos', label: 'IS',
+        views: [
+          { key: 'IS-FRONT', label: 'Front Side', abbr: 'IS-FRONT' },
+          { key: 'IS-BACK',  label: 'Back Side',  abbr: 'IS-BACK'  },
+        ],
+        optional: true, skipIf: d => d.hasIS !== 'Yes' },
       { id: 'photosItem',   title: (d) => 'Add photos of the ' + getItemLabel(d), type: 'drivePhotos', label: 'Item',
         note: (d) => isPaired(d) ? 'Engine photos only — tender photos will be added next. Each item is filed in its own Drive folder.' : '' },
       { id: 'photosBox',    title: (d) => 'Add photos of the ' + getItemLabel(d) + ' box', type: 'drivePhotos', label: 'Box',
@@ -4460,6 +4617,7 @@ function renderWizardStep() {
     const _cats = [
       { id: 'lionel',   label: 'Lionel Item #',  desc: 'Train, car, accessory with a Lionel catalog number', emoji: '🚂', color: 'var(--accent)' },
       { id: 'catalogs', label: 'Catalog',         desc: 'Lionel consumer or dealer catalog',                  emoji: '📒', color: '#e67e22' },
+      { id: 'instrsheet', label: 'Instruction Sheet', desc: 'Instruction sheet linked to a specific item #',    emoji: '📋', color: '#16a085' },
       { id: 'paper',    label: 'Paper Item',       desc: 'Ad, flyer, article, box insert',                    emoji: '📄', color: '#3498db' },
       { id: 'mockups',  label: 'Mock-Up',          desc: 'Pre-production prototype',                          emoji: '🔩', color: '#9b59b6' },
       { id: 'other',    label: 'Other Lionel',     desc: 'Accessory, display, anything else',                 emoji: '📦', color: '#27ae60' },
@@ -5044,6 +5202,7 @@ function renderWizardStep() {
     // Human-readable key labels for confirm summary
     const _keyLabels = {
       itemCategory:'Category', cat_type:'Type', cat_year:'Year',
+      hasIS:'Has Instruction Sheet', is_sheetNum:'Sheet #', is_condition:'Sheet Condition',
       cat_hasMailer:'Has Envelope/Mailer', cat_condition:'Condition',
       cat_estValue:'Est. Value', cat_dateAcquired:'Date Acquired', cat_notes:'Notes',
       eph_title:'Title', eph_description:'Description', eph_year:'Year',
@@ -5567,6 +5726,12 @@ async function wizardNext() {
     return;
   }
 
+  // Instruction Sheet confirm
+  if (s.id === 'is_confirm') {
+    await saveInstructionSheet();
+    return;
+  }
+
   // Catalog confirm — must be checked BEFORE generic confirm
   if (s.id === 'cat_confirm') {
     await saveCatalogItem();
@@ -5602,6 +5767,86 @@ async function wizardNext() {
   renderWizardStep();
 }
 
+// Generate a system item number for ephemera/non-train items
+// Catalogs:  80YY-CON/ADV/DLR/OTH
+// Paper:     81YY-PAP
+// Mock-Ups:  82YY-MU
+// Other:     82YY-OTH
+// User tabs: 83YY-USR
+function generateEphemeraItemNum(tabId, year, catType) {
+  const yy = year ? String(year).slice(-2).padStart(2,'0') : '00';
+  const prefixMap = { catalogs:'80', paper:'81', mockups:'82', other:'82' };
+  const prefix = prefixMap[tabId] || '83';
+  const base = prefix + yy;
+
+  // Suffix by tab
+  let suffix = 'OTH';
+  if (tabId === 'catalogs') {
+    const catMap = { Consumer:'CON', Advance:'ADV', Dealer:'DLR', Other:'OTH' };
+    suffix = catMap[catType] || 'OTH';
+  } else if (tabId === 'paper')   { suffix = 'PAP'; }
+  else if (tabId === 'mockups')   { suffix = 'MU';  }
+  else if (tabId === 'other')     { suffix = 'OTH'; }
+  else { suffix = 'USR'; }
+
+  const candidate = base + '-' + suffix;
+
+  // Check for duplicates across all ephemera data and increment
+  const allNums = new Set(
+    Object.values(state.ephemeraData || {}).flatMap(bucket =>
+      Object.values(bucket).map(it => it.itemNum || '')
+    )
+  );
+  if (!allNums.has(candidate)) return candidate;
+  let seq = 2;
+  while (allNums.has(candidate + '-' + seq)) seq++;
+  return candidate + '-' + seq;
+}
+
+async function saveInstructionSheet() {
+  const d = wizard.data;
+  const sheetNum = (d.is_sheetNum || '').trim();
+  const linkedItem = (d.is_linkedItem || '').trim();
+  if (!sheetNum) { showToast('Sheet number is required'); return; }
+
+  // Photo handling
+  let photoLink = '';
+  const photoObj = d.is_photos || {};
+  if (Object.keys(photoObj).some(k => photoObj[k]?.file)) {
+    try {
+      await driveEnsureSetup();
+      if (!driveCache.isPhotosId) {
+        driveCache.isPhotosId = await driveFindOrCreateFolder('Instruction Sheet Photos', driveCache.vaultId);
+      }
+      const folderName = linkedItem ? linkedItem + ' - ' + sheetNum : sheetNum;
+      const isFolderId = await driveFindOrCreateFolder(folderName, driveCache.isPhotosId);
+      photoLink = 'https://drive.google.com/drive/folders/' + isFolderId;
+      for (const [viewKey, fileObj] of Object.entries(photoObj)) {
+        if (!fileObj?.file) continue;
+        const fname = folderName + ' ' + viewKey + '.' + (fileObj.file.name.split('.').pop() || 'jpg');
+        await driveUploadPhoto(fileObj.file, fname, isFolderId).catch(e => console.warn(e));
+      }
+    } catch(e) { console.warn('IS photo folder:', e); }
+  }
+
+  const row = [sheetNum, linkedItem, d.is_year||'', d.is_condition||'', d.is_notes||'', photoLink];
+  try {
+    await ensureEphemeraSheets(state.personalSheetId);
+    await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:F', [row]);
+    const newKey = Date.now();
+    state.isData[newKey] = {
+      row: newKey, sheetNum, linkedItem, year: d.is_year||'',
+      condition: d.is_condition||'', notes: d.is_notes||'', photoLink,
+    };
+    showToast('✓ Instruction Sheet ' + sheetNum + ' saved!');
+    closeWizard();
+    buildDashboard();
+    renderBrowse();
+  } catch(e) {
+    showToast('Error saving: ' + e.message);
+  }
+}
+
 async function saveCatalogItem() {
   const d = wizard.data;
   // Title = "Year Type Catalog" e.g. "1957 Consumer Catalog"
@@ -5609,6 +5854,7 @@ async function saveCatalogItem() {
   const yearLabel = d.cat_year || '';
   const folderName = [yearLabel, typeLabel, 'Catalog'].filter(Boolean).join(' ');
   const title = folderName;
+  const itemNum = generateEphemeraItemNum('catalogs', yearLabel, typeLabel);
 
   // Create photo folder and upload photos if any
   let photoFolderLink = '';
@@ -5634,6 +5880,7 @@ async function saveCatalogItem() {
   }
 
   const row = [
+    itemNum,
     d.cat_type || '',
     d.cat_year || '',
     d.cat_hasMailer || 'No',
@@ -5647,7 +5894,7 @@ async function saveCatalogItem() {
     // Ensure Catalogs tab exists with proper headers before appending
     await ensureEphemeraSheets(state.personalSheetId);
     console.log('[Catalog save] Writing row:', JSON.stringify(row));
-    const appendResult = await sheetsAppend(state.personalSheetId, 'Catalogs!A:H', [row]);
+    const appendResult = await sheetsAppend(state.personalSheetId, 'Catalogs!A:I', [row]);
     console.log('[Catalog save] Append result:', JSON.stringify(appendResult));
     // Reload catalog rows from sheet to get accurate row numbers
     if (!state.ephemeraData.catalogs) state.ephemeraData.catalogs = {};
@@ -5655,21 +5902,22 @@ async function saveCatalogItem() {
       const freshCat = await sheetsGet(state.personalSheetId, 'Catalogs!A3:H');
       state.ephemeraData.catalogs = {};
       (freshCat.values || []).forEach((r, idx) => {
-        if (!r[0] || r[0] === 'Type' || r[0] === 'Catalogs') return;
+        if (!r[0] || r[0] === 'Item ID' || r[0] === 'Type' || r[0] === 'Catalogs') return;
         const key = idx + 3;
-        const t = [r[1], r[0], 'Catalog'].filter(Boolean).join(' ');
+        const catType2 = r[1]||''; const year2 = r[2]||'';
+        const t = [year2, catType2, 'Catalog'].filter(Boolean).join(' ');
         state.ephemeraData.catalogs[key] = {
-          row: key, title: t,
-          catType: r[0]||'', year: r[1]||'', hasMailer: r[2]||'No',
-          condition: r[3]||'', estValue: r[4]||'', dateAcquired: r[5]||'',
-          notes: r[6]||'', photoLink: r[7]||'',
+          row: key, itemNum: r[0]||'', title: t,
+          catType: catType2, year: year2, hasMailer: r[3]||'No',
+          condition: r[4]||'', estValue: r[5]||'', dateAcquired: r[6]||'',
+          notes: r[7]||'', photoLink: r[8]||'',
         };
       });
     } catch(e) {
       // Fallback: add optimistically
       const newKey = Date.now();
       state.ephemeraData.catalogs[newKey] = {
-        row: newKey, title,
+        row: newKey, itemNum, title,
         catType: d.cat_type || '', year: d.cat_year || '',
         hasMailer: d.cat_hasMailer || 'No', condition: d.cat_condition || '',
         estValue: d.cat_estValue || '', dateAcquired: d.cat_dateAcquired || '',
@@ -5690,23 +5938,26 @@ async function saveEphemeraItem() {
   const d = wizard.data;
   const tab = wizard.tab;
   const tabNames = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };
-  // User-defined tabs: look up label from state
   const _userTab = (state.userDefinedTabs||[]).find(t => t.id === tab);
   const sheetName = tabNames[tab] || (_userTab && _userTab.label) || null;
   if (!sheetName) { closeWizard(); return; }
 
+  const ephItemNum = generateEphemeraItemNum(tab, d.eph_year || '', '');
+
   let row;
   if (tab === 'mockups') {
     row = [
+      ephItemNum,
       d.eph_title||'', d.eph_itemNumRef||'', d.eph_description||'',
       d.eph_year||'', d.eph_manufacturer||'Lionel', d.eph_condition||'',
       d.eph_productionStatus||'', d.eph_material||'', d.eph_dimensions||'',
       d.eph_provenance||'', d.eph_lionelVerified||'', d.eph_estValue||'',
-      '', // photo link — empty for now
+      '', // photo link
       d.eph_notes||'', d.eph_dateAcquired||'',
     ];
   } else {
     row = [
+      ephItemNum,
       d.eph_title||'', d.eph_description||'', d.eph_year||'',
       d.eph_manufacturer||'Lionel', d.eph_condition||'',
       d.eph_quantity||'1', d.eph_estValue||'',
@@ -5716,13 +5967,13 @@ async function saveEphemeraItem() {
   }
 
   try {
-    await sheetsAppend(state.personalSheetId, sheetName, [row]);
+    await sheetsAppend(state.personalSheetId, sheetName + '!A:K', [row]);
     // Add to local state
     const bucket = state.ephemeraData[tab] || {};
     const newKey = Date.now();
     if (tab === 'mockups') {
       bucket[newKey] = {
-        row: newKey, title: d.eph_title||'', itemNumRef: d.eph_itemNumRef||'',
+        row: newKey, itemNum: ephItemNum, title: d.eph_title||'', itemNumRef: d.eph_itemNumRef||'',
         description: d.eph_description||'', year: d.eph_year||'',
         manufacturer: d.eph_manufacturer||'Lionel', condition: d.eph_condition||'',
         productionStatus: d.eph_productionStatus||'', material: d.eph_material||'',
@@ -5732,7 +5983,7 @@ async function saveEphemeraItem() {
       };
     } else {
       bucket[newKey] = {
-        row: newKey, title: d.eph_title||'', description: d.eph_description||'',
+        row: newKey, itemNum: ephItemNum, title: d.eph_title||'', description: d.eph_description||'',
         year: d.eph_year||'', manufacturer: d.eph_manufacturer||'Lionel',
         condition: d.eph_condition||'', quantity: d.eph_quantity||'1',
         estValue: d.eph_estValue||'', photoLink: '', notes: d.eph_notes||'',
@@ -6084,6 +6335,36 @@ async function saveWizardItem() {
       } else {
         await sheetsAppend(state.personalSheetId, 'Want List!A:E', [row]);
       }
+    }
+
+    // ── Save instruction sheet if user said they have one ──
+    if (d.hasIS === 'Yes' && tab === 'collection') {
+      try {
+        const isSheetNum = (d.is_sheetNum || '').trim() || itemNum + '-IS';
+        const isPhotoObj = d.photosIS || {};
+        let isPhotoLink = '';
+        if (Object.keys(isPhotoObj).some(k => isPhotoObj[k]?.file)) {
+          await driveEnsureSetup();
+          if (!driveCache.isPhotosId) {
+            driveCache.isPhotosId = await driveFindOrCreateFolder('Instruction Sheet Photos', driveCache.vaultId);
+          }
+          const isFolderName = itemNum + ' - ' + isSheetNum;
+          const isFolderId = await driveFindOrCreateFolder(isFolderName, driveCache.isPhotosId);
+          isPhotoLink = 'https://drive.google.com/drive/folders/' + isFolderId;
+          for (const [viewKey, fileObj] of Object.entries(isPhotoObj)) {
+            if (!fileObj?.file) continue;
+            const fname = isFolderName + ' ' + viewKey + '.' + (fileObj.file.name.split('.').pop() || 'jpg');
+            await driveUploadPhoto(fileObj.file, fname, isFolderId).catch(e => console.warn(e));
+          }
+        }
+        const isRow = [isSheetNum, itemNum, '', d.is_condition || '', '', isPhotoLink];
+        await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:F', [isRow]);
+        const newISKey = Date.now();
+        state.isData[newISKey] = {
+          row: newISKey, sheetNum: isSheetNum, linkedItem: itemNum,
+          year: '', condition: d.is_condition || '', notes: '', photoLink: isPhotoLink,
+        };
+      } catch(e) { console.warn('IS save error:', e); }
     }
 
     closeWizard();
