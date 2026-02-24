@@ -2251,9 +2251,6 @@ function buildDashboard() {
   // Count ALL owned entries including box-only rows
   const allOwned = Object.values(state.personalData).filter(pd => {
     if (!pd.owned) return false;
-      const _qf = state.filters.quickEntry || '';
-      if (_qf === 'quick' && !pd.quickEntry) return false;
-      if (_qf === 'complete' && pd.quickEntry) return false;
     // Exclude pure box-only rows (has box but NO item condition AND NO item price)
     const condVal = pd.condition?.toString().trim();
     const priceVal = pd.priceItem?.toString().trim();
@@ -2541,6 +2538,12 @@ function renderBrowse() {
     if (owned && !isOwned) return false;
     if (unowned && (isOwned || isWanted)) return false;
     if (boxed && !hasBox) return false;
+    // Quick Entry filter — only applies when item is owned
+    if (isOwned && pd) {
+      const _qf = state.filters.quickEntry || '';
+      if (_qf === 'quick' && !pd.quickEntry) return false;
+      if (_qf === 'complete' && pd.quickEntry) return false;
+    }
     // If type filter is an ephemera category, hide train rows
     if (type) {
       const _ephTypeKeys = ['Catalog','Paper Item','Mock-Up','Other Lionel',
