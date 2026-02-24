@@ -6227,17 +6227,27 @@ function yearMadeNext() {
     warnDiv.id = 'year-range-warning';
     warnDiv.style.cssText = 'margin-top:0.75rem;padding:0.75rem 1rem;border-radius:10px;background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.45);font-size:0.82rem';
     warnDiv.innerHTML = '<div style="font-weight:600;color:var(--accent2);margin-bottom:0.35rem">Just a heads up!</div>'
-      + '<div style="color:var(--text-mid);line-height:1.5;margin-bottom:0.65rem">The known production years for this item are <strong>' + min + '–' + max + '</strong>. '
-      + 'You entered <strong>' + yr + '</strong> — that\'s outside the suggested range. Want to continue anyway?</div>'
+      + '<div style="color:var(--text-mid);line-height:1.5;margin-bottom:0.65rem">The known production years for this item are <strong>' + min + '\u2013' + max + '</strong>. '
+      + 'You entered <strong>' + yr + '</strong> \u2014 that\'s outside the suggested range. Want to continue anyway?</div>'
       + '<div style="display:flex;gap:0.5rem">'
-      + '<button onclick="wizardNext()" style="flex:1;padding:0.5rem;border-radius:8px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Yes, continue</button>'
+      + '<button onclick="wizardAdvance()" style="flex:1;padding:0.5rem;border-radius:8px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Yes, continue</button>'
       + '<button onclick="yearMadeReenter()" style="flex:1;padding:0.5rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">No, re-enter</button>'
       + '</div>';
     var bdy = document.getElementById('wizard-body');
     if (bdy) bdy.appendChild(warnDiv);
     return;
   }
-  wizardNext();
+  // Year is fine — advance directly without going through the yearMade check again
+  wizardAdvance();
+}
+
+// Advances wizard without triggering yearMade intercept — called by yearMadeNext
+async function wizardAdvance() {
+  const _nextBtn = document.getElementById('wizard-next-btn');
+  if (_nextBtn && _nextBtn.disabled) return;
+  const _warn = document.getElementById('year-range-warning');
+  if (_warn) _warn.remove();
+  await _wizardNextCore();
 }
 
 async function wizardNext() {
@@ -6248,13 +6258,21 @@ async function wizardNext() {
   const steps = wizard.steps;
   const s = steps[wizard.step];
 
-  // yearMade step: run range check (yearMadeNext handles the warning)
-  if (s && s.type === 'yearMade' && !document.getElementById('year-range-warning')) {
+  // yearMade step: hand off to yearMadeNext for range check; it calls wizardAdvance when done
+  if (s && s.type === 'yearMade') {
     yearMadeNext();
     return;
   }
 
-  // Validate required fields
+  await _wizardNextCore();
+}
+
+async function _wizardNextCore() {
+  const _nextBtn = document.getElementById('wizard-next-btn');
+  if (_nextBtn && _nextBtn.disabled) return;
+  const steps = wizard.steps;
+  const s = steps[wizard.step];
+// Validate required fields
   if (s.type === 'choice' && !wizard.tab) {
     alert('Please select where to add the item.'); return;
   }
@@ -6348,6 +6366,7 @@ function generateEphemeraItemNum(tabId, year, catType) {
   // Return the base number — collectors can own multiples of the same item
   // and they all share the same item number (like real Lionel catalog numbers)
   return base + '-' + suffix;
+}
 }
 
 async function saveInstructionSheet() {
