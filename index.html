@@ -4849,7 +4849,7 @@ function renderWizardStep() {
   document.getElementById('wizard-title').textContent = typeof s.title === 'function' ? s.title(wizard.data) : s.title;
   document.getElementById('wizard-progress').style.width = pct + '%';
   document.getElementById('wizard-back-btn').style.display = step > 0 ? 'inline-flex' : 'none';
-  const autoAdvanceTypes = new Set(['choice','choice2','choice3','variation','pickRow','pickSoldItem']);
+  const autoAdvanceTypes = new Set(['choice','choice2','choice3','pickRow','pickSoldItem']); // 'variation' removed — Next needed when item has no variations
   // setMatch and setUnit2Num need Next button (user may interact multiple times)
   if (s.type === 'confirm') {
     nextBtn.textContent = '✓ Save';
