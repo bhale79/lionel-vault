@@ -5976,10 +5976,10 @@ function wizardNextWithYearCheck() {
     warn.style.cssText = 'margin-top:0.75rem;padding:0.75rem 1rem;border-radius:10px;background:rgba(245,166,35,0.12);border:1px solid rgba(245,166,35,0.5);font-size:0.82rem;color:var(--text)';
     warn.innerHTML = '<div style="font-weight:600;color:var(--accent2);margin-bottom:0.4rem">⚠️ Just a heads up!</div>'
       + '<div style="color:var(--text-mid);margin-bottom:0.65rem">The known production range for this item is <strong>' + min + '–' + max + '</strong>. '
-      + 'The year <strong>' + yr + '</strong> is outside that range — no problem if you know something we don't!</div>'
+      + 'The year <strong>' + yr + '</strong> is outside that range — no problem if you know something we don\'t!</div>'
       + '<div style="display:flex;gap:0.5rem">'
       + '<button onclick="wizardNext()" style="flex:1;padding:0.5rem;border-radius:8px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Yes, continue</button>'
-      + '<button onclick="document.getElementById('year-range-warning').remove();wizard.data.yearMade='';document.getElementById('wiz-year-input').value='';document.getElementById('wiz-year-input').focus()" style="flex:1;padding:0.5rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">No, re-enter</button>'
+      + '<button onclick="(function(){var w=document.getElementById(\'year-range-warning\');if(w)w.remove();wizard.data.yearMade=\'\';var i=document.getElementById(\'wiz-year-input\');if(i){i.value=\'\';i.focus();}})()" style="flex:1;padding:0.5rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">No, re-enter</button>'
       + '</div>';
     const body = document.getElementById('wizard-body');
     if (body) body.appendChild(warn);
