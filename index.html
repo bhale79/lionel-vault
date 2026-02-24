@@ -772,7 +772,7 @@
           <div class="stat-card" style="--accent-color: var(--accent2)">
             <div class="stat-label">Collection Value</div>
             <div class="stat-value" id="stat-value">—</div>
-            <div class="stat-sub">item+box complete</div>
+            <div class="stat-sub">based on what you paid</div>
           </div>
         </div>
 
@@ -2464,32 +2464,22 @@ function populateFilters() {
   const hasOtherEph = ['paper','mockups','other'].some(k => Object.keys(state.ephemeraData[k]||{}).length > 0);
   const userEph = (state.userDefinedTabs||[]).filter(t => Object.keys(state.ephemeraData[t.id]||{}).length > 0);
 
-  if (hasCatalogs || hasOtherEph || userEph.length) {
-    const sep = document.createElement('option');
-    sep.disabled = true; sep.textContent = '── Other Items ──';
-    typeEl.appendChild(sep);
-    if (hasCatalogs) {
-      const o = document.createElement('option'); o.value = 'Catalog'; o.textContent = '📒 Catalogs (all)'; typeEl.appendChild(o);
-      catSubTypes.forEach(ct => {
-        const o2 = document.createElement('option'); o2.value = ct; o2.textContent = '  ' + ct + ' Catalog'; typeEl.appendChild(o2);
-      });
-    }
-    if (Object.keys(state.ephemeraData.paper||{}).length) {
-      const o = document.createElement('option'); o.value = 'Paper Item'; o.textContent = '📄 Paper Items'; typeEl.appendChild(o);
-    }
-    if (Object.keys(state.ephemeraData.mockups||{}).length) {
-      const o = document.createElement('option'); o.value = 'Mock-Up'; o.textContent = '🔩 Mock-Ups'; typeEl.appendChild(o);
-    }
-    if (Object.keys(state.ephemeraData.other||{}).length) {
-      const o = document.createElement('option'); o.value = 'Other Lionel'; o.textContent = '📦 Other Lionel'; typeEl.appendChild(o);
-    }
-    if (Object.keys(state.isData||{}).length) {
-      const o = document.createElement('option'); o.value = 'Instruction Sheet'; o.textContent = '📋 Instruction Sheets'; typeEl.appendChild(o);
-    }
-    userEph.forEach(t => {
-      const o = document.createElement('option'); o.value = t.label; o.textContent = '⭐ ' + t.label; typeEl.appendChild(o);
-    });
-  }
+  // Always add a separator then ephemera/collection categories
+  const sep = document.createElement('option');
+  sep.disabled = true; sep.textContent = '── My Collection ──';
+  typeEl.appendChild(sep);
+  // Catalog with subtypes
+  const oCat = document.createElement('option'); oCat.value = 'Catalog'; oCat.textContent = '📒 Catalogs (all)'; typeEl.appendChild(oCat);
+  catSubTypes.forEach(ct => {
+    const o2 = document.createElement('option'); o2.value = ct; o2.textContent = '  ' + ct + ' Catalog'; typeEl.appendChild(o2);
+  });
+  const oPaper = document.createElement('option'); oPaper.value = 'Paper Item'; oPaper.textContent = '📄 Paper Items'; typeEl.appendChild(oPaper);
+  const oMock = document.createElement('option'); oMock.value = 'Mock-Up'; oMock.textContent = '🔩 Mock-Ups'; typeEl.appendChild(oMock);
+  const oOther = document.createElement('option'); oOther.value = 'Other Lionel'; oOther.textContent = '📦 Other Lionel'; typeEl.appendChild(oOther);
+  const oIS = document.createElement('option'); oIS.value = 'Instruction Sheet'; oIS.textContent = '📋 Instruction Sheets'; typeEl.appendChild(oIS);
+  userEph.forEach(t => {
+    const o = document.createElement('option'); o.value = t.label; o.textContent = '⭐ ' + t.label; typeEl.appendChild(o);
+  });
 
   const roadEl = document.getElementById('filter-road');
   roads.slice(0, 80).forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; roadEl.appendChild(o); });
@@ -2723,7 +2713,7 @@ function renderBrowse() {
     .map(pd => ({
       itemNum: pd.itemNum, variation: pd.variation || '', itemType: pd.itemType || 'Diesel Locomotive',
       roadName: pd.roadName || '', description: pd.notes || '', yearProd: pd.datePurchased || '',
-      marketVal: pd.userEstWorth || '', refLink: '', _personalOnly: true
+      marketVal: '', refLink: '', _personalOnly: true // market value from master sheet only
     }));
   const baseList = owned ? [...state.masterData, ...personalOnlyItems] : state.masterData;
 
@@ -3037,7 +3027,7 @@ function showOwnedItemMenu(idx, pdKey) {
   const item = state.masterData[idx] || {
     itemNum: pd.itemNum, variation: pd.variation || '',
     roadName: pd.roadName || '', itemType: pd.itemType || '',
-    yearProd: pd.yearMade || '', marketVal: pd.userEstWorth || '',
+    yearProd: pd.yearMade || '', marketVal: '', // market value comes from master sheet only
   };
   const existing = document.getElementById('owned-action-menu');
   if (existing) existing.remove();
@@ -3135,7 +3125,7 @@ function showItemPanel(idx, pdKey, mode) {
   const item = state.masterData[idx] || {
     itemNum: pd.itemNum, variation: pd.variation || '',
     roadName: pd.roadName || '', itemType: pd.itemType || '',
-    yearProd: pd.yearMade || '', marketVal: pd.userEstWorth || '',
+    yearProd: pd.yearMade || '', marketVal: '', // market value comes from master sheet only
     varDesc: '', description: '',
   };
 
@@ -4015,7 +4005,7 @@ function buildReport() {
       </tr>`).join('');
 
   } else if (type === 'missing-box') {
-    thead.innerHTML = '<tr><th>Item #</th><th>Type</th><th>Road Name</th><th>Condition</th><th>Est. Market Value</th></tr>';
+    thead.innerHTML = '<tr><th>Item #</th><th>Type</th><th>Road Name</th><th>Condition</th><th>Amount Paid</th></tr>';
     const noBox = state.masterData.filter(i => {
       const pd = state.personalData[`${i.itemNum}|${i.variation}`];
       return pd?.owned && pd?.hasBox !== 'Yes';
@@ -4491,8 +4481,7 @@ function getSteps(tab) {
       return [
         { id: 'cat_type',        title: 'What type of catalog is this?',          type: 'choice3',
           choices: ['Consumer','Dealer','Advance','Other'] },
-        { id: 'cat_year',        title: 'What year is the catalog?',              type: 'text',
-          placeholder: 'e.g. 1957' },
+        { id: 'cat_year',        title: 'What year is the catalog?',              type: 'postwarYear' },
         { id: 'cat_hasMailer',   title: 'Does it have the envelope or mailer?',   type: 'choice2',
           choices: ['Yes','No'] },
         { id: 'cat_condition',   title: 'What condition is the catalog?',         type: 'slider', min:1, max:10 },
@@ -5245,6 +5234,45 @@ function renderWizardStep() {
     body.appendChild(yearWrap);
     setTimeout(function() { var i = document.getElementById('wiz-year-input'); if(i) i.focus(); }, 50);
 
+
+  } else if (s.type === 'postwarYear') {
+    var _pwCurr = wizard.data[s.id] || '';
+    var _pwWrap = document.createElement('div');
+    _pwWrap.style.cssText = 'padding-top:0.5rem';
+    var _pwHint = document.createElement('div');
+    _pwHint.style.cssText = 'font-size:0.78rem;font-weight:600;color:#2980b9;margin-bottom:0.6rem';
+    _pwHint.textContent = 'Tap the year:';
+    _pwWrap.appendChild(_pwHint);
+    var _pwGrid = document.createElement('div');
+    _pwGrid.id = 'postwar-year-grid';
+    _pwGrid.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem';
+    for (var _y = 1945; _y <= 1969; _y++) {
+      (function(yr) {
+        var _btn = document.createElement('button');
+        var _sel = String(yr) === String(_pwCurr);
+        _btn.style.cssText = 'padding:0.45rem 0.7rem;border-radius:8px;font-family:var(--font-mono);font-size:0.88rem;font-weight:600;cursor:pointer;transition:all 0.15s;'
+          + (_sel ? 'border:2px solid var(--accent);background:rgba(232,64,28,0.15);color:var(--accent)'
+                  : 'border:1.5px solid var(--border);background:var(--surface2);color:var(--text-mid)');
+        _btn.textContent = yr;
+        _btn.onclick = function() {
+          wizard.data[s.id] = String(yr);
+          document.querySelectorAll('#postwar-year-grid button').forEach(function(b) {
+            var isSel = b.textContent === String(yr);
+            b.style.border = isSel ? '2px solid var(--accent)' : '1.5px solid var(--border)';
+            b.style.background = isSel ? 'rgba(232,64,28,0.15)' : 'var(--surface2)';
+            b.style.color = isSel ? 'var(--accent)' : 'var(--text-mid)';
+          });
+          setTimeout(function() { wizardNext(); }, 120);
+        };
+        _pwGrid.appendChild(_btn);
+      })(_y);
+    }
+    _pwWrap.appendChild(_pwGrid);
+    body.innerHTML = '';
+    body.appendChild(_pwWrap);
+    // Hide Next — year buttons auto-advance
+    var _pwNb = document.getElementById('wizard-next-btn');
+    if (_pwNb) _pwNb.style.display = 'none';
 
   } else if (s.type === 'date') {
     const val = wizard.data[s.id] || '';
