@@ -5561,28 +5561,28 @@ async function wizardNext() {
     alert('Please make a selection.'); return;
   }
 
-  // If this is the confirm step, save
-  if (s.type === 'confirm') {
-    await saveWizardItem();
-    return;
-  }
-
   // Photo-only mode: after completing a drivePhotos step, save the link and close
   if (wizard.data._photoOnly && s.type === 'drivePhotos') {
     await savePhotoOnlyUpdate();
     return;
   }
 
-  // Catalog confirm
+  // Catalog confirm — must be checked BEFORE generic confirm
   if (s.id === 'cat_confirm') {
     await saveCatalogItem();
     return;
   }
 
-  // Ephemera confirm
+  // Ephemera confirm — must be checked BEFORE generic confirm
   const _ephTabIds = ['paper','mockups','other',...(state.userDefinedTabs||[]).map(t=>t.id)];
   if (s.id === 'eph_confirm' || (s.type === 'confirm' && _ephTabIds.includes(wizard.tab))) {
     await saveEphemeraItem();
+    return;
+  }
+
+  // Generic confirm — train/collection/sold/want items
+  if (s.type === 'confirm') {
+    await saveWizardItem();
     return;
   }
 
