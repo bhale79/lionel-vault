@@ -2808,7 +2808,7 @@ function openPhotoWizard(itemNum, variation, pdKey) {
   document.getElementById('wizard-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
   // Skip to the photosItem step
-  const autoSkip = new Set(['tab','itemNum','variation','condition','allOriginal','notOriginalDesc',
+  const autoSkip = new Set(['tab','itemNum','variation','entryMode','condition','allOriginal','notOriginalDesc',
     'hasBox','boxCond','hasIS','is_sheetNum','is_condition','pricePaid','datePurchased','userEstWorth','yearMade',
     'tenderAllOriginal','tenderNotOriginalDesc','unit2AllOriginal','unit2NotOriginalDesc',
     'unit3AllOriginal','unit3NotOriginalDesc','wantTenderPhotos','tenderMatch','dieselSetQ','setMatch','setType',
@@ -4379,6 +4379,10 @@ function getSteps(tab) {
         skipIf: (d) => !!d.itemCategory },
       ...base,
 
+      // ── ENTRY MODE ──
+      { id: 'entryMode', title: (d) => 'How would you like to add this ' + getItemLabel(d) + '?',
+        type: 'entryMode' },
+
       // ── ITEM CONDITION ──
       { id: 'condition',       title: (d) => 'What condition is the ' + getItemLabel(d) + '?',
         type: 'slider', min:1, max:10 },
@@ -4626,6 +4630,10 @@ function closeWizardOnOverlay(e) {
 }
 
 function renderWizardStep() {
+  // Always restore Next button (entryMode step hides it)
+  const _nb = document.getElementById('wizard-next-btn');
+  if (_nb) _nb.style.display = '';
+
   const steps = wizard.tab ? getSteps(wizard.tab) : getSteps(null);
   wizard.steps = steps;
 
@@ -4846,9 +4854,45 @@ function renderWizardStep() {
       }
     }, 50);
 
+  } else if (s.type === 'entryMode') {
+    const lbl = getItemLabel(wizard.data);
+    const itemNum = (wizard.data.itemNum || '').trim();
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'padding-top:0.75rem;display:flex;flex-direction:column;gap:0.75rem';
+
+    // Full Entry card
+    const fullCard = document.createElement('button');
+    fullCard.style.cssText = 'width:100%;padding:1.1rem 1.25rem;border-radius:14px;text-align:left;cursor:pointer;font-family:var(--font-body);transition:all 0.15s;border:2px solid var(--border);background:var(--surface2);display:flex;align-items:flex-start;gap:1rem';
+    fullCard.innerHTML = '<div style="font-size:2rem;flex-shrink:0;line-height:1">📋</div>'
+      + '<div><div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:0.2rem">Full Entry</div>'
+      + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5">Answer all questions and add photos.<br>Best for a complete record.</div></div>';
+    fullCard.onclick = function() {
+      wizard.data.entryMode = 'full';
+      renderWizardStep();
+      setTimeout(function() { wizardNext(); }, 120);
+    };
+
+    // Quick Entry card
+    const quickCard = document.createElement('button');
+    quickCard.style.cssText = 'width:100%;padding:1.1rem 1.25rem;border-radius:14px;text-align:left;cursor:pointer;font-family:var(--font-body);transition:all 0.15s;border:2px solid #27ae60;background:rgba(39,174,96,0.07);display:flex;align-items:flex-start;gap:1rem';
+    quickCard.innerHTML = '<div style="font-size:2rem;flex-shrink:0;line-height:1">⚡</div>'
+      + '<div><div style="font-size:1rem;font-weight:700;color:#27ae60;margin-bottom:0.2rem">Quick Entry</div>'
+      + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5">Just save the item number now.<br>You can fill in the details later — use the ⚡ Quick Entry filter to find it.</div></div>';
+    quickCard.onclick = function() {
+      wizard.data.entryMode = 'quick';
+      quickEntryAdd();
+    };
+
+    wrap.appendChild(fullCard);
+    wrap.appendChild(quickCard);
+    body.innerHTML = '';
+    body.appendChild(wrap);
+    // Hide the Next button — selection is made by tapping a card
+    var nb = document.getElementById('wizard-next-btn');
+    if (nb) nb.style.display = 'none';
+
   } else if (s.type === 'slider') {
     const val = wizard.data[s.id] || 7;
-    const isCondStep = s.id === 'condition' && wizard.tab === 'collection';
     body.innerHTML = `
       <div style="padding-top:1rem">
         <div style="display:flex;align-items:center;gap:1rem">
@@ -4859,13 +4903,7 @@ function renderWizardStep() {
         <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-dim);margin-top:0.25rem">
           <span>1 — Poor</span><span>5 — Good</span><span>10 — Mint</span>
         </div>
-        ${isCondStep ? `
-        <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)">
-          <button onclick="quickEntryAdd()" style="width:100%;padding:0.65rem 1rem;border-radius:10px;border:1.5px dashed #27ae60;background:rgba(39,174,96,0.07);color:#27ae60;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;display:flex;align-items:flex-start;gap:0.6rem">
-            <span style="font-size:1.1rem;flex-shrink:0">⚡</span>
-            <span><strong>Quick Entry</strong> — Skip all questions and photos. This item will be marked and you can complete it later using the Quick Entry filter.</span>
-          </button>
-        </div>` : ''}
+
       </div>`;
 
   } else if (s.type === 'choice2' || s.type === 'choice3') {
