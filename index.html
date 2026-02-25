@@ -720,6 +720,7 @@
   .identify-conf.high { background: rgba(58,158,104,0.2); color: #4dc880; }
   .identify-conf.med  { background: rgba(212,168,67,0.2); color: #e8c060; }
   .identify-conf.low  { background: rgba(224,64,40,0.15); color: #f08070; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   .gemini-setup {
     background: rgba(212,168,67,0.08);
     border: 1px solid rgba(212,168,67,0.25);
@@ -7845,6 +7846,117 @@ function renderIdentifyResults(parsed) {
   actions.style.display = 'flex';
   actions.style.flexWrap = 'wrap';
   actions.style.gap = '0.5rem';
+
+  // Auto-enrich candidates with master data + reference links
+  if (parsed.candidates && parsed.candidates.length > 0) {
+    enrichIdentifyCandidates(parsed.candidates);
+  }
+}
+
+function enrichIdentifyCandidates(candidates) {
+  // For each candidate, look up master data and inject reference links directly
+  candidates.forEach((c, i) => {
+    const itemNum = String(c.itemNum).trim();
+
+    // Find all master rows for this item number
+    const masterRows = (state.masterData || []).filter(m => String(m.itemNum).trim() === itemNum);
+    const master = masterRows[0];
+    if (!master) return;
+
+    // Find the COTT (cornucopia) link and tandem link
+    const cottLink = masterRows.map(r => r.refLink).find(l => l && l.includes('cornucopia'));
+    const tandemLink = masterRows.map(r => r.refLink).find(l => l && l.includes('tandem-associates'));
+
+    // If no tandem link in master data, try to construct it from master index pattern
+    // Pattern: lionel_trains_68_executive_inspection_car.htm
+    // We'll use the tandem link from master data if available, otherwise show a search link
+    const refLink = tandemLink || cottLink || null;
+
+    // Find the rendered candidate card
+    const cards = document.querySelectorAll('.identify-candidate');
+    const card = Array.from(cards).find(card => {
+      const numEl = card.querySelector('.identify-num');
+      return numEl && numEl.textContent.trim() === itemNum;
+    });
+    if (!card) return;
+
+    const descDiv = card.querySelector('.identify-desc');
+    if (!descDiv) return;
+
+    // Build reference links row
+    const linksRow = document.createElement('div');
+    linksRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem;padding-top:0.4rem;border-top:1px solid rgba(255,255,255,0.08)';
+
+    // Tandem-Associates link
+    if (tandemLink) {
+      const tLink = document.createElement('a');
+      tLink.href = tandemLink;
+      tLink.target = '_blank';
+      tLink.rel = 'noopener';
+      tLink.style.cssText = 'font-size:0.7rem;color:var(--gold);text-decoration:none;display:inline-flex;align-items:center;gap:0.25rem;background:rgba(212,168,67,0.1);border:1px solid rgba(212,168,67,0.25);padding:0.15rem 0.45rem;border-radius:4px;white-space:nowrap';
+      tLink.innerHTML = '📖 Tandem ID Guide ↗';
+      tLink.onclick = e => e.stopPropagation();
+      linksRow.appendChild(tLink);
+    }
+
+    // COTT (Cornucopia of Toy Trains) link
+    if (cottLink) {
+      const cLink = document.createElement('a');
+      cLink.href = cottLink;
+      cLink.target = '_blank';
+      cLink.rel = 'noopener';
+      cLink.style.cssText = 'font-size:0.7rem;color:#4dc880;text-decoration:none;display:inline-flex;align-items:center;gap:0.25rem;background:rgba(77,200,128,0.1);border:1px solid rgba(77,200,128,0.25);padding:0.15rem 0.45rem;border-radius:4px;white-space:nowrap';
+      cLink.innerHTML = '🌽 COTT ↗';
+      cLink.onclick = e => e.stopPropagation();
+      linksRow.appendChild(cLink);
+    }
+
+    // If we have a tandem link but no COTT link, add a COTT search fallback
+    if (tandemLink && !cottLink) {
+      const cottSearch = document.createElement('a');
+      cottSearch.href = 'https://cornucopiaoftoytrains.com/?s=' + encodeURIComponent('Lionel ' + itemNum);
+      cottSearch.target = '_blank';
+      cottSearch.rel = 'noopener';
+      cottSearch.style.cssText = 'font-size:0.7rem;color:#4dc880;text-decoration:none;display:inline-flex;align-items:center;gap:0.25rem;background:rgba(77,200,128,0.1);border:1px solid rgba(77,200,128,0.25);padding:0.15rem 0.45rem;border-radius:4px;white-space:nowrap';
+      cottSearch.innerHTML = '🌽 Search COTT ↗';
+      cottSearch.onclick = e => e.stopPropagation();
+      linksRow.appendChild(cottSearch);
+    }
+
+    // Tandem search fallback if no direct link
+    if (!tandemLink) {
+      const tSearch = document.createElement('a');
+      tSearch.href = 'https://www.tandem-associates.com/lionel/lionel_trains_master_index.htm';
+      tSearch.target = '_blank';
+      tSearch.rel = 'noopener';
+      tSearch.style.cssText = 'font-size:0.7rem;color:var(--gold);text-decoration:none;display:inline-flex;align-items:center;gap:0.25rem;background:rgba(212,168,67,0.1);border:1px solid rgba(212,168,67,0.25);padding:0.15rem 0.45rem;border-radius:4px;white-space:nowrap';
+      tSearch.innerHTML = '📖 Tandem Index ↗';
+      tSearch.onclick = e => e.stopPropagation();
+      linksRow.appendChild(tSearch);
+    }
+
+    // Year range from master data
+    if (master.yearProd) {
+      const yearSpan = document.createElement('span');
+      yearSpan.style.cssText = 'font-size:0.7rem;color:var(--text-dim);display:inline-flex;align-items:center;padding:0.15rem 0.45rem;background:rgba(255,255,255,0.05);border-radius:4px;white-space:nowrap';
+      yearSpan.textContent = '📅 ' + master.yearProd;
+      linksRow.appendChild(yearSpan);
+    }
+
+    if (linksRow.children.length > 0) {
+      descDiv.appendChild(linksRow);
+    }
+
+    // Add ✓ In Catalog badge to the item number if found in master data
+    const numEl = card.querySelector('.identify-num');
+    if (numEl && !card.querySelector('.catalog-badge')) {
+      const badge = document.createElement('div');
+      badge.className = 'catalog-badge';
+      badge.style.cssText = 'font-size:0.6rem;background:rgba(212,168,67,0.2);color:var(--gold);padding:0.1rem 0.3rem;border-radius:3px;text-align:center;margin-top:0.2rem;white-space:nowrap';
+      badge.textContent = '✓ Catalog';
+      numEl.parentElement.insertBefore(badge, numEl.nextSibling);
+    }
+  });
 }
 
 function useIdentifiedItem() {
