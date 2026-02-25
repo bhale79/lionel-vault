@@ -7999,9 +7999,24 @@ if (!window._photosPagePatched) {
 // ══════════════════════════════════════════════════════════════════
 // PHOTO SOURCE PICKER — camera vs phone library
 // ══════════════════════════════════════════════════════════════════
+const _isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
 function showPhotoSourcePicker(stepId, viewKey) {
   _pickerStepId = stepId;
   _pickerViewKey = viewKey;
+  // Update button labels based on device type
+  const camLabel = document.getElementById('picker-cam-label');
+  const libLabel = document.getElementById('picker-lib-label');
+  const camBtn   = document.getElementById('picker-btn-cam');
+  if (_isTouchDevice) {
+    if (camLabel) camLabel.textContent = 'Take Photo';
+    if (libLabel) libLabel.textContent = 'Choose from Phone Library';
+    if (camBtn)   camBtn.style.display = 'flex';
+  } else {
+    if (camLabel) camLabel.textContent = 'Take Photo with Webcam';
+    if (libLabel) libLabel.textContent = 'Upload from Computer';
+    if (camBtn)   camBtn.style.display = 'none'; // most desktops lack useful camera
+  }
   document.getElementById('photo-picker-sheet').classList.add('open');
 }
 
@@ -8012,16 +8027,19 @@ function closePhotoPicker() {
 }
 
 function pickerHandleFile(inputEl, isCamera) {
-  // Called directly from onchange on the label-linked inputs — always works on iOS
   if (!inputEl.files || !inputEl.files[0]) return;
-  const sid = _pickerStepId, vk = _pickerViewKey;
-  _pickerStepId = null; _pickerViewKey = null;
-  if (!sid || !vk) return;
-  // Synthesize an event-like object handlePhotoFile expects
-  const fakeEvent = { target: inputEl };
-  handlePhotoFile(fakeEvent, sid, vk);
-  // Reset input so same file can be picked again later
-  inputEl.value = '';
+  // Grab everything synchronously before any async or state changes
+  const file = inputEl.files[0];
+  const sid = _pickerStepId;
+  const vk = _pickerViewKey;
+  // Close picker and clear state
+  closePhotoPicker();
+  // Reset input value so same file can be re-selected later
+  setTimeout(() => { try { inputEl.value = ''; } catch(e) {} }, 500);
+  // Validate we have a target slot
+  if (!sid || !vk) { showToast('Photo slot lost — please try again', 3000, true); return; }
+  // Call upload directly with the file (bypass event object entirely)
+  uploadWizardPhoto(file, sid, vk);
 }
 </script>
 <!-- ══ IDENTIFY ITEM MODAL ══════════════════════════════════════════ -->
@@ -8154,11 +8172,11 @@ function pickerHandleFile(inputEl, isCamera) {
       letter-spacing:0.18em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem">
       Add Photo
     </div>
-    <label class="picker-btn" for="picker-input-cam" onclick="closePhotoPicker()">
-      <span class="picker-icon">📷</span> Take Photo
+    <label class="picker-btn" for="picker-input-cam" id="picker-btn-cam">
+      <span class="picker-icon">📷</span> <span id="picker-cam-label">Take Photo</span>
     </label>
-    <label class="picker-btn" for="picker-input-lib" onclick="closePhotoPicker()">
-      <span class="picker-icon">🖼️</span> Choose from Phone Library
+    <label class="picker-btn" for="picker-input-lib" id="picker-btn-lib">
+      <span class="picker-icon">🖼️</span> <span id="picker-lib-label">Choose from Library</span>
     </label>
     <button onclick="closePhotoPicker()" style="width:100%;padding:0.75rem;border-radius:12px;
       border:none;background:none;color:var(--text-dim);font-family:var(--font-body);
