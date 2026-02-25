@@ -5789,10 +5789,7 @@ function renderWizardStep() {
           <div style="color:white;font-size:0.75rem">Uploading…</div>
         </div>
       </div>
-      <input type="file" id="file-${stepId}-${viewKey}" accept="image/*" style="display:none"
-        onchange="handlePhotoFile(event,'${stepId}','${viewKey}')">
-      <input type="file" id="file-cam-${stepId}-${viewKey}" accept="image/*" capture="environment" style="display:none"
-        onchange="handlePhotoFile(event,'${stepId}','${viewKey}')">`;
+`;
       return wrapper;
     }
 
@@ -8014,8 +8011,16 @@ function triggerPhotoCamera() {
   const sid = _pickerStepId, vk = _pickerViewKey;
   closePhotoPicker();
   setTimeout(() => {
-    const el = document.getElementById('file-cam-' + sid + '-' + vk);
-    if (el) el.click();
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'image/*';
+    inp.setAttribute('capture', 'environment');
+    inp.style.display = 'none';
+    inp.onchange = (e) => handlePhotoFile(e, sid, vk);
+    document.body.appendChild(inp);
+    inp.click();
+    inp.addEventListener('change', () => inp.remove());
+    inp.addEventListener('cancel', () => inp.remove());
   }, 80);
 }
 
@@ -8023,8 +8028,15 @@ function triggerPhotoLibrary() {
   const sid = _pickerStepId, vk = _pickerViewKey;
   closePhotoPicker();
   setTimeout(() => {
-    const el = document.getElementById('file-' + sid + '-' + vk);
-    if (el) el.click();
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'image/*';
+    inp.style.display = 'none';
+    inp.onchange = (e) => handlePhotoFile(e, sid, vk);
+    document.body.appendChild(inp);
+    inp.click();
+    inp.addEventListener('change', () => inp.remove());
+    inp.addEventListener('cancel', () => inp.remove());
   }, 80);
 }
 </script>
