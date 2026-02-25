@@ -1439,24 +1439,40 @@ function onGoogleSignIn(response) {
 
 let accessToken = null;
 
+// Track whether this is the first token receipt (triggers full load) or a background refresh (just updates token)
+let _tokenIsInitial = true;
+
 function onTokenReceived(resp) {
   if (resp.error) {
     console.error('Token error:', resp);
     // If silent token refresh failed, prompt user to sign in again
     if (resp.error === 'interaction_required' || resp.error === 'login_required') {
       const hint = state.user?.email || '';
+      _tokenIsInitial = true; // next token will be a fresh sign-in
       tokenClient.requestAccessToken({ prompt: 'consent', login_hint: hint });
     }
     return;
   }
+
+  const isInitial = _tokenIsInitial;
+  _tokenIsInitial = false; // all subsequent tokens are background refreshes
+
   accessToken = resp.access_token;
-  // Auto-refresh token before it expires (tokens last 1 hour)
+
+  // Schedule next silent refresh 55 min from now (tokens last 1 hour)
   setTimeout(() => {
     if (accessToken) {
       const hint = state.user?.email || '';
       tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
     }
   }, 55 * 60 * 1000);
+
+  // Background refresh — just update the token, don't reload data
+  if (!isInitial) {
+    return;
+  }
+
+  // ── Initial sign-in / app startup path ──
 
   // Fetch user info from Google if we don't have it yet
   if (!state.user) {
@@ -2005,44 +2021,75 @@ async function sheetsGet(spreadsheetId, range) {
   return res.json();
 }
 
-async function sheetsUpdate(spreadsheetId, range, values) {
-  const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
-    {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ range, majorDimension: 'ROWS', values }),
+// ── Token refresh helper — silently refreshes expired token then retries ──
+// On mobile, tokens expire and the silent refresh sometimes doesn't fire in time.
+// This wraps any fetch so a 401 triggers a fresh token request before retrying once.
+async function _withTokenRetry(fetchFn) {
+  const res = await fetchFn();
+  if (res.status === 401 || res.status === 403) {
+    // Token is expired or invalid — request a fresh one and wait up to 8s
+    await new Promise((resolve, reject) => {
+      const hint = state.user?.email || '';
+      const prevCallback = tokenClient.callback;
+      tokenClient.callback = (resp) => {
+        tokenClient.callback = prevCallback; // restore
+        if (resp.error) { reject(new Error('Token refresh failed: ' + resp.error)); return; }
+        accessToken = resp.access_token;
+        resolve();
+      };
+      tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
+      setTimeout(() => reject(new Error('Token refresh timed out')), 8000);
+    });
+    // Retry with fresh token
+    const retryRes = await fetchFn();
+    if (!retryRes.ok) {
+      const errBody = await retryRes.json().catch(() => ({}));
+      throw new Error(`Sheets API error ${retryRes.status}: ${errBody?.error?.message || retryRes.statusText}`);
     }
-  );
+    return retryRes;
+  }
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(`Sheets API error ${res.status}: ${errBody?.error?.message || res.statusText}`);
+  }
+  return res;
+}
+
+async function sheetsUpdate(spreadsheetId, range, values) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
+  const body = JSON.stringify({ range, majorDimension: 'ROWS', values });
+  const res = await _withTokenRetry(() => fetch(url, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body,
+  }));
   return res.json();
 }
 
 async function sheetsAppend(spreadsheetId, range, values) {
-  const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
-    {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ values }),
-    }
-  );
-  const result = await res.json();
-  return result;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+  const body = JSON.stringify({ values });
+  const res = await _withTokenRetry(() => fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body,
+  }));
+  return res.json();
 }
 
 async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber) {
   // First get the sheetId (numeric) for the named tab
-  const metaRes = await fetch(
+  const metaRes = await _withTokenRetry(() => fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
+  ));
   const meta = await metaRes.json();
   const sheet = meta.sheets.find(s => s.properties.title === sheetName);
   if (!sheet) return;
   const sheetId = sheet.properties.sheetId;
 
   // Delete the row (0-indexed, startIndex = rowNumber-1)
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+  await _withTokenRetry(() => fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -2057,7 +2104,7 @@ async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber) {
         }
       }]
     })
-  });
+  }));
 }
 
 async function createPersonalSheet() {
