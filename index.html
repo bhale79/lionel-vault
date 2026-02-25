@@ -7492,6 +7492,30 @@ function showIdentifyReady() {
   resetIdentify();
 }
 
+async function testWorkerConnection() {
+  const url = (document.getElementById('gemini-proxy-input').value || localStorage.getItem('lv_gemini_proxy') || '').trim();
+  if (!url) { showToast('Enter a Worker URL first', 2500, true); return; }
+  showToast('Testing connection…');
+  try {
+    // Send a minimal test POST
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ test: true, contents: [] })
+    });
+    const txt = await r.text();
+    if (r.status === 500 && txt.includes('GEMINI_API_KEY')) {
+      showToast('✓ Worker reached! But GEMINI_API_KEY secret not set yet — add it in Worker Settings.', 6000, true);
+    } else if (r.ok || r.status === 400) {
+      showToast('✓ Worker is reachable! Connection good.', 4000);
+    } else {
+      showToast('Worker replied with HTTP ' + r.status + ': ' + txt.slice(0,80), 5000, true);
+    }
+  } catch(e) {
+    showToast('✗ Cannot reach worker: ' + e.message, 6000, true);
+  }
+}
+
 function saveGeminiProxy() {
   const url = (document.getElementById('gemini-proxy-input').value || '').trim();
   if (!url) { showToast('Please enter your Worker URL', 2000, true); return; }
@@ -7565,11 +7589,24 @@ function handleIdentifyDrop(e) {
 let _identifyMimeType = 'image/jpeg';
 function handleIdentifyFile(file) {
   if (!file) return;
-  _identifyMimeType = file.type || 'image/jpeg';
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const dataUrl = e.target.result;
-    _identifyImageBase64 = dataUrl.split(',')[1]; // strip data:image/...;base64,
+  _identifyMimeType = 'image/jpeg';
+  // Compress image via canvas before sending — keeps it under Worker limits
+  const img = new Image();
+  const blobUrl = URL.createObjectURL(file);
+  img.onload = function() {
+    URL.revokeObjectURL(blobUrl);
+    // Scale down to max 1024px on longest side
+    const MAX = 1024;
+    let w = img.width, h = img.height;
+    if (w > MAX || h > MAX) {
+      if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+      else { w = Math.round(w * MAX / h); h = MAX; }
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+    _identifyImageBase64 = dataUrl.split(',')[1];
     // Show preview
     const preview = document.getElementById('identify-preview');
     preview.src = dataUrl;
@@ -7578,13 +7615,25 @@ function handleIdentifyFile(file) {
     document.getElementById('identify-analyze-btn').style.display = 'flex';
     document.getElementById('identify-analyze-btn').style.width = '100%';
     document.getElementById('identify-analyze-btn').style.justifyContent = 'center';
-    // Reset previous results
     document.getElementById('identify-status').style.display = 'none';
     document.getElementById('identify-description').style.display = 'none';
     document.getElementById('identify-candidates').style.display = 'none';
     document.getElementById('identify-actions').style.display = 'none';
   };
-  reader.readAsDataURL(file);
+  img.onerror = function() {
+    // Fallback to plain FileReader if canvas fails
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const dataUrl = e.target.result;
+      _identifyImageBase64 = dataUrl.split(',')[1];
+      const preview = document.getElementById('identify-preview');
+      preview.src = dataUrl; preview.style.display = 'block';
+      document.getElementById('identify-drop-hint').style.display = 'none';
+      document.getElementById('identify-analyze-btn').style.display = 'flex';
+    };
+    reader.readAsDataURL(file);
+  };
+  img.src = blobUrl;
 }
 
 async function runGeminiIdentify() {
@@ -7638,18 +7687,34 @@ ${catalogSample}`;
       generationConfig: { temperature: 0.2, maxOutputTokens: 512 }
     };
 
-    // Call your Cloudflare Worker proxy (set GEMINI_PROXY_URL in settings to activate)
-    const proxyUrl = localStorage.getItem('lv_gemini_proxy') || '';
+    const proxyUrl = (localStorage.getItem('lv_gemini_proxy') || '').trim();
     let res;
     if (proxyUrl) {
-      res = await fetch(proxyUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
+      document.getElementById('identify-status-msg').textContent = 'Connecting to ' + proxyUrl + '…';
+      try {
+        res = await fetch(proxyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+      } catch(fetchErr) {
+        // Try without trailing slash in case that's the issue
+        const altUrl = proxyUrl.endsWith('/') ? proxyUrl.slice(0,-1) : proxyUrl + '/';
+        document.getElementById('identify-status-msg').textContent = 'Retrying ' + altUrl + '…';
+        try {
+          res = await fetch(altUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+        } catch(fetchErr2) {
+          throw new Error('Cannot reach worker at ' + proxyUrl + ' — check the URL is correct and worker is deployed. (' + fetchErr2.message + ')');
+        }
+      }
     } else if (GEMINI_KEY) {
+      document.getElementById('identify-status-msg').textContent = 'Calling Gemini directly…';
       res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_KEY,
         { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
       );
     } else {
@@ -8222,6 +8287,7 @@ function pickerHandleFile(inputEl, isCamera) {
               style="flex:1;padding:0.55rem 0.7rem;background:var(--bg);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--font-mono);font-size:0.78rem"
               value="">
             <button onclick="saveGeminiProxy()" class="btn btn-primary" style="font-size:0.75rem;padding:0.5rem 0.85rem;white-space:nowrap">Save URL</button>
+            <button onclick="testWorkerConnection()" class="btn btn-secondary" style="font-size:0.75rem;padding:0.5rem 0.85rem;white-space:nowrap">Test</button>
           </div>
           <div style="text-align:center;font-size:0.68rem;color:var(--text-dim)">— or use API key directly —</div>
           <div style="display:flex;gap:0.5rem">
