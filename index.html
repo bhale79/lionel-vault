@@ -828,6 +828,10 @@
           Sold Items
           <span class="nav-badge" id="nav-sold" style="background:#9b59b6">—</span>
         </button>
+        <button class="nav-item" id="nav-photos-btn" onclick="showPage('photos', this); buildPhotosPage();">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          View Pictures
+        </button>
       </div>
       <div class="nav-section">
         <div class="nav-label">Reports</div>
@@ -1117,6 +1121,10 @@ document.addEventListener('touchmove', function(){}, {passive: true});
       <button class="mobile-nav-item" id="mnav-want" onclick="showPage('want', this); buildWantPage();">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
         Want List
+      </button>
+      <button class="mobile-nav-item" id="mnav-photos" onclick="showPage('photos', this); buildPhotosPage();">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Pictures
       </button>
       <button class="mobile-nav-item" id="mnav-sold" onclick="showPage('sold', this)">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -7596,4 +7604,485 @@ document.getElementById('identify-modal').addEventListener('click', function(e) 
   if (e.target === this) closeIdentify();
 });
 
+
+// ══════════════════════════════════════════════════════════════════
+// VIEW PICTURES PAGE
+// ══════════════════════════════════════════════════════════════════
+
+let _photosCurrentItem = null;  // { pd, masterItem }
+let _photosFiles = [];          // array of { id, name, mediaUrl }
+let _photosIdx = 0;             // current photo index
+let _photosFolderLink = '';     // Drive folder URL
+
+// ── Ticker (scrolling thumbnails) ─────────────────────────────
+let _tickerItems = [];       // items with photos
+let _tickerInterval = null;
+let _tickerOffset = 0;
+const TICKER_SPEED = 0.5;    // px per frame
+
+function buildPhotosTicker() {
+  const ticker = document.getElementById('photos-ticker');
+  if (!ticker) return;
+  _tickerItems = Object.values(state.personalData).filter(pd => pd.photoItem);
+  if (_tickerItems.length === 0) {
+    ticker.innerHTML = '<div style="padding:20px 1rem;color:var(--text-dim);font-size:0.78rem;font-family:var(--font-head);letter-spacing:0.1em;text-transform:uppercase">No photos yet — add items with photos to see them here</div>';
+    return;
+  }
+  // Duplicate items for seamless loop
+  const items = [..._tickerItems, ..._tickerItems, ..._tickerItems];
+  ticker.innerHTML = items.map((pd, i) => {
+    const has = !!pd.photoItem;
+    return `<div class="ticker-thumb" data-idx="${i % _tickerItems.length}"
+      style="flex-shrink:0;width:68px;height:68px;border-radius:8px;overflow:hidden;
+      background:var(--surface);border:1px solid var(--border);cursor:pointer;position:relative"
+      onclick="_tickerClick(${i % _tickerItems.length})">
+      <div id="tthumb-${i}" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">
+        <div style="color:var(--text-dim);font-size:1.2rem">📷</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Load first visible batch of thumbs
+  setTimeout(() => loadTickerThumbs(), 100);
+
+  // Animate
+  if (_tickerInterval) cancelAnimationFrame(_tickerInterval);
+  const wrap = document.getElementById('photos-ticker-wrap');
+  const totalWidth = _tickerItems.length * (68 + 6); // thumb + gap
+  _tickerOffset = 0;
+
+  function animate() {
+    _tickerOffset += TICKER_SPEED;
+    if (_tickerOffset >= totalWidth) _tickerOffset -= totalWidth;
+    ticker.style.transform = `translateX(-${_tickerOffset}px)`;
+    _tickerInterval = requestAnimationFrame(animate);
+  }
+  _tickerInterval = requestAnimationFrame(animate);
+}
+
+async function loadTickerThumbs() {
+  // Load thumbnails for the first set of items
+  const limit = Math.min(_tickerItems.length, 20);
+  for (let i = 0; i < limit; i++) {
+    const pd = _tickerItems[i];
+    if (!pd.photoItem) continue;
+    try {
+      const files = await driveGetFolderPhotos(pd.photoItem);
+      if (!files || files.length === 0) continue;
+      const fileId = files[0].id;
+      // Load the same blob into all 3 copies
+      const url = await loadDriveThumbUrl(fileId);
+      if (!url) continue;
+      [i, i + _tickerItems.length, i + _tickerItems.length * 2].forEach(idx => {
+        const el = document.getElementById('tthumb-' + idx);
+        if (el) el.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover">`;
+      });
+    } catch(e) { /* skip */ }
+  }
+}
+
+async function loadDriveThumbUrl(fileId) {
+  if (_blobCache[fileId]) return _blobCache[fileId];
+  try {
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&acknowledgeAbuse=true`, {
+      headers: { Authorization: 'Bearer ' + accessToken }
+    });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    _blobCache[fileId] = url;
+    return url;
+  } catch(e) { return null; }
+}
+
+function _tickerClick(itemIdx) {
+  const pd = _tickerItems[itemIdx];
+  if (!pd) return;
+  const inp = document.getElementById('photos-search');
+  if (inp) {
+    inp.value = pd.itemNum;
+    onPhotosSearch(pd.itemNum);
+    // Select the first suggestion matching this exact item
+    setTimeout(() => {
+      const key = Object.keys(state.personalData).find(k =>
+        state.personalData[k].itemNum === pd.itemNum && state.personalData[k].photoItem
+      );
+      if (key) openPhotosViewer(key);
+    }, 200);
+  }
+}
+
+// ── Search ─────────────────────────────────────────────────────
+function onPhotosSearch(val) {
+  const sugg = document.getElementById('photos-suggestions');
+  const viewer = document.getElementById('photos-viewer');
+  if (!val.trim()) {
+    sugg.style.display = 'none';
+    viewer.style.display = 'none';
+    return;
+  }
+  // Build suggestions from personal collection
+  const q = val.trim().toLowerCase();
+  const matches = Object.entries(state.personalData)
+    .filter(([k, pd]) => pd.itemNum && pd.itemNum.toLowerCase().includes(q))
+    .slice(0, 12);
+
+  if (matches.length === 0) {
+    sugg.style.display = 'flex';
+    sugg.style.flexDirection = 'column';
+    sugg.innerHTML = '<div style="padding:0.75rem;color:var(--text-dim);font-size:0.82rem">No items found in your collection</div>';
+    return;
+  }
+
+  sugg.style.display = 'flex';
+  sugg.style.flexDirection = 'column';
+  sugg.innerHTML = matches.map(([key, pd]) => {
+    const master = (state.masterData || []).find(m => m.itemNum === pd.itemNum);
+    const hasPhoto = !!pd.photoItem;
+    const desc = master ? (master.roadName ? master.roadName + ' · ' : '') + (master.type || '') : '';
+    return `<div onclick="openPhotosViewer('${key.replace(/'/g,"\'")}');document.getElementById('photos-suggestions').style.display='none'"
+      style="display:flex;align-items:center;gap:0.75rem;padding:0.65rem 0.75rem;border-radius:8px;cursor:pointer;background:var(--surface2);margin-bottom:1px"
+      onmouseover="this.style.background='rgba(224,64,40,0.08)'" onmouseout="this.style.background='var(--surface2)'">
+      <span style="font-family:var(--font-mono);font-weight:700;color:var(--gold);min-width:52px">${pd.itemNum}</span>
+      <span style="flex:1;font-size:0.8rem;color:var(--text-mid)">${desc}${pd.variation ? ' · ' + pd.variation : ''}</span>
+      ${hasPhoto ? '<span title="Has photos" style="font-size:1rem">📷</span>' : '<span style="font-size:0.7rem;color:var(--text-dim)">no photo</span>'}
+    </div>`;
+  }).join('');
+
+// ── Viewer ─────────────────────────────────────────────────────
+async function openPhotosViewer(key) {
+  const pd = state.personalData[key];
+  if (!pd) return;
+  _photosCurrentItem = { pd, key };
+  _photosFiles = [];
+  _photosIdx = 0;
+
+  const viewer = document.getElementById('photos-viewer');
+  viewer.style.display = 'block';
+
+  // Show loading state
+  const carouselImg = document.getElementById('photos-carousel-img');
+  const loading = document.getElementById('photos-carousel-loading');
+  const empty = document.getElementById('photos-carousel-empty');
+  carouselImg.style.display = 'none';
+  loading.style.display = 'flex';
+  empty.style.display = 'none';
+
+  renderPhotosDetails(pd);
+
+  // Load photos from Drive
+  const folderLink = pd.photoItem || '';
+  _photosFolderLink = folderLink;
+
+  if (!folderLink) {
+    loading.style.display = 'none';
+    empty.style.display = 'flex';
+    renderPhotosDots(0, 0);
+    document.getElementById('photos-counter').textContent = '';
+    document.getElementById('photos-label').textContent = '';
+    document.getElementById('photos-prev-btn').style.display = 'none';
+    document.getElementById('photos-next-btn').style.display = 'none';
+    return;
+  }
+
+  try {
+    const files = await driveGetFolderPhotos(folderLink);
+    if (!files || files.length === 0) {
+      loading.style.display = 'none';
+      empty.style.display = 'flex';
+      renderPhotosDots(0, 0);
+      document.getElementById('photos-counter').textContent = '';
+      document.getElementById('photos-label').textContent = '';
+      document.getElementById('photos-prev-btn').style.display = 'none';
+      document.getElementById('photos-next-btn').style.display = 'none';
+      return;
+    }
+    _photosFiles = files;
+    const showNav = files.length > 1;
+    document.getElementById('photos-prev-btn').style.display = showNav ? 'flex' : 'none';
+    document.getElementById('photos-next-btn').style.display = showNav ? 'flex' : 'none';
+    renderPhotosDots(0, files.length);
+    await loadPhotosFrame(0);
+  } catch(e) {
+    loading.style.display = 'none';
+    empty.style.display = 'flex';
+  }
+
+  // Setup swipe on carousel
+  setupPhotosSwipe();
+
+  // Scroll viewer into view on mobile
+  setTimeout(() => viewer.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+}
+
+async function loadPhotosFrame(idx) {
+  const carouselImg = document.getElementById('photos-carousel-img');
+  const loading = document.getElementById('photos-carousel-loading');
+  const empty = document.getElementById('photos-carousel-empty');
+
+  if (!_photosFiles[idx]) return;
+  carouselImg.style.display = 'none';
+  loading.style.display = 'flex';
+  empty.style.display = 'none';
+
+  const file = _photosFiles[idx];
+  const url = await loadDriveThumbUrl(file.id);
+
+  loading.style.display = 'none';
+  if (url) {
+    carouselImg.src = url;
+    carouselImg.style.display = 'block';
+  } else {
+    empty.style.display = 'flex';
+  }
+
+  // Update counter and label
+  document.getElementById('photos-counter').textContent = `${idx + 1} / ${_photosFiles.length}`;
+  // Parse view label from filename (e.g. "726 Front View.jpg" → "Front View")
+  const fname = file.name || '';
+  const parts = fname.split('.'); const base = parts.slice(0,-1).join('.') || fname;
+  const labelMatch = base.split(' ').slice(1).join(' ');
+  document.getElementById('photos-label').textContent = labelMatch || '';
+  renderPhotosDots(idx, _photosFiles.length);
+}
+
+function photosNav(dir) {
+  if (_photosFiles.length === 0) return;
+  _photosIdx = (_photosIdx + dir + _photosFiles.length) % _photosFiles.length;
+  loadPhotosFrame(_photosIdx);
+}
+
+function renderPhotosDots(current, total) {
+  const dotsEl = document.getElementById('photos-dots');
+  if (total <= 1) { dotsEl.innerHTML = ''; return; }
+  dotsEl.innerHTML = Array.from({ length: total }, (_, i) =>
+    `<div style="width:${i===current?14:7}px;height:7px;border-radius:4px;background:${i===current?'var(--accent)':'var(--border)'};transition:all 0.2s;cursor:pointer" onclick="photosNavTo(${i})"></div>`
+  ).join('');
+}
+
+function photosNavTo(idx) {
+  _photosIdx = idx;
+  loadPhotosFrame(idx);
+}
+
+// ── Item header ────────────────────────────────────────────────
+function renderPhotosItemHeader(pd) {
+  const master = (state.masterData || []).find(m => m.itemNum === pd.itemNum);
+  const el = document.getElementById('photos-item-header');
+  if (!el) return;
+  el.innerHTML = `<div style="display:flex;align-items:flex-start;gap:0.75rem">
+    <div>
+      <div style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--gold)">${pd.itemNum}</div>
+      ${pd.variation ? `<div style="font-size:0.75rem;color:var(--text-dim);font-family:var(--font-mono)">${pd.variation}</div>` : ''}
+    </div>
+    <div style="flex:1">
+      <div style="font-weight:600;font-size:0.95rem;color:var(--text)">${master ? (master.type || '') + (master.roadName ? ' — ' + master.roadName : '') : pd.itemNum}</div>
+      ${master?.description ? `<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.15rem">${master.description}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+// ── Collection details ─────────────────────────────────────────
+function renderPhotosDetails(pd) {
+  renderPhotosItemHeader(pd);
+  const el = document.getElementById('photos-details');
+  if (!el) return;
+  const condMap = { 10:'10 — Like New', 9:'9 — Excellent', 8:'8 — Very Good', 7:'7 — Good', 6:'6 — Fair', 5:'5 — Poor' };
+  const rows = [
+    pd.condition      ? ['Condition',    condMap[pd.condition] || pd.condition] : null,
+    pd.allOriginal    ? ['All Original', pd.allOriginal] : null,
+    pd.hasBox         ? ['Has Box',      pd.hasBox + (pd.boxCond ? ' (Cond: ' + pd.boxCond + ')' : '')] : null,
+    pd.priceItem      ? ['Paid (Item)',  '$' + pd.priceItem] : null,
+    pd.priceBox       ? ['Paid (Box)',   '$' + pd.priceBox] : null,
+    pd.userEstWorth   ? ['Est. Worth',   '$' + pd.userEstWorth] : null,
+    pd.yearMade       ? ['Year Made',    pd.yearMade] : null,
+    pd.datePurchased  ? ['Purchased',    pd.datePurchased] : null,
+    pd.matchedTo      ? ['Matched To',  pd.matchedTo] : null,
+    pd.isError === 'Yes' ? ['Error Car', pd.errorDesc || 'Yes'] : null,
+    pd.notes          ? ['Notes',        pd.notes] : null,
+  ].filter(Boolean);
+
+  if (rows.length === 0) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:0.82rem">No details recorded yet.</div>';
+    return;
+  }
+  el.innerHTML = rows.map(([label, val]) =>
+    `<div style="display:flex;gap:0.5rem;padding:0.2rem 0;border-bottom:1px solid var(--border)">
+      <div style="min-width:110px;color:var(--text-dim);font-size:0.78rem;font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase;padding-top:0.1rem">${label}</div>
+      <div style="flex:1;color:var(--text);font-size:0.84rem">${val}</div>
+    </div>`
+  ).join('');
+}
+
+function photosOpenDrive() {
+  if (_photosFolderLink) window.open(_photosFolderLink, '_blank');
+}
+
+// ── Swipe gesture on carousel ──────────────────────────────────
+function setupPhotosSwipe() {
+  const wrap = document.getElementById('photos-carousel-wrap');
+  if (!wrap || wrap._swipeSetup) return;
+  wrap._swipeSetup = true;
+  let startX = 0, startY = 0;
+  wrap.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, { passive: true });
+  wrap.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+      photosNav(dx < 0 ? 1 : -1);
+    }
+  }, { passive: true });
+}
+
+// ── Page entry point ───────────────────────────────────────────
+function buildPhotosPage() {
+  buildPhotosTicker();
+  // Clear viewer
+  const viewer = document.getElementById('photos-viewer');
+  if (viewer) viewer.style.display = 'none';
+  const sugg = document.getElementById('photos-suggestions');
+  if (sugg) sugg.style.display = 'none';
+}
+
+// Pause ticker when navigating away — hooked into nav buttons via buildPhotosPage
+// (showPage is defined earlier; we patch it here only if not already patched)
+if (!window._photosPagePatched) {
+  window._photosPagePatched = true;
+  const _origShowPage2 = showPage;
+  showPage = function(name, btn) {
+    if (_tickerInterval && name !== 'photos') {
+      cancelAnimationFrame(_tickerInterval);
+      _tickerInterval = null;
+    }
+    _origShowPage2(name, btn);
+  };
+}
 </script>
+<!-- ══ IDENTIFY ITEM MODAL ══════════════════════════════════════════ -->
+<div id="identify-modal">
+  <div id="identify-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font-family:var(--font-head);font-size:1.1rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--cream)">
+        🔍 Identify by Photo
+      </div>
+      <button onclick="closeIdentify()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;padding:0 0.25rem;line-height:1">×</button>
+    </div>
+    <div id="identify-setup" style="display:none">
+      <div class="gemini-setup">
+        <div style="font-family:var(--font-head);font-size:0.72rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:0.5rem">⚙ API Key Required</div>
+        <div style="margin-top:0.75rem;display:flex;gap:0.5rem">
+          <input id="gemini-key-input" type="password" placeholder="Paste your Gemini API key…"
+            style="flex:1;padding:0.6rem 0.75rem;background:var(--bg);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--font-mono);font-size:0.82rem">
+          <button onclick="saveGeminiKey()" class="btn btn-primary" style="font-size:0.78rem;padding:0.55rem 1rem;white-space:nowrap">Save Key</button>
+        </div>
+      </div>
+    </div>
+    <div id="identify-ready" style="display:none;flex-direction:column;gap:1rem">
+      <div class="identify-drop" id="identify-drop"
+        ondragover="event.preventDefault();this.classList.add('dragover')"
+        ondragleave="this.classList.remove('dragover')"
+        ondrop="handleIdentifyDrop(event)">
+        <input type="file" accept="image/*" onchange="handleIdentifyFile(this.files[0])">
+        <div id="identify-drop-hint" style="pointer-events:none">
+          <div style="font-size:2.5rem;margin-bottom:0.5rem">📷</div>
+          <div style="font-family:var(--font-head);font-size:0.85rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-mid)">Tap to take photo or choose from library</div>
+          <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.3rem">Locomotive, car, accessory — any angle</div>
+        </div>
+        <img id="identify-preview" class="identify-preview" alt="preview">
+      </div>
+      <button id="identify-analyze-btn" onclick="runGeminiIdentify()"
+        style="display:none;width:100%;padding:0.75rem;border-radius:8px;border:none;background:var(--accent);color:white;font-family:var(--font-head);font-size:0.88rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;align-items:center;justify-content:center;gap:0.5rem">
+        🔍 Identify This Item
+      </button>
+      <div id="identify-status" style="display:none;text-align:center;padding:1rem">
+        <div class="spinner" style="margin:0 auto 0.75rem;width:28px;height:28px;border-width:2px"></div>
+        <div style="font-size:0.82rem;color:var(--text-mid)" id="identify-status-msg">Analyzing image with Gemini Vision…</div>
+      </div>
+      <div id="identify-description" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.85rem;font-size:0.8rem;color:var(--text-mid);line-height:1.6"></div>
+      <div id="identify-candidates" style="display:none;flex-direction:column;gap:0.5rem">
+        <div style="font-family:var(--font-head);font-size:0.62rem;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.1rem">Select the best match:</div>
+      </div>
+      <div id="identify-actions" style="display:none;gap:0.5rem;flex-wrap:wrap">
+        <button onclick="useIdentifiedItem()" class="btn btn-primary" style="flex:1;justify-content:center;min-width:140px">Use This Item →</button>
+        <button onclick="resetIdentify()" class="btn" style="justify-content:center">Try Another Photo</button>
+        <button onclick="openGoogleImageSearch()" class="btn" style="justify-content:center;gap:0.35rem">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Google Images
+        </button>
+      </div>
+      <div style="text-align:center;margin-top:0.25rem">
+        <button onclick="showGeminiSetup()" class="link-btn" style="font-size:0.72rem">Change API key</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══ VIEW PICTURES PAGE ════════════════════════════════════════════ -->
+<div class="page" id="page-photos">
+  <div class="page-title">View Pictures</div>
+
+  <!-- Scrolling thumbnail ticker -->
+  <div id="photos-ticker-wrap" style="overflow:hidden;height:80px;position:relative;background:var(--surface2);border-radius:10px;margin-bottom:1rem;border:1px solid var(--border)">
+    <div id="photos-ticker" style="display:flex;gap:6px;position:absolute;top:6px;white-space:nowrap;will-change:transform"></div>
+    <div style="position:absolute;inset:0;background:linear-gradient(to right,var(--surface2) 0%,transparent 8%,transparent 92%,var(--surface2) 100%);pointer-events:none"></div>
+  </div>
+
+  <!-- Search box -->
+  <div style="display:flex;align-items:center;gap:0.5rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0.55rem 0.9rem;margin-bottom:0.75rem">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-dim);flex-shrink:0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input id="photos-search" type="text" placeholder="Enter item number from your collection…" autocomplete="off"
+      style="flex:1;border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none"
+      oninput="onPhotosSearch(this.value)">
+    <button onclick="document.getElementById('photos-search').value='';onPhotosSearch('');" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:1.1rem;padding:0;line-height:1">×</button>
+  </div>
+
+  <!-- Suggestions dropdown -->
+  <div id="photos-suggestions" style="display:none;flex-direction:column;gap:1px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:0.75rem;max-height:260px;overflow-y:auto"></div>
+
+  <!-- Photo viewer -->
+  <div id="photos-viewer" style="display:none">
+    <!-- Item header -->
+    <div id="photos-item-header" style="margin-bottom:0.75rem"></div>
+
+    <!-- Photo carousel -->
+    <div id="photos-carousel-wrap" style="position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:4/3;touch-action:pan-y;user-select:none">
+      <img id="photos-carousel-img" style="width:100%;height:100%;object-fit:contain;display:block" alt="Item photo">
+      <div id="photos-carousel-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6)">
+        <div class="spinner" style="width:32px;height:32px;border-width:2px"></div>
+      </div>
+      <div id="photos-carousel-empty" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:0.5rem">
+        <div style="font-size:3rem">📷</div>
+        <div style="color:var(--text-dim);font-size:0.85rem">No photos on file</div>
+        <button onclick="startWizardFor('collection')" class="btn btn-primary" style="margin-top:0.5rem;font-size:0.78rem">Add Photos</button>
+      </div>
+      <!-- Prev/Next arrows -->
+      <button id="photos-prev-btn" onclick="photosNav(-1)"
+        style="position:absolute;left:0;top:50%;transform:translateY(-50%);width:44px;height:64px;background:rgba(0,0,0,0.45);border:none;color:white;font-size:1.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:0 8px 8px 0;touch-action:manipulation">‹</button>
+      <button id="photos-next-btn" onclick="photosNav(1)"
+        style="position:absolute;right:0;top:50%;transform:translateY(-50%);width:44px;height:64px;background:rgba(0,0,0,0.45);border:none;color:white;font-size:1.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:8px 0 0 8px;touch-action:manipulation">›</button>
+      <!-- Photo counter -->
+      <div id="photos-counter" style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.55);color:white;font-family:var(--font-mono);font-size:0.72rem;padding:2px 10px;border-radius:20px"></div>
+      <!-- Photo label -->
+      <div id="photos-label" style="position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.55);color:white;font-family:var(--font-head);font-size:0.68rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:2px 10px;border-radius:20px"></div>
+    </div>
+
+    <!-- Dot indicators -->
+    <div id="photos-dots" style="display:flex;justify-content:center;gap:5px;margin:0.6rem 0"></div>
+
+    <!-- Collection details -->
+    <div id="photos-details" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-top:0.5rem;font-size:0.84rem;line-height:1.7"></div>
+
+    <!-- Open in Drive button -->
+    <div style="text-align:center;margin-top:0.75rem">
+      <button id="photos-drive-btn" onclick="photosOpenDrive()" class="btn" style="font-size:0.78rem;gap:0.4rem;color:var(--text-dim)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 0 1-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Open folder in Drive
+      </button>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
