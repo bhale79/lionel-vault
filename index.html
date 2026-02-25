@@ -7651,28 +7651,30 @@ async function runGeminiIdentify() {
       `${i.itemNum}|${i.type || ''}|${i.roadName || ''}|${i.description || ''}`
     ).join('\n');
 
-    const prompt = `You are an expert on Lionel postwar electric trains (1945–1969 era). 
-Examine this photo carefully and identify the Lionel item shown.
+    const prompt = `You are a world-class expert on Lionel postwar O-gauge and O27-gauge electric trains from the 1945–1969 era.
+This app covers ONLY Lionel postwar items manufactured between 1945 and 1969. Do not suggest items outside this era.
 
-Provide your response as JSON only (no markdown, no explanation outside JSON):
-{
-  "description": "2-3 sentence description of what you see: type, color scheme, road name/markings, distinctive features, era",
-  "candidates": [
-    {"itemNum": "665", "confidence": "high", "reason": "Pennsylvania steam loco, smoke unit, correct color"},
-    {"itemNum": "2046", "confidence": "medium", "reason": "similar but different tender style"},
-    {"itemNum": "736", "confidence": "low", "reason": "possible match if lighting obscures details"}
-  ],
-  "googleQuery": "Lionel postwar 665 steam locomotive Pennsylvania"
-}
+Item types include: steam locomotives, diesel locomotives, passenger cars, freight cars, motorized units (handcars, inspection cars, helicopters, etc.), accessories, transformers, and sets.
+
+Notable motorized units to know:
+- No. 68: Inspection Car (red/cream station wagon style, 1958–1961)
+- No. 50: Gang Car (yellow, motorized, 1954–1964)
+- No. 60: Lionelville Trolley (1955–1958)
+- No. 65: Handcar (1962–1966)
+
+Examine this photo carefully and identify the Lionel postwar item (1945–1969) shown.
+
+Respond with ONLY a raw JSON object — no markdown, no code fences, no explanation:
+{"description":"2-3 sentence description: item type, color scheme, road name/markings, distinctive features, approximate year range","candidates":[{"itemNum":"68","confidence":"high","reason":"Red and cream inspection car, station wagon body style, motorized, matches 1958-1961 production"},{"itemNum":"50","confidence":"low","reason":"Similar motorized unit but yellow gang car body"}],"googleQuery":"Lionel postwar 68 inspection car 1958"}
 
 Rules:
+- ONLY suggest Lionel postwar catalog numbers from 1945–1969
 - List 1–5 candidates, most likely first
-- confidence: "high" | "medium" | "low"  
-- itemNum must be a real Lionel postwar catalog number
-- If you cannot identify it at all, still give your best 1–2 guesses based on visible features
-- For googleQuery, give the best search string to find this item on Google Images
+- confidence: "high" | "medium" | "low"
+- If unsure, give best guess based on visible color, body style, wheel type, markings
+- googleQuery should be specific enough to find this exact item on Google Images
 
-Here are some real catalog items for reference (item|type|road|description):
+Here are real catalog items for reference (itemNum|type|roadName|description):
 ${catalogSample}`;
 
     const body = {
