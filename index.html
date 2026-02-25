@@ -1390,10 +1390,10 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 // Replace with your actual Google OAuth Client ID after setup
 const CLIENT_ID = '161569968813-vrhet7p68vkthkunare60nqr34li5uuh.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
-const API_KEY = 'AIzaSyBjwyQ7qvqrH0goUVidOO0Da9hVQWOzvI8'; // Replace with your Google Cloud API key
+const API_KEY = ''; // Set your Google Cloud API key in settings if needed
 // Gemini Vision API key — get a free key at https://aistudio.google.com/app/apikey
 // Paste your key here to enable photo-based item identification
-let GEMINI_KEY = localStorage.getItem('lv_gemini_key') || 'AIzaSyCMECmAvGEED7McHimv7OEl-rY-uY93CSs';
+let GEMINI_KEY = localStorage.getItem('lv_gemini_key') || '';
 const PERSONAL_SHEET_NAME = 'Lionel Vault — My Collection'; // Sheet tab name — kept stable for existing users
 const PERSONAL_HEADERS = [
   'Item Number','Variation','Condition (1-10)','All Original',
@@ -7492,6 +7492,14 @@ function showIdentifyReady() {
   resetIdentify();
 }
 
+function saveGeminiProxy() {
+  const url = (document.getElementById('gemini-proxy-input').value || '').trim();
+  if (!url) { showToast('Please enter your Worker URL', 2000, true); return; }
+  localStorage.setItem('lv_gemini_proxy', url);
+  showToast('✓ Worker URL saved — Identify is ready!');
+  showIdentifyReady();
+}
+
 function saveGeminiKey() {
   const key = (document.getElementById('gemini-key-input').value || '').trim();
   if (!key) { showToast('Please paste your Gemini API key', 3000, true); return; }
@@ -7520,6 +7528,33 @@ function resetIdentify() {
   if (actions) actions.style.display = 'none';
 }
 
+function showIdentifyPicker() {
+  // On mobile show camera option; on desktop go straight to file picker
+  const isTouchDev = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  if (isTouchDev) {
+    // Show picker sheet — reuse the photo picker but route to identify
+    _pickerStepId = '__identify__';
+    _pickerViewKey = '__identify__';
+    document.getElementById('photo-picker-sheet').classList.add('open');
+    // Override the picker buttons temporarily for identify
+    document.getElementById('picker-btn-cam').onclick = function() {
+      closePhotoPicker();
+      document.getElementById('identify-input-cam').click();
+      // Restore
+      document.getElementById('picker-btn-cam').onclick = null;
+      document.getElementById('picker-btn-lib').onclick = null;
+    };
+    document.getElementById('picker-btn-lib').onclick = function() {
+      closePhotoPicker();
+      document.getElementById('identify-input-lib').click();
+      document.getElementById('picker-btn-cam').onclick = null;
+      document.getElementById('picker-btn-lib').onclick = null;
+    };
+  } else {
+    document.getElementById('identify-input-lib').click();
+  }
+}
+
 function handleIdentifyDrop(e) {
   e.preventDefault();
   document.getElementById('identify-drop').classList.remove('dragover');
@@ -7527,8 +7562,10 @@ function handleIdentifyDrop(e) {
   if (file && file.type.startsWith('image/')) handleIdentifyFile(file);
 }
 
+let _identifyMimeType = 'image/jpeg';
 function handleIdentifyFile(file) {
   if (!file) return;
+  _identifyMimeType = file.type || 'image/jpeg';
   const reader = new FileReader();
   reader.onload = function(e) {
     const dataUrl = e.target.result;
@@ -7552,8 +7589,6 @@ function handleIdentifyFile(file) {
 
 async function runGeminiIdentify() {
   if (!_identifyImageBase64) { showToast('Please select a photo first', 3000, true); return; }
-  if (!GEMINI_KEY) { showGeminiSetup(); return; }
-
   // Show spinner
   document.getElementById('identify-analyze-btn').style.display = 'none';
   const statusEl = document.getElementById('identify-status');
@@ -7597,23 +7632,42 @@ ${catalogSample}`;
       contents: [{
         parts: [
           { text: prompt },
-          { inline_data: { mime_type: 'image/jpeg', data: _identifyImageBase64 } }
+          { inline_data: { mime_type: _identifyMimeType, data: _identifyImageBase64 } }
         ]
       }],
       generationConfig: { temperature: 0.2, maxOutputTokens: 512 }
     };
 
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-    );
+    // Call your Cloudflare Worker proxy (set GEMINI_PROXY_URL in settings to activate)
+    const proxyUrl = localStorage.getItem('lv_gemini_proxy') || '';
+    let res;
+    if (proxyUrl) {
+      res = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    } else if (GEMINI_KEY) {
+      res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      );
+    } else {
+      showGeminiSetup();
+      statusEl.style.display = 'none';
+      document.getElementById('identify-analyze-btn').style.display = 'flex';
+      return;
+    }
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      const msg = err?.error?.message || res.statusText;
-      if (res.status === 400 && msg.includes('API_KEY')) throw new Error('Invalid Gemini API key — please check and re-enter.');
-      if (res.status === 429) throw new Error('Gemini rate limit hit — wait a moment and try again.');
-      throw new Error('Gemini API error: ' + msg);
+      const msg = err?.error?.message || res.statusText || 'unknown error';
+      if (res.status === 400 && msg.toLowerCase().includes('api_key')) throw new Error('Invalid Gemini API key — check Settings.');
+      if (res.status === 400 && msg.toLowerCase().includes('billing')) throw new Error('Gemini billing not enabled for this API key.');
+      if (res.status === 401 || res.status === 403) throw new Error('Gemini API key rejected (HTTP ' + res.status + ').');
+      if (res.status === 404) throw new Error('Gemini model not found (HTTP 404). Model: gemini-2.0-flash');
+      if (res.status === 429) throw new Error('Gemini rate limit — wait a moment and retry.');
+      throw new Error('Gemini HTTP ' + res.status + ': ' + msg);
     }
 
     const data = await res.json();
@@ -7636,7 +7690,12 @@ ${catalogSample}`;
     document.getElementById('identify-analyze-btn').style.display = 'flex';
     document.getElementById('identify-analyze-btn').style.width = '100%';
     document.getElementById('identify-analyze-btn').style.justifyContent = 'center';
-    showToast('Identify failed: ' + err.message, 5000, true);
+    // Show error in the description panel so it's visible
+    const descEl2 = document.getElementById('identify-description');
+    descEl2.style.display = 'block';
+    descEl2.innerHTML = '<span style="color:#e04028;font-family:var(--font-head);font-size:0.65rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase">Error</span><br>'
+      + '<span style="color:var(--text);font-size:0.82rem">' + err.message + '</span>';
+    showToast('Identify failed: ' + err.message, 6000, true);
   }
 }
 
@@ -8153,26 +8212,61 @@ function pickerHandleFile(inputEl, isCamera) {
     </div>
     <div id="identify-setup" style="display:none">
       <div class="gemini-setup">
-        <div style="font-family:var(--font-head);font-size:0.72rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:0.5rem">⚙ API Key Required</div>
-        <div style="margin-top:0.75rem;display:flex;gap:0.5rem">
-          <input id="gemini-key-input" type="password" placeholder="Paste your Gemini API key…"
-            style="flex:1;padding:0.6rem 0.75rem;background:var(--bg);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--font-mono);font-size:0.82rem">
-          <button onclick="saveGeminiKey()" class="btn btn-primary" style="font-size:0.78rem;padding:0.55rem 1rem;white-space:nowrap">Save Key</button>
+        <div style="font-family:var(--font-head);font-size:0.72rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:0.5rem">⚙ Gemini AI Setup</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.75rem;line-height:1.5">
+          Enter your <strong style="color:var(--text-mid)">Worker URL</strong> (recommended — keeps your key private) <em>or</em> paste a Gemini API key directly.
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem">
+          <div style="display:flex;gap:0.5rem;align-items:center">
+            <input id="gemini-proxy-input" type="url" placeholder="https://your-worker.workers.dev/gemini"
+              style="flex:1;padding:0.55rem 0.7rem;background:var(--bg);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--font-mono);font-size:0.78rem"
+              value="">
+            <button onclick="saveGeminiProxy()" class="btn btn-primary" style="font-size:0.75rem;padding:0.5rem 0.85rem;white-space:nowrap">Save URL</button>
+          </div>
+          <div style="text-align:center;font-size:0.68rem;color:var(--text-dim)">— or use API key directly —</div>
+          <div style="display:flex;gap:0.5rem">
+            <input id="gemini-key-input" type="password" placeholder="Paste Gemini API key…"
+              style="flex:1;padding:0.55rem 0.7rem;background:var(--bg);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--font-mono);font-size:0.78rem">
+            <button onclick="saveGeminiKey()" class="btn btn-secondary" style="font-size:0.75rem;padding:0.5rem 0.85rem;white-space:nowrap">Save Key</button>
+          </div>
+        </div>
+        <div style="margin-top:0.75rem;padding:0.6rem;background:rgba(201,146,42,0.08);border:1px solid rgba(201,146,42,0.25);border-radius:7px;font-size:0.7rem;color:var(--text-dim);line-height:1.5">
+          📋 <strong>Quick setup:</strong> Deploy a free Cloudflare Worker from the instructions below — paste the URL above and you're done. No user sign-up ever needed.
         </div>
       </div>
     </div>
     <div id="identify-ready" style="display:none;flex-direction:column;gap:1rem">
+      <!-- Hidden file inputs — triggered by buttons below -->
+      <input type="file" id="identify-input-cam" accept="image/*" capture="environment"
+        style="position:fixed;top:-999px;left:-999px;opacity:0"
+        onchange="handleIdentifyFile(this.files[0]);this.value=''">
+      <input type="file" id="identify-input-lib" accept="image/*"
+        style="position:fixed;top:-999px;left:-999px;opacity:0"
+        onchange="handleIdentifyFile(this.files[0]);this.value=''">
+      <!-- Preview area (tap to re-pick) -->
       <div class="identify-drop" id="identify-drop"
         ondragover="event.preventDefault();this.classList.add('dragover')"
         ondragleave="this.classList.remove('dragover')"
-        ondrop="handleIdentifyDrop(event)">
-        <input type="file" accept="image/*" onchange="handleIdentifyFile(this.files[0])">
+        ondrop="handleIdentifyDrop(event)"
+        onclick="showIdentifyPicker()"
+        style="cursor:pointer">
         <div id="identify-drop-hint" style="pointer-events:none">
           <div style="font-size:2.5rem;margin-bottom:0.5rem">📷</div>
-          <div style="font-family:var(--font-head);font-size:0.85rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-mid)">Tap to take photo or choose from library</div>
+          <div style="font-family:var(--font-head);font-size:0.85rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-mid)" id="identify-drop-label">Tap to add a photo</div>
           <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.3rem">Locomotive, car, accessory — any angle</div>
         </div>
         <img id="identify-preview" class="identify-preview" alt="preview">
+      </div>
+      <!-- Camera / Library buttons always visible on mobile -->
+      <div id="identify-pick-btns" style="display:flex;gap:0.5rem">
+        <button onclick="document.getElementById('identify-input-cam').click()"
+          class="btn btn-secondary" style="flex:1;justify-content:center;font-size:0.8rem;gap:0.4rem">
+          📷 Take Photo
+        </button>
+        <button onclick="document.getElementById('identify-input-lib').click()"
+          class="btn btn-secondary" style="flex:1;justify-content:center;font-size:0.8rem;gap:0.4rem">
+          🖼️ Choose from Library
+        </button>
       </div>
       <button id="identify-analyze-btn" onclick="runGeminiIdentify()"
         style="display:none;width:100%;padding:0.75rem;border-radius:8px;border:none;background:var(--accent);color:white;font-family:var(--font-head);font-size:0.88rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;align-items:center;justify-content:center;gap:0.5rem">
