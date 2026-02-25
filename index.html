@@ -7736,13 +7736,36 @@ ${catalogSample}`;
     const data = await res.json();
     const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-    // Parse JSON from response (strip any markdown fences)
+    // Parse JSON from response — handle markdown fences, extract JSON block if needed
     let parsed;
     try {
-      const cleaned = rawText.replace(/```json|```/g, '').trim();
-      parsed = JSON.parse(cleaned);
+      // Strip markdown fences
+      let cleaned = rawText.replace(/```json|```/gi, '').trim();
+      // Try direct parse first
+      try {
+        parsed = JSON.parse(cleaned);
+      } catch(e1) {
+        // Try to extract just the JSON object from the text
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[0]);
+        } else {
+          // Last resort: show raw text as description
+          parsed = {
+            description: cleaned.slice(0, 500),
+            candidates: [],
+            googleQuery: ''
+          };
+        }
+      }
     } catch(e) {
-      throw new Error('Could not parse Gemini response. Try a clearer photo.');
+      // Show the raw response so user can see what Gemini said
+      const descEl = document.getElementById('identify-description');
+      descEl.style.display = 'block';
+      descEl.textContent = 'Gemini response: ' + rawText.slice(0, 300);
+      statusEl.style.display = 'none';
+      document.getElementById('identify-analyze-btn').style.display = 'flex';
+      return;
     }
 
     statusEl.style.display = 'none';
