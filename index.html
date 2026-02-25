@@ -8007,30 +8007,17 @@ function closePhotoPicker() {
   _pickerViewKey = null;
 }
 
-function triggerPhotoCamera() {
+function pickerHandleFile(inputEl, isCamera) {
+  // Called directly from onchange on the label-linked inputs — always works on iOS
+  if (!inputEl.files || !inputEl.files[0]) return;
   const sid = _pickerStepId, vk = _pickerViewKey;
-  // Must close picker first, then click — but keep in same call stack for iOS
-  document.getElementById('photo-picker-sheet').classList.remove('open');
-  const inp = document.createElement('input');
-  inp.type = 'file';
-  inp.accept = 'image/*';
-  inp.setAttribute('capture', 'environment');
-  inp.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0';
-  inp.onchange = (e) => { handlePhotoFile(e, sid, vk); inp.remove(); };
-  document.body.appendChild(inp);
-  inp.click();
-}
-
-function triggerPhotoLibrary() {
-  const sid = _pickerStepId, vk = _pickerViewKey;
-  document.getElementById('photo-picker-sheet').classList.remove('open');
-  const inp = document.createElement('input');
-  inp.type = 'file';
-  inp.accept = 'image/*';
-  inp.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0';
-  inp.onchange = (e) => { handlePhotoFile(e, sid, vk); inp.remove(); };
-  document.body.appendChild(inp);
-  inp.click();
+  _pickerStepId = null; _pickerViewKey = null;
+  if (!sid || !vk) return;
+  // Synthesize an event-like object handlePhotoFile expects
+  const fakeEvent = { target: inputEl };
+  handlePhotoFile(fakeEvent, sid, vk);
+  // Reset input so same file can be picked again later
+  inputEl.value = '';
 }
 </script>
 <!-- ══ IDENTIFY ITEM MODAL ══════════════════════════════════════════ -->
@@ -8163,12 +8150,12 @@ function triggerPhotoLibrary() {
       letter-spacing:0.18em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem">
       Add Photo
     </div>
-    <button class="picker-btn" onclick="triggerPhotoCamera()">
+    <label class="picker-btn" for="picker-input-cam" onclick="closePhotoPicker()">
       <span class="picker-icon">📷</span> Take Photo
-    </button>
-    <button class="picker-btn" onclick="triggerPhotoLibrary()">
+    </label>
+    <label class="picker-btn" for="picker-input-lib" onclick="closePhotoPicker()">
       <span class="picker-icon">🖼️</span> Choose from Phone Library
-    </button>
+    </label>
     <button onclick="closePhotoPicker()" style="width:100%;padding:0.75rem;border-radius:12px;
       border:none;background:none;color:var(--text-dim);font-family:var(--font-body);
       font-size:0.9rem;cursor:pointer;margin-top:0.25rem">
@@ -8176,5 +8163,11 @@ function triggerPhotoLibrary() {
     </button>
   </div>
 </div>
+<input type="file" id="picker-input-cam" accept="image/*" capture="environment"
+  style="position:fixed;top:-999px;left:-999px;opacity:0"
+  onchange="pickerHandleFile(this, true)">
+<input type="file" id="picker-input-lib" accept="image/*"
+  style="position:fixed;top:-999px;left:-999px;opacity:0"
+  onchange="pickerHandleFile(this, false)">
 </body>
 </html>
