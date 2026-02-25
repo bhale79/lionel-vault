@@ -574,7 +574,7 @@
     }
 
     /* Photo grid — single column on small screens */
-    #photo-grid { grid-template-columns: 1fr 1fr 1fr !important; gap: 0.4rem !important; }
+    #photo-grid { grid-template-columns: repeat(4, 1fr) !important; gap: 0.4rem !important; }
 
     /* Buttons — bigger tap targets */
     .btn { min-height: 44px; }
@@ -1823,13 +1823,15 @@ async function ensureEphemeraSheets(sheetId) {
 
 // ── GOOGLE DRIVE HELPERS ────────────────────────────────────────
 
+// Orthographic projection order: TOP, LEFT, FRONT, RIGHT, BACK, BOTTOM
+// Grid positions: [TOP=col2], [LEFT=col1, FRONT=col2, RIGHT=col3, BACK=col4], [BOTTOM=col2]
 const ITEM_VIEWS = [
-  { key: 'RSV', label: 'Right Side View', abbr: 'Right Side' },
-  { key: 'TV',  label: 'Top View',        abbr: 'Top'        },
-  { key: 'BV',  label: 'Bottom View',     abbr: 'Bottom'     },
-  { key: 'BKV', label: 'Back View',       abbr: 'Back'       },
-  { key: 'FV',  label: 'Front View',      abbr: 'Front'      },
-  { key: 'LSV', label: 'Left Side View',  abbr: 'Left Side'  },
+  { key: 'TV',  label: 'Top View',        abbr: 'Top',        ortho: 'top'   },
+  { key: 'LSV', label: 'Left Side View',  abbr: 'Left Side',  ortho: 'left'  },
+  { key: 'FV',  label: 'Front View',      abbr: 'Front',      ortho: 'front' },
+  { key: 'RSV', label: 'Right Side View', abbr: 'Right Side', ortho: 'right' },
+  { key: 'BKV', label: 'Back View',       abbr: 'Back',       ortho: 'back'  },
+  { key: 'BV',  label: 'Bottom View',     abbr: 'Bottom',     ortho: 'bottom'},
 ];
 // Error car close-up photo views
 const ERROR_VIEWS = [
@@ -1855,12 +1857,12 @@ function getItemLabel(d) {
 }
 
 const BOX_VIEWS = [
-  { key: 'BOX-RSV', label: 'Box Right Side', abbr: 'Right Side' },
-  { key: 'BOX-TV',  label: 'Box Top',        abbr: 'Top'        },
-  { key: 'BOX-BV',  label: 'Box Bottom',     abbr: 'Bottom'     },
-  { key: 'BOX-BKV', label: 'Box Back',       abbr: 'Back'       },
-  { key: 'BOX-FV',  label: 'Box Front',      abbr: 'Front'      },
-  { key: 'BOX-LSV', label: 'Box Left Side',  abbr: 'Left Side'  },
+  { key: 'BOX-TV',  label: 'Box Top',        abbr: 'Top',        ortho: 'top'   },
+  { key: 'BOX-LSV', label: 'Box Left Side',  abbr: 'Left Side',  ortho: 'left'  },
+  { key: 'BOX-FV',  label: 'Box Front',      abbr: 'Front',      ortho: 'front' },
+  { key: 'BOX-RSV', label: 'Box Right Side', abbr: 'Right Side', ortho: 'right' },
+  { key: 'BOX-BKV', label: 'Box Back',       abbr: 'Back',       ortho: 'back'  },
+  { key: 'BOX-BV',  label: 'Box Bottom',     abbr: 'Bottom',     ortho: 'bottom'},
 ];
 
 // Folder structure:
@@ -5767,33 +5769,56 @@ function renderWizardStep() {
     // Build a photo slot element (used for both fixed and extra slots)
     function makePhotoSlot(viewKey, label, abbr, stepId) {
       const url = stored[viewKey] || '';
+      const hasPic = !!url;
+
+      const div = document.createElement('div');
+      div.className = 'photo-drop-zone';
+      div.dataset.view = viewKey;
+      div.dataset.sid = stepId;
+      div.style.cssText = 'border:2px dashed ' + (hasPic ? 'var(--accent2)' : 'var(--border)') + ';'
+        + 'border-radius:8px;aspect-ratio:1;min-height:58px;'
+        + 'display:flex;flex-direction:column;align-items:center;justify-content:center;'
+        + 'cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden;'
+        + 'background:' + (hasPic ? 'rgba(201,146,42,0.08)' : 'var(--surface2)');
+      div.ondragover = function(e) { e.preventDefault(); div.style.borderColor = 'var(--accent)'; };
+      div.ondragleave = function() { div.style.borderColor = hasPic ? 'var(--accent2)' : 'var(--border)'; };
+      div.ondrop = function(e) { handlePhotoDrop(e, stepId, viewKey); };
+      div.onclick = function() { showPhotoSourcePicker(stepId, viewKey); };
+
+      if (hasPic) {
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.src = url;
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:0.82';
+        img.onerror = function() { this.style.display = 'none'; };
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0.25)';
+        const lbl = document.createElement('div');
+        lbl.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);'
+          + 'font-size:0.55rem;color:#fff;padding:2px 3px;text-align:center;'
+          + 'font-family:var(--font-head);letter-spacing:0.04em;text-transform:uppercase';
+        lbl.textContent = abbr + ' \u2713';
+        div.appendChild(img);
+        div.appendChild(overlay);
+        div.appendChild(lbl);
+      } else {
+        const inner = document.createElement('div');
+        inner.style.cssText = 'font-size:0.6rem;color:var(--text-dim);text-align:center;padding:0.25rem;pointer-events:none';
+        inner.innerHTML = '<div style="font-size:1rem;margin-bottom:0.1rem;opacity:0.4">&#128247;</div>'
+          + '<div style="font-weight:600;color:var(--text-mid);font-size:0.58rem;line-height:1.2">' + abbr + '</div>';
+        div.appendChild(inner);
+      }
+
+      const prog = document.createElement('div');
+      prog.id = 'prog-' + stepId + '-' + viewKey;
+      prog.style.cssText = 'display:none;position:absolute;inset:0;background:rgba(0,0,0,0.72);'
+        + 'align-items:center;justify-content:center';
+      prog.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px"></div>';
+      div.appendChild(prog);
+
       const wrapper = document.createElement('div');
       wrapper.style.cssText = 'display:contents';
-      wrapper.innerHTML = `<div class="photo-drop-zone" data-view="${viewKey}" data-sid="${stepId}"
-        ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
-        ondragleave="this.style.borderColor='var(--border)'"
-        ondrop="handlePhotoDrop(event,'${stepId}','${viewKey}')"
-        onclick="showPhotoSourcePicker('${stepId}','${viewKey}')"
-        style="border:2px dashed var(--border);border-radius:10px;min-height:90px;
-        display:flex;flex-direction:column;align-items:center;justify-content:center;
-        cursor:pointer;transition:border-color 0.2s;position:relative;overflow:hidden;
-        background:var(--surface2)">
-        ${url
-          ? `<img loading="lazy" src="${url}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0" onerror="this.style.display='none'">
-             <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);
-             font-size:0.62rem;color:#fff;padding:2px 4px;text-align:center">${abbr} ✓</div>`
-          : `<div style="font-size:0.7rem;color:var(--text-dim);text-align:center;padding:0.5rem">
-             <div style="font-size:1.4rem;margin-bottom:0.2rem">📷</div>
-             <div style="font-weight:600;color:var(--text-mid)">${abbr}</div>
-             <div style="font-size:0.62rem">${label}</div>
-             </div>`
-        }
-        <div id="prog-${stepId}-${viewKey}" style="display:none;position:absolute;inset:0;
-          background:rgba(0,0,0,0.7);align-items:center;justify-content:center;flex-direction:column">
-          <div style="color:white;font-size:0.75rem">Uploading…</div>
-        </div>
-      </div>
-`;
+      wrapper.appendChild(div);
       return wrapper;
     }
 
@@ -5841,10 +5866,48 @@ function renderWizardStep() {
 
     const grid = document.createElement('div');
     grid.id = 'photo-grid';
-    grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:0.6rem';
 
-    // Render fixed views
-    views.forEach(v => grid.appendChild(makePhotoSlot(v.key, v.label, v.abbr, s.id)));
+    // Check if views use orthographic layout (have ortho property)
+    const isOrtho = views.length > 0 && views[0].ortho;
+
+    if (isOrtho) {
+      // Orthographic projection: 4-col grid
+      // Row 1: _ TOP _ _
+      // Row 2: LEFT FRONT RIGHT BACK
+      // Row 3: _ BOTTOM _ _
+      grid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:0.4rem;align-items:center';
+
+      const orthoMap = {};
+      views.forEach(v => { orthoMap[v.ortho] = v; });
+
+      // Row 1: empty, TOP, empty, empty
+      const makeEmpty = () => {
+        const d = document.createElement('div');
+        d.style.cssText = 'min-height:64px';
+        return d;
+      };
+      grid.appendChild(makeEmpty());
+      if (orthoMap.top)    grid.appendChild(makePhotoSlot(orthoMap.top.key,    orthoMap.top.label,    orthoMap.top.abbr,    s.id));
+      grid.appendChild(makeEmpty());
+      grid.appendChild(makeEmpty());
+
+      // Row 2: LEFT, FRONT, RIGHT, BACK
+      ['left','front','right','back'].forEach(pos => {
+        if (orthoMap[pos]) grid.appendChild(makePhotoSlot(orthoMap[pos].key, orthoMap[pos].label, orthoMap[pos].abbr, s.id));
+        else grid.appendChild(makeEmpty());
+      });
+
+      // Row 3: empty, BOTTOM, empty, empty
+      grid.appendChild(makeEmpty());
+      if (orthoMap.bottom) grid.appendChild(makePhotoSlot(orthoMap.bottom.key, orthoMap.bottom.label, orthoMap.bottom.abbr, s.id));
+      grid.appendChild(makeEmpty());
+      grid.appendChild(makeEmpty());
+
+    } else {
+      // Non-orthographic views (error, IS, catalog) — simple 2-col grid
+      grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:0.6rem';
+      views.forEach(v => grid.appendChild(makePhotoSlot(v.key, v.label, v.abbr, s.id)));
+    }
 
     // Re-render any previously added extra slots
     _existingExtras.sort().forEach(k => {
@@ -6179,13 +6242,21 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
     const url = await driveUploadItemPhoto(file, itemNum, viewKey);
     if (!wizard.data[stepId]) wizard.data[stepId] = {};
     wizard.data[stepId][viewKey] = url;
-    // Re-render just this zone
+    // Re-render zone with thumbnail + grayed overlay
     const zone = document.querySelector(`.photo-drop-zone[data-view="${viewKey}"][data-sid="${stepId}"]`);
     if (zone && url) {
+      // Use blob URL for instant display if we have one cached
+      const displayUrl = _blobCache[url] || url;
+      zone.style.border = '2px dashed var(--accent2)';
+      zone.style.background = 'rgba(201,146,42,0.08)';
       zone.innerHTML = `
-        <img loading="lazy" src="${url}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0" onerror="this.style.display='none'">
-        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);
-          font-size:0.62rem;color:#fff;padding:2px 4px;text-align:center">${viewKey} ✓</div>`;
+        <img loading="lazy" src="${displayUrl}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:0.82" onerror="this.style.display='none'">
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,0.28)"></div>
+        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);
+          font-size:0.58rem;color:#fff;padding:2px 4px;text-align:center;
+          font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase">
+          ✓ ${viewKey}
+        </div>`;
     }
   } catch(e) {
     console.error('Photo upload failed:', e);
