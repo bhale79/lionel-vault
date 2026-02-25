@@ -8009,35 +8009,28 @@ function closePhotoPicker() {
 
 function triggerPhotoCamera() {
   const sid = _pickerStepId, vk = _pickerViewKey;
-  closePhotoPicker();
-  setTimeout(() => {
-    const inp = document.createElement('input');
-    inp.type = 'file';
-    inp.accept = 'image/*';
-    inp.setAttribute('capture', 'environment');
-    inp.style.display = 'none';
-    inp.onchange = (e) => handlePhotoFile(e, sid, vk);
-    document.body.appendChild(inp);
-    inp.click();
-    inp.addEventListener('change', () => inp.remove());
-    inp.addEventListener('cancel', () => inp.remove());
-  }, 80);
+  // Must close picker first, then click — but keep in same call stack for iOS
+  document.getElementById('photo-picker-sheet').classList.remove('open');
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*';
+  inp.setAttribute('capture', 'environment');
+  inp.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0';
+  inp.onchange = (e) => { handlePhotoFile(e, sid, vk); inp.remove(); };
+  document.body.appendChild(inp);
+  inp.click();
 }
 
 function triggerPhotoLibrary() {
   const sid = _pickerStepId, vk = _pickerViewKey;
-  closePhotoPicker();
-  setTimeout(() => {
-    const inp = document.createElement('input');
-    inp.type = 'file';
-    inp.accept = 'image/*';
-    inp.style.display = 'none';
-    inp.onchange = (e) => handlePhotoFile(e, sid, vk);
-    document.body.appendChild(inp);
-    inp.click();
-    inp.addEventListener('change', () => inp.remove());
-    inp.addEventListener('cancel', () => inp.remove());
-  }, 80);
+  document.getElementById('photo-picker-sheet').classList.remove('open');
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*';
+  inp.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0';
+  inp.onchange = (e) => { handlePhotoFile(e, sid, vk); inp.remove(); };
+  document.body.appendChild(inp);
+  inp.click();
 }
 </script>
 <!-- ══ IDENTIFY ITEM MODAL ══════════════════════════════════════════ -->
