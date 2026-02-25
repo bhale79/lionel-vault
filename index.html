@@ -4701,6 +4701,10 @@ window.onload = () => {
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://apis.google.com/js/api.js"></script>
 <script>
+// Picker state — declared at top so available to all onclick handlers
+var _pickerStepId = null;
+var _pickerViewKey = null;
+
 // ── ADD ITEM WIZARD ─────────────────────────────────────────────
 let wizard = {
   step: 0,
@@ -7626,9 +7630,12 @@ function openGoogleImageSearch() {
   window.open(url, '_blank');
 }
 
-// Close on backdrop click
-document.getElementById('identify-modal').addEventListener('click', function(e) {
-  if (e.target === this) closeIdentify();
+// Close on backdrop click — deferred so DOM is ready
+window.addEventListener('load', function() {
+  var m = document.getElementById('identify-modal');
+  if (m) m.addEventListener('click', function(e) { if (e.target === this) closeIdentify(); });
+  var p = document.getElementById('photo-picker-sheet');
+  if (p) p.addEventListener('click', function(e) { if (e.target === this) closePhotoPicker(); });
 });
 
 
@@ -7992,9 +7999,6 @@ if (!window._photosPagePatched) {
 // ══════════════════════════════════════════════════════════════════
 // PHOTO SOURCE PICKER — camera vs phone library
 // ══════════════════════════════════════════════════════════════════
-let _pickerStepId = null;
-let _pickerViewKey = null;
-
 function showPhotoSourcePicker(stepId, viewKey) {
   _pickerStepId = stepId;
   _pickerViewKey = viewKey;
@@ -8144,7 +8148,7 @@ function pickerHandleFile(inputEl, isCamera) {
 
 </div>
 <!-- ══ PHOTO SOURCE PICKER SHEET ══════════════════════════════ -->
-<div id="photo-picker-sheet" onclick="if(event.target===this)closePhotoPicker()">
+<div id="photo-picker-sheet">
   <div id="photo-picker-inner">
     <div style="text-align:center;font-family:var(--font-head);font-size:0.65rem;font-weight:600;
       letter-spacing:0.18em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem">
