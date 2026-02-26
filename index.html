@@ -7654,7 +7654,7 @@ async function runGeminiIdentify() {
         },
         { inline_data: { mime_type: _identifyMimeType, data: _identifyImageBase64 } }
       ]}],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 400 }
+      generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
     });
 
     let vision;
@@ -7738,7 +7738,7 @@ async function runGeminiIdentify() {
         + 'Respond ONLY with raw JSON:\n'
         + '{"candidates":[{"itemNum":"3349","confidence":"high","reason":"Flat Car, olive drab, BLUE turbo missile launcher matches variation exactly"},{"itemNum":"3309","confidence":"low","reason":"Also a flat car with missile launcher but body is RED not olive drab"}]}'
       }]}],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 500 }
+      generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
     });
 
     let matched;
