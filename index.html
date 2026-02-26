@@ -2479,7 +2479,7 @@ function _cachePersonalData() {
   } catch(e) {}
 }
 
-async function _loadPersonalFromSheets(sheetId) {
+async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // Use temporary objects — only commit to state if fetch succeeds
   // This prevents a failed/slow fetch from wiping items that were just saved
   const newPersonal = {};
@@ -2626,15 +2626,16 @@ async function _loadPersonalFromSheets(sheetId) {
     };
   });
 
-  // ── Commit to state — only replace if fetch succeeded (non-empty) ──
-  // If Sheets returned data, use it. If empty (race condition), keep existing state.
-  if (Object.keys(newPersonal).length > 0 || Object.keys(state.personalData).length === 0) {
+  // ── Commit to state ──
+  // forceOverwrite: always replace (used by Sync button)
+  // Normal load: only replace if sheet returned data (protects optimistic items)
+  if (forceOverwrite || Object.keys(newPersonal).length > 0 || Object.keys(state.personalData).length === 0) {
     state.personalData = newPersonal;
   }
-  if (Object.keys(newSold).length > 0 || Object.keys(state.soldData).length === 0) {
+  if (forceOverwrite || Object.keys(newSold).length > 0 || Object.keys(state.soldData).length === 0) {
     state.soldData = newSold;
   }
-  if (Object.keys(newWant).length > 0 || Object.keys(state.wantData).length === 0) {
+  if (forceOverwrite || Object.keys(newWant).length > 0 || Object.keys(state.wantData).length === 0) {
     state.wantData = newWant;
   }
   state.isData = newIsData;
@@ -2673,7 +2674,12 @@ async function forceRefreshData() {
   try {
     localStorage.removeItem('lv_personal_cache');
     localStorage.removeItem('lv_personal_cache_ts');
-    await loadPersonalData();
+    // Wipe state completely so merge logic can't keep stale optimistic items
+    state.personalData = {};
+    state.soldData = {};
+    state.wantData = {};
+    await _loadPersonalFromSheets(state.personalSheetId, true);
+    _cachePersonalData();
     resetFilters();
     buildDashboard();
     buildSoldPage();
@@ -7200,7 +7206,7 @@ async function savePhotoOnlyUpdate() {
 async function saveWizardItem() {
   const d = wizard.data;
   const tab = wizard.tab;
-  console.log('[Save] Starting save. accessToken:', accessToken ? 'present ('+accessToken.slice(0,10)+'...)' : 'MISSING', '| sheetId:', state.personalSheetId || 'MISSING');
+  console.log('[Save] Starting save. tab:', tab, '| accessToken:', accessToken ? 'present' : 'MISSING', '| sheetId:', state.personalSheetId || 'MISSING');
   // Apply powered/dummy suffix to A units (B units ending in C are never powered)
   const _rawItemNum = (d.itemNum || '').trim();
   const _pdSuffix = (raw, power) => {
@@ -7614,9 +7620,10 @@ async function quickEntryAdd() {
   try {
     const _nextBtn = document.getElementById('wizard-next-btn');
     if (_nextBtn) { _nextBtn.disabled = true; }
-    await ensureEphemeraSheets(state.personalSheetId);
+    console.log('[QE] Starting save. sheetId:', state.personalSheetId, 'accessToken:', accessToken ? 'present' : 'MISSING');
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
-    // Add to local state immediately
+    console.log('[QE] Sheet write succeeded');
+    // Add to local state only after confirmed write
     const rowNum = Date.now();
     const key = `${itemNum}|${variation}|${rowNum}`;
     state.personalData[key] = {
