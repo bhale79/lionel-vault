@@ -7480,6 +7480,9 @@ function openIdentify(context) {
   _identifyImageBase64 = null;
   _identifySelectedNum = null;
   document.getElementById('identify-modal').classList.add('open');
+  // Hide camera button on desktop — only useful on mobile
+  const camBtn = document.getElementById('identify-cam-btn');
+  if (camBtn) camBtn.style.display = _isTouchDevice ? 'flex' : 'none';
   resetIdentify();
 }
 
@@ -7701,14 +7704,17 @@ async function runGeminiIdentify() {
       if (i.varDesc) byNum[k].varDescs.push(i.varDesc);
     });
 
-    const catalogText = Object.values(byNum).map(function(i) {
+    const catalogEntries = Object.values(byNum);
+    // Cap at 150 items — more than enough after type filtering, keeps input manageable
+    const catalogCapped = catalogEntries.slice(0, 150);
+    const catalogText = catalogCapped.map(function(i) {
       return [
         i.num,
-        i.itemType,
         i.roadName || 'undecorated',
-        i.description ? i.description.slice(0,100) : '',
-        i.varDescs.length ? 'Colors/variants: ' + i.varDescs.slice(0,6).join(' | ') : '',
-        i.yearProd || ''
+        // Keep description short — first sentence only
+        i.description ? i.description.split('.')[0].slice(0,70) : '',
+        // Variation colors are the key matching signal — keep up to 4
+        i.varDescs.length ? i.varDescs.slice(0,4).join(' | ') : ''
       ].filter(Boolean).join(' | ');
     }).join('\n');
 
@@ -7733,12 +7739,12 @@ async function runGeminiIdentify() {
         + '- 1 to 4 candidates, best match first\n'
         + '- confidence: high = strong match on type + color + load; medium = type matches but color uncertain; low = weak or partial match\n'
         + '- reason: cite specific catalog details that match or conflict\n\n'
-        + 'CATALOG (' + Object.keys(byNum).length + ' items pre-filtered by type):\n'
+        + 'CATALOG (' + catalogCapped.length + ' items pre-filtered by type):\n'
         + catalogText + '\n\n'
         + 'Respond ONLY with raw JSON:\n'
-        + '{"candidates":[{"itemNum":"3349","confidence":"high","reason":"Flat Car, olive drab, BLUE turbo missile launcher matches variation exactly"},{"itemNum":"3309","confidence":"low","reason":"Also a flat car with missile launcher but body is RED not olive drab"}]}'
+        + '{"candidates":[{"itemNum":"3349","confidence":"high","reason":"olive drab flat car, BLUE missile launcher matches exactly"},{"itemNum":"3309","confidence":"low","reason":"RED body not olive drab"}]}'
       }]}],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
+      generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
     });
 
     let matched;
@@ -7762,7 +7768,7 @@ async function runGeminiIdentify() {
       description: displayDesc,
       visionSummary: visionSummary,
       candidates: matched.candidates || [],
-      catalogSize: Object.keys(byNum).length
+      catalogSize: catalogCapped.length
     });
 
   } catch(err) {
@@ -8351,8 +8357,9 @@ function pickerHandleFile(inputEl, isCamera) {
       <img id="identify-preview" class="identify-preview" alt="preview" style="display:none">
     </div>
 
-    <!-- Camera button (mobile) -->
+    <!-- Camera button (mobile only) -->
     <button onclick="document.getElementById('identify-input-cam').click()"
+      id="identify-cam-btn"
       class="btn btn-secondary" style="width:100%;justify-content:center;gap:0.4rem;margin-bottom:0.5rem;font-size:0.82rem">
       📷 Take Photo with Camera
     </button>
