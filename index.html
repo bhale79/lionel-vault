@@ -907,6 +907,10 @@ document.addEventListener('touchmove', function(){}, {passive: true});
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               Sell Item
             </button>
+            <button class="btn" id="refresh-btn" onclick="forceRefreshData()" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;color:var(--text-dim);border:1.5px solid var(--border)">
+              <svg id="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              Sync
+            </button>
           </div>
         </div>
 
@@ -2613,6 +2617,28 @@ function showLoading() {
 }
 
 // ── DASHBOARD ───────────────────────────────────────────────────
+
+async function forceRefreshData() {
+  const btn  = document.getElementById('refresh-btn');
+  const icon = document.getElementById('refresh-icon');
+  if (btn) btn.disabled = true;
+  if (icon) icon.style.animation = 'spin 0.8s linear infinite';
+  try {
+    localStorage.removeItem('lv_personal_cache');
+    localStorage.removeItem('lv_personal_cache_ts');
+    await loadPersonalData();
+    resetFilters();
+    buildDashboard();
+    buildSoldPage();
+    renderBrowse();
+    showToast('✓ Data synced from Google Sheet');
+  } catch(e) {
+    showToast('Sync failed: ' + e.message, 4000, true);
+  } finally {
+    if (btn)  btn.disabled = false;
+    if (icon) icon.style.animation = '';
+  }
+}
 
 function buildDashboard() {
   const total = state.masterData.length;
@@ -4948,14 +4974,6 @@ function getSteps(tab) {
         skipIf: (d) => (d.hasBox !== 'Yes' && !d._attachToBox) || !!d._attachToBox,
         note: (d) => isPaired(d) ? 'Engine box photos only — tender box photos will be added next.' : '' },
 
-      // ── TOGETHER PHOTOS — right after item photos, before tender/set ──
-      { id: 'wantTogetherPhotos', title: (d) => 'Would you like to add photos of the ' + getItemLabel(d) + ' and tender together?',
-        type: 'choice2', choices: ['Yes','No'], skipIf: (d) => !isPaired(d) },
-      { id: 'photosTogether', title: (d) => 'Add photos of the ' + getItemLabel(d) + ' and tender together',
-        type: 'drivePhotos', label: 'Set',
-        note: () => 'These photos will be filed under the engine Drive folder.',
-        skipIf: (d) => !isPaired(d) || d.wantTogetherPhotos !== 'Yes' },
-
       // ── TENDER section (only shown when paired) ──
       { id: '_tenderDivider',   title: 'Now for the tender', type: 'divider',
         subtitle: (d) => 'Next we will record details for the matching tender (' + d.tenderMatch + '). It will be saved as a separate item in your collection.',
@@ -5086,7 +5104,26 @@ function getSteps(tab) {
         type: 'drivePhotos', label: 'Error', views: ERROR_VIEWS,
         note: () => 'Close-ups of the error — e.g. double-stamp area, missing lettering. Filed in the same Drive folder.',
         skipIf: d => d.isError !== 'Yes' || d.wantErrorPhotos !== 'Yes' },
-      { id: 'confirm',         title: (d) => 'Looking good! Ready to save your ' + getItemLabel(d) + '?', type: 'confirm' },
+
+      // ── TOGETHER PHOTOS — last question before saving ──
+      { id: 'wantTogetherPhotos',
+        title: (d) => {
+          if (isPaired(d)) return 'Would you like a photo of the ' + getItemLabel(d) + ' and tender together?';
+          if (d.setMatch === 'set-now') return 'Would you like a photo of the full ' + (d.setType || 'AB') + ' set together?';
+          return 'Would you like a photo of the items together?';
+        },
+        type: 'choice2', choices: ['Yes','No'],
+        skipIf: (d) => !isPaired(d) && d.setMatch !== 'set-now' },
+      { id: 'photosTogether',
+        title: (d) => {
+          if (isPaired(d)) return 'Add a photo of the ' + getItemLabel(d) + ' and tender together';
+          return 'Add a photo of the full ' + (d.setType || 'AB') + ' set together';
+        },
+        type: 'drivePhotos', label: 'Set',
+        note: () => 'Filed under the first unit\'s Drive folder.',
+        skipIf: (d) => (!isPaired(d) && d.setMatch !== 'set-now') || d.wantTogetherPhotos !== 'Yes' },
+
+      { id: 'confirm', title: (d) => 'Looking good! Ready to save your ' + getItemLabel(d) + '?', type: 'confirm' },
     ];
   } else if (tab === 'sold') {
     return [
@@ -6981,7 +7018,7 @@ async function saveCatalogItem() {
         const key = idx + 3;
         const catType2 = r[1]||''; const year2 = r[2]||'';
         const t = [year2, catType2, 'Catalog'].filter(Boolean).join(' ');
-        newEphemera.catalogs[key] = {
+        state.ephemeraData.catalogs[key] = {
           row: key, itemNum: r[0]||'', title: t,
           catType: catType2, year: year2, hasMailer: r[3]||'No',
           condition: r[4]||'', estValue: r[5]||'', dateAcquired: r[6]||'',
@@ -7532,7 +7569,7 @@ async function quickEntryAdd() {
     // Add to local state immediately
     const rowNum = Date.now();
     const key = `${itemNum}|${variation}|${rowNum}`;
-    newPersonal[key] = {
+    state.personalData[key] = {
       row: rowNum, itemNum, variation,
       status: 'Owned', owned: true,
       condition: '', allOriginal: '', priceItem: '', priceBox: '', priceComplete: '',
