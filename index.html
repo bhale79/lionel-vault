@@ -8028,44 +8028,61 @@ function useIdentifiedItem() {
   showToast('✓ Item ' + _identifySelectedNum + ' loaded — confirm the match below');
 }
 
+function openGoogleLensDirect() {
+  // If we have a loaded image, submit it directly
+  if (_identifyImageBase64) {
+    submitToGoogleLens(_identifyImageBase64);
+  } else {
+    window.open('https://lens.google.com/', '_blank');
+  }
+}
+
 function openGoogleImageSearch() {
   if (_identifyImageBase64) {
-    try {
-      const byteStr = atob(_identifyImageBase64);
-      const ab = new ArrayBuffer(byteStr.length);
-      const ia = new Uint8Array(ab);
-      for (let i = 0; i < byteStr.length; i++) ia[i] = byteStr.charCodeAt(i);
-      const blob = new Blob([ab], { type: 'image/jpeg' });
-      const blobUrl = URL.createObjectURL(blob);
-
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
-      if (isIOS) {
-        // iOS Safari: open image in new tab — user long-presses → Save to Photos → use in Lens
-        window.open(blobUrl, '_blank');
-        setTimeout(() => window.open('https://lens.google.com/', '_blank'), 600);
-        showToast('Long-press the photo → Save → upload to Lens', 5000);
-      } else {
-        // Android / desktop: direct download + open Lens
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = 'lionel-identify.jpg';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => window.open('https://lens.google.com/', '_blank'), 400);
-        showToast('📷 Photo saved — upload it to Google Lens', 4000);
-      }
-
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
-      return;
-    } catch(e) {
-      console.warn('Download failed:', e.message);
-    }
+    submitToGoogleLens(_identifyImageBase64);
+  } else {
+    const query = window._identifyGoogleQuery || ('Lionel postwar ' + (_identifySelectedNum || ''));
+    window.open('https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(query), '_blank');
   }
-  // Fallback: keyword search
-  const query = window._identifyGoogleQuery || ('Lionel postwar ' + (_identifySelectedNum || ''));
-  window.open('https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(query), '_blank');
+}
+
+function submitToGoogleLens(base64data) {
+  // Build a self-contained HTML page that auto-submits the image to Google Lens.
+  // Opening it as a data: URI in a new tab sidesteps cross-origin restrictions because
+  // the form POST originates from the new tab itself, not from our app.
+  const html = `<!DOCTYPE html>
+<html>
+<head><title>Opening Google Lens…</title>
+<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#111;color:#aaa;flex-direction:column;gap:1rem}
+.spinner{width:36px;height:36px;border:3px solid #333;border-top-color:#4285f4;border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}</style>
+</head>
+<body>
+<div class="spinner"></div>
+<div>Sending to Google Lens…</div>
+<form id="f" method="POST" action="https://www.google.com/searchbyimage/upload" enctype="multipart/form-data">
+  <input type="hidden" name="hl" value="en">
+</form>
+<script>
+// Convert base64 back to a File and append to the form, then submit
+const b64 = "${base64data}";
+const bin = atob(b64);
+const arr = new Uint8Array(bin.length);
+for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+const blob = new Blob([arr],{type:'image/jpeg'});
+const file = new File([blob],'lionel.jpg',{type:'image/jpeg'});
+const dt = new DataTransfer();
+dt.items.add(file);
+const inp = document.createElement('input');
+inp.type='file'; inp.name='encoded_image';
+inp.files = dt.files;
+document.getElementById('f').appendChild(inp);
+document.getElementById('f').submit();
+</script>
+</body></html>`;
+
+  const dataUri = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+  window.open(dataUri, '_blank');
 }
 
 // Close on backdrop click — deferred so DOM is ready
@@ -8545,9 +8562,18 @@ function pickerHandleFile(inputEl, isCamera) {
         </button>
         <button onclick="document.getElementById('identify-input-lib').click()"
           class="btn btn-secondary" style="flex:1;justify-content:center;font-size:0.8rem;gap:0.4rem">
-          🖼️ Choose from Library
+          🖼️ Library
         </button>
       </div>
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-top:-0.25rem">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="font-size:0.68rem;color:var(--text-dim);white-space:nowrap">or skip AI — search visually</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+      <button onclick="openGoogleLensDirect()" class="btn" style="width:100%;justify-content:center;gap:0.5rem;border-color:rgba(66,133,244,0.4);color:#4285f4;background:rgba(66,133,244,0.07);font-size:0.82rem">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><circle cx="11" cy="11" r="3"/><path d="m21 21-4.35-4.35"/></svg>
+        Search with Google Lens
+      </button>
       <button id="identify-analyze-btn" onclick="runGeminiIdentify()"
         style="display:none;width:100%;padding:0.75rem;border-radius:8px;border:none;background:var(--accent);color:white;font-family:var(--font-head);font-size:0.88rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;align-items:center;justify-content:center;gap:0.5rem">
         🔍 Identify This Item
@@ -8565,7 +8591,7 @@ function pickerHandleFile(inputEl, isCamera) {
         <button onclick="resetIdentify()" class="btn" style="justify-content:center">Try Another Photo</button>
         <button onclick="openGoogleImageSearch()" class="btn" style="justify-content:center;gap:0.35rem">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><circle cx="11" cy="11" r="3"/><path d="m21 21-4.35-4.35"/></svg>
-          Save + Google Lens
+          Google Lens
         </button>
       </div>
       <div style="text-align:center;margin-top:0.25rem">
