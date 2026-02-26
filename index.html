@@ -869,7 +869,7 @@
           Reports
         </button>
       </div>
-      <div class="nav-section" style="margin-top:auto;padding-top:0.5rem;border-top:1px solid var(--border)">
+      <div class="nav-section" style="padding-top:0.75rem;border-top:1px solid var(--border)"">
         <a id="nav-sheet-link" href="#" target="_blank"
           style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;border-radius:7px;color:var(--text-dim);text-decoration:none;font-size:0.82rem;font-family:var(--font-body);transition:background 0.15s;cursor:pointer"
           onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='var(--text)'"
@@ -4192,7 +4192,7 @@ async function saveItem() {
     if (existing && existing.row) {
       await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:T${existing.row}`, [ownedRow]);
     } else {
-      await sheetsAppend(state.personalSheetId, 'My Collection!A:T', [ownedRow]);
+      await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [ownedRow]);
     }
     // Remove from Sold tab if it was there
     const soldEntry = state.soldData[key];
@@ -4223,7 +4223,7 @@ async function saveItem() {
     if (soldEntry && soldEntry.row) {
       await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:H${soldEntry.row}`, [soldRow]);
     } else {
-      await sheetsAppend(state.personalSheetId, 'Sold!A:H', [soldRow]);
+      await sheetsAppend(state.personalSheetId, 'Sold!A:A', [soldRow]);
     }
 
   } else if (currentStatus === 'Want') {
@@ -4244,7 +4244,7 @@ async function saveItem() {
     if (wantEntry && wantEntry.row) {
       await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:E${wantEntry.row}`, [wantRow]);
     } else {
-      await sheetsAppend(state.personalSheetId, 'Want List!A:E', [wantRow]);
+      await sheetsAppend(state.personalSheetId, 'Want List!A:A', [wantRow]);
     }
   }
 
@@ -6908,7 +6908,7 @@ async function saveInstructionSheet() {
   const row = [sheetNum, linkedItem, d.is_year||'', d.is_condition||'', d.is_notes||'', photoLink];
   try {
     await ensureEphemeraSheets(state.personalSheetId);
-    await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:F', [row]);
+    await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:A', [row]);
     const newKey = Date.now();
     state.isData[newKey] = {
       row: newKey, sheetNum, linkedItem, year: d.is_year||'',
@@ -7246,7 +7246,7 @@ async function saveWizardItem() {
       itemNum,      // matchedTo = suffixed A unit
       setId,
     ];
-    await sheetsAppend(state.personalSheetId, 'My Collection', [u2Row]);
+    await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u2Row]);
 
     // Unit 3 (ABA second A unit)
     if (d.setType === 'ABA') {
@@ -7265,7 +7265,7 @@ async function saveWizardItem() {
         u2Num,        // matchedTo = B unit
         setId,
       ];
-      await sheetsAppend(state.personalSheetId, 'My Collection', [u3Row]);
+      await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u3Row]);
       // Update u2Row matchedTo to also reference u3Num
 
     }
@@ -7311,7 +7311,7 @@ async function saveWizardItem() {
       '',          // $0 worth — worth is on the engine row
       itemNum,     // matchedTo = engine number
     ];
-    await sheetsAppend(state.personalSheetId, 'My Collection', [tRow]);
+    await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [tRow]);
     // Update engine row matchedTo to point to tender
     row[14] = tNum;
   }
@@ -7364,7 +7364,7 @@ async function saveWizardItem() {
         await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:N${existing.row}`, [row]);
       } else {
         // Always append for a plain new collection add — never overwrite existing rows
-        await sheetsAppend(state.personalSheetId, 'My Collection!A:T', [row]);
+        await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
       }
 
     } else if (tab === 'sold') {
@@ -7387,7 +7387,7 @@ async function saveWizardItem() {
       if (existingSold?.row) {
         await sheetsUpdate(state.personalSheetId, `Sold!A${existingSold.row}:H${existingSold.row}`, [row]);
       } else {
-        await sheetsAppend(state.personalSheetId, 'Sold!A:H', [row]);
+        await sheetsAppend(state.personalSheetId, 'Sold!A:A', [row]);
       }
       // Delete the row from My Collection
       if (collectionEntry?.row) {
@@ -7409,7 +7409,7 @@ async function saveWizardItem() {
       if (existing?.row) {
         await sheetsUpdate(state.personalSheetId, `Want List!A${existing.row}:E${existing.row}`, [row]);
       } else {
-        await sheetsAppend(state.personalSheetId, 'Want List!A:E', [row]);
+        await sheetsAppend(state.personalSheetId, 'Want List!A:A', [row]);
       }
     }
 
@@ -7434,7 +7434,7 @@ async function saveWizardItem() {
           }
         }
         const isRow = [isSheetNum, itemNum, '', d.is_condition || '', '', isPhotoLink];
-        await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:F', [isRow]);
+        await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:A', [isRow]);
         const newISKey = Date.now();
         state.isData[newISKey] = {
           row: newISKey, sheetNum: isSheetNum, linkedItem: itemNum,
@@ -7528,7 +7528,7 @@ async function quickEntryAdd() {
     const _nextBtn = document.getElementById('wizard-next-btn');
     if (_nextBtn) { _nextBtn.disabled = true; }
     await ensureEphemeraSheets(state.personalSheetId);
-    await sheetsAppend(state.personalSheetId, 'My Collection!A:T', [row]);
+    await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
     // Add to local state immediately
     const rowNum = Date.now();
     const key = `${itemNum}|${variation}|${rowNum}`;
