@@ -7578,19 +7578,33 @@ async function runGeminiIdentify() {
     const url = proxyUrl
       ? proxyUrl
       : 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
+    console.log('[Identify] Calling Gemini at:', url.split('?')[0]);
     const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    console.log('[Identify] Gemini response status:', res.status);
     if (!res.ok) {
       const e = await res.json().catch(()=>({}));
       throw new Error('Gemini ' + res.status + ': ' + (e && e.error ? e.error.message : res.statusText));
     }
     const d = await res.json();
-    return (d && d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts && d.candidates[0].content.parts[0] && d.candidates[0].content.parts[0].text) || '';
+    const text = (d && d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts && d.candidates[0].content.parts[0] && d.candidates[0].content.parts[0].text) || '';
+    // Check for safety block
+    const finishReason = d && d.candidates && d.candidates[0] && d.candidates[0].finishReason;
+    if (!text && finishReason) {
+      throw new Error('Gemini blocked response (reason: ' + finishReason + '). Try a different photo angle.');
+    }
+    console.log('[Identify] Gemini text length:', text.length, '| First 100:', text.slice(0,100));
+    return text;
   }
 
   function parseJSON(text) {
-    const cleaned = text.replace(/```json|```/gi,'').trim();
-    const m = cleaned.match(/\{[\s\S]*\}/);
-    return JSON.parse(m ? m[0] : cleaned);
+    if (!text || !text.trim()) throw new Error('Empty response from Gemini');
+    // Strip markdown fences, leading/trailing whitespace
+    let cleaned = text.replace(/```json\s*/gi,'').replace(/```\s*/gi,'').trim();
+    // Find the outermost JSON object
+    const start = cleaned.indexOf('{');
+    const end   = cleaned.lastIndexOf('}');
+    if (start === -1 || end === -1) throw new Error('No JSON object found in: ' + cleaned.slice(0,200));
+    return JSON.parse(cleaned.slice(start, end+1));
   }
 
   // itemType aliases Gemini might use -> master itemType values
@@ -7623,27 +7637,34 @@ async function runGeminiIdentify() {
     const visionRaw = await callGemini({
       contents: [{ parts: [
         { text:
-            'You are examining a vintage Lionel O-gauge model train item (1945-1969).\n'
-          + 'Describe ONLY what you physically see. Do NOT guess the catalog number.\n\n'
-          + 'Answer each field carefully:\n'
-          + '- itemType: one of: flat car / box car / gondola / hopper / tank car / caboose / passenger car / steam locomotive / diesel locomotive / electric locomotive / switcher / motorized unit / operating car / cattle car / milk car / log car / crane / refrigerator car / accessory\n'
-          + '- bodyColor: exact color(s) of the main body and frame\n'
-          + '- loadDesc: describe any load or mechanism on top — color, shape, material. Say "none" if empty\n'
-          + '- isDecorated: true if road name or text is printed on the sides, false if plain/undecorated\n'
-          + '- letteringText: the road name or text visible, or "none"\n'
-          + '- truckStyle: arch-bar / die-cast / scout / AAR / other\n'
-          + '- extraDetails: any other features — depressed center, operating parts, military markings, color of specific components\n\n'
-          + 'Respond ONLY with raw JSON (no markdown):\n'
-          + '{"itemType":"flat car","bodyColor":"olive drab green","loadDesc":"blue plastic turbo missile launcher with angled ramp","isDecorated":false,"letteringText":"none","truckStyle":"arch-bar","extraDetails":"depressed center, manual spring mechanism, missing missile on top"}'
+            'Look at this photo of a vintage Lionel model train item and describe what you see.\n'
+          + 'Return ONLY a JSON object with these exact fields (no markdown, no explanation):\n'
+          + '{\n'
+          + '  "itemType": "flat car",\n'
+          + '  "bodyColor": "olive drab green",\n'
+          + '  "loadDesc": "blue plastic missile launcher with ramp",\n'
+          + '  "isDecorated": false,\n'
+          + '  "letteringText": "none",\n'
+          + '  "truckStyle": "arch-bar",\n'
+          + '  "extraDetails": "depressed center, spring mechanism"\n'
+          + '}\n\n'
+          + 'itemType must be one of: flat car, box car, gondola, hopper, tank car, caboose, passenger car, steam locomotive, diesel locomotive, electric locomotive, switcher, motorized unit, operating car, cattle car, milk car, log car, crane, refrigerator car, accessory\n'
+          + 'isDecorated: true if road name or lettering visible on sides, false if plain\n'
+          + 'loadDesc: describe any load or mechanism on top. "none" if empty.'
         },
         { inline_data: { mime_type: _identifyMimeType, data: _identifyImageBase64 } }
       ]}],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 350 }
+      generationConfig: { temperature: 0.1, maxOutputTokens: 400 }
     });
 
     let vision;
-    try { vision = parseJSON(visionRaw); }
-    catch(e) { throw new Error('Could not read photo — try again'); }
+    try {
+      vision = parseJSON(visionRaw);
+    } catch(e) {
+      // Show what Gemini actually said so we can diagnose
+      console.error('Step 1 raw response:', visionRaw);
+      throw new Error('Step 1 parse error: ' + e.message + ' | Gemini said: ' + (visionRaw||'(empty)').slice(0,150));
+    }
 
     // ── STEP 2: JS pre-filter, then Gemini text match ──────────────────────
     statusMsg.textContent = 'Step 2 of 2 — searching catalog…';
@@ -7721,8 +7742,12 @@ async function runGeminiIdentify() {
     });
 
     let matched;
-    try { matched = parseJSON(matchRaw); }
-    catch(e) { throw new Error('Could not parse catalog match — try again'); }
+    try {
+      matched = parseJSON(matchRaw);
+    } catch(e) {
+      console.error('Step 2 raw response:', matchRaw);
+      throw new Error('Step 2 parse error: ' + e.message + ' | Gemini said: ' + (matchRaw||'(empty)').slice(0,150));
+    }
 
     statusEl.style.display = 'none';
 
