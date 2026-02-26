@@ -7792,23 +7792,16 @@ async function runGeminiIdentify() {
 
     const matchRaw = await callGemini({
       contents: [{ parts: [{ text:
-          'You are a Lionel postwar train catalog expert (1945-1969).\n\n'
-        + 'An AI vision model examined a photo and reported:\n'
-        + visionSummary + '\n\n'
-        + 'KEY RULES:\n'
-        + '- If undecorated: match items with no road name or "Lionel Lines"\n'
-        + '- Match body color against variation descriptions — OLIVE DRAB vs RED vs TEAL are different items\n'
-        + '- Match load carefully — BLUE launcher vs GRAY launcher are different items\n'
-        + '- Only return item numbers that exist in the catalog below\n'
-        + '- Return 1 to 3 candidates maximum, best match first\n'
-        + '- confidence: high / medium / low\n'
-        + '- reason: max 12 words, cite the key matching detail only\n\n'
-        + 'CATALOG (' + catalogCapped.length + ' items):\n'
-        + catalogText + '\n\n'
-        + 'Respond ONLY with raw JSON, keep reasons under 12 words:\n'
-        + '{"candidates":[{"itemNum":"3349","confidence":"high","reason":"olive drab, BLUE launcher matches exactly"},{"itemNum":"3309","confidence":"low","reason":"RED body not olive drab"}]}'
+          'Lionel train catalog expert. Match this photo description to catalog items.\n\n'
+        + 'PHOTO: ' + visionSummary.replace(/\n/g,' ') + '\n\n'
+        + 'RULES: undecorated=no road name, match colors in variation descriptions exactly.\n\n'
+        + 'CATALOG:\n' + catalogText + '\n\n'
+        + 'Return ONLY this exact JSON with no other text:\n'
+        + '{"c":[{"n":"3349","q":"h"},{"n":"3309","q":"l"}]}\n'
+        + 'q values: h=high m=medium l=low. Max 3 items. No reason field.'
       }]}],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
+      generationConfig: { temperature: 0.1, maxOutputTokens: 80 }
+    });
     });
 
     let matched;
@@ -7817,6 +7810,27 @@ async function runGeminiIdentify() {
     } catch(e) {
       console.error('Step 2 raw response:', matchRaw);
       throw new Error('Step 2 parse error: ' + e.message + ' | Gemini said: ' + (matchRaw||'(empty)').slice(0,150));
+    }
+
+    // Handle compact format {"c":[{"n":"3349","q":"h"}]} — expand to full candidates
+    const confMap = { h:'high', m:'medium', l:'low' };
+    let candidates = [];
+    if (matched.c) {
+      // Compact format — build reasons client-side from catalog data
+      candidates = matched.c.map(function(item) {
+        const num = String(item.n || item.itemNum || '');
+        const conf = confMap[item.q] || item.confidence || 'medium';
+        // Build reason from what we know about this item in the catalog
+        const rows = byNum[num];
+        let reason = '';
+        if (rows) {
+          const colorHints = rows.varDescs.slice(0,2).join(', ');
+          reason = colorHints || rows.description.split('.')[0].slice(0,60) || '';
+        }
+        return { itemNum: num, confidence: conf, reason: reason };
+      });
+    } else {
+      candidates = matched.candidates || [];
     }
 
     statusEl.style.display = 'none';
@@ -7831,7 +7845,7 @@ async function runGeminiIdentify() {
     renderIdentifyResults({
       description: displayDesc,
       visionSummary: visionSummary,
-      candidates: matched.candidates || [],
+      candidates: candidates,
       catalogSize: catalogCapped.length
     });
 
