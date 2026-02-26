@@ -878,6 +878,13 @@
           My Google Sheet
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;opacity:0.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>
+        <button id="refresh-btn" onclick="forceRefreshData()"
+          style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;border-radius:7px;color:var(--text-dim);font-size:0.82rem;background:none;border:none;width:100%;cursor:pointer;text-align:left;font-family:var(--font-body)"
+          onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='var(--text)'"
+          onmouseout="this.style.background='none';this.style.color='var(--text-dim)'">
+          <svg id="refresh-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Sync from Sheet
+        </button>
       </div>
     </nav>
 
@@ -907,10 +914,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               Sell Item
             </button>
-            <button class="btn" id="refresh-btn" onclick="forceRefreshData()" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;color:var(--text-dim);border:1.5px solid var(--border)">
-              <svg id="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-              Sync
-            </button>
+
           </div>
         </div>
 
@@ -1781,6 +1785,31 @@ async function initPersonalSheet(sheetId) {
 }
 
 let _ensureEphemDone = false;
+async function ensurePersonalHeaders(sheetId) {
+  if (!sheetId) return;
+  try {
+    // Fetch current row 2 headers (A2:T2)
+    const res = await sheetsGet(sheetId, 'My Collection!A2:T2');
+    const current = (res.values && res.values[0]) || [];
+
+    // Check each expected header — write the full row if anything is missing or wrong
+    const needsUpdate = PERSONAL_HEADERS.some((h, i) => current[i] !== h);
+    if (needsUpdate) {
+      await sheetsUpdate(sheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
+      console.log('[Headers] My Collection headers repaired');
+    }
+
+    // Also ensure row 1 title
+    const titleRes = await sheetsGet(sheetId, 'My Collection!A1');
+    const title = (titleRes.values && titleRes.values[0] && titleRes.values[0][0]) || '';
+    if (title !== 'My Collection') {
+      await sheetsUpdate(sheetId, 'My Collection!A1', [['My Collection']]);
+    }
+  } catch(e) {
+    console.warn('[Headers] ensurePersonalHeaders failed:', e.message);
+  }
+}
+
 async function ensureEphemeraSheets(sheetId) {
   if (_ensureEphemDone) return;  // Only run once per session — tabs and headers don't change
   const metaRes = await fetch(
@@ -2414,6 +2443,7 @@ async function loadPersonalData() {
   }
 
   ensureEphemeraSheets(state.personalSheetId).catch(() => {});
+  ensurePersonalHeaders(state.personalSheetId).catch(() => {});
   await _loadPersonalFromSheets(state.personalSheetId);
   _cachePersonalData();
 }
@@ -2630,10 +2660,13 @@ async function forceRefreshData() {
     resetFilters();
     buildDashboard();
     buildSoldPage();
+    buildWantPage();
     renderBrowse();
-    showToast('✓ Data synced from Google Sheet');
+    buildQuickEntryList && buildQuickEntryList();
+    showToast('✓ Synced from Google Sheet');
   } catch(e) {
-    showToast('Sync failed: ' + e.message, 4000, true);
+    console.error('Sync error:', e);
+    showToast('Sync failed: ' + e.message, 5000, true);
   } finally {
     if (btn)  btn.disabled = false;
     if (icon) icon.style.animation = '';
