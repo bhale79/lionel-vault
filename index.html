@@ -7664,25 +7664,61 @@ async function runGeminiIdentify() {
     const prompt = `You are a world-class expert on Lionel postwar O-gauge and O27-gauge electric trains from the 1945–1969 era.
 This app covers ONLY Lionel postwar items manufactured between 1945 and 1969. Do not suggest items outside this era.
 
-Item types include: steam locomotives, diesel locomotives, passenger cars, freight cars, motorized units (handcars, inspection cars, helicopters, etc.), accessories, transformers, and sets.
+Item types include: steam locomotives, diesel locomotives, electric locomotives, passenger cars, freight cars (boxcars, gondolas, hoppers, tank cars, flatcars, cabooses, refrigerator cars, stock cars, ore cars), operating/action cars, military cars, space/science cars, motorized units (handcars, inspection cars, helicopters, etc.), accessories, and sets.
 
-Notable motorized units to know:
-- No. 68: Inspection Car (red/cream station wagon style, 1958–1961)
-- No. 50: Gang Car (yellow, motorized, 1954–1964)
-- No. 60: Lionelville Trolley (1955–1958)
-- No. 65: Handcar (1962–1966)
+KEY IDENTIFICATION CLUES TO LOOK FOR:
+- Car body color and material (die-cast metal vs molded plastic)
+- Load type on flat cars (missiles, rockets, lumber, pipes, vehicles, aircraft)
+- Military markings (olive drab = Army, gray = Navy/Air Force)
+- Operating mechanisms (cranes, dump cars, operating doors, barrels)
+- Truck type (arch-bar, magnetic, scout, die-cast)
+- Road name lettering or herald on the car side
+- Distinctive orange/red/blue/black frame colors
 
-Examine this photo carefully and identify the Lionel postwar item (1945–1969) shown.
+SPECIAL CARS TO KNOW (pay close attention to loads and mechanisms):
+Flat cars with loads:
+- 3349: Olive drab flat car with BLUE turbo missile launcher (1962-65)
+- 3309/3519: Flat car with GRAY/WHITE satellite launcher (1961-64)
+- 6544: Missile firing car (gray, white missile, 1960-64)
+- 6175: Flat car with rocket (gray, 1958-60)
+- 6800: Flat car with airplane (yellow plane on red/black car, 1957-60)
+- 6801: Flat car with boat (1957-60)
+- 6805/6806: Flat car with radioactive/medical containers (1958-59)
+- 3665: Minuteman missile launching boxcar (white, 1961-64)
+
+Military cars:
+- 6448: Exploding boxcar (white, red lettering, 1961-63)
+- 3419: Helicopter launching flat car (1959-65)
+- 44/45: US Army missile launcher (olive drab, 1959-62)
+- 41: US Army switcher (olive drab, 1955-57)
+- 42: Picatinny Arsenal switcher (olive drab, 1957-58)
+
+Motorized units:
+- No. 68: Inspection Car (red/cream station wagon, 1958-61)
+- No. 50: Gang Car (yellow, 1954-64)
+- No. 60: Trolley (orange/cream, 1955-58)
+- No. 65: Handcar (1962-66)
+
+Operating cars:
+- 3356: Horse car (orange, 1956-60)
+- 3562: Barrel car (orange or gray, 1954-58)
+- 3361: Log dump car (gray, 1955-58)
+- 3460: Lumber car (black, 1954-55)
+
+Examine this photo carefully and identify the Lionel postwar item (1945–1969) shown. Pay special attention to:
+1. What load or mechanism is on top of the car
+2. The exact color of the car body AND any loads/mechanisms
+3. Any military or space theme markings
 
 Respond with ONLY a raw JSON object — no markdown, no code fences, no explanation:
-{"description":"2-3 sentence description: item type, color scheme, road name/markings, distinctive features, approximate year range","candidates":[{"itemNum":"68","confidence":"high","reason":"Red and cream inspection car, station wagon body style, motorized, matches 1958-1961 production"},{"itemNum":"50","confidence":"low","reason":"Similar motorized unit but yellow gang car body"}],"googleQuery":"Lionel postwar 68 inspection car 1958"}
+{"description":"2-3 sentence description: item type, color scheme, road name/markings, distinctive features, approximate year range","candidates":[{"itemNum":"3349","confidence":"high","reason":"Olive drab flat car with blue turbo missile launcher, matches 1962-1965 production"},{"itemNum":"3309","confidence":"low","reason":"Similar flat car but typically has gray satellite launcher not blue missile"}],"googleQuery":"Lionel postwar 3349 turbo missile flat car"}
 
 Rules:
 - ONLY suggest Lionel postwar catalog numbers from 1945–1969
 - List 1–5 candidates, most likely first
 - confidence: "high" | "medium" | "low"
-- If unsure, give best guess based on visible color, body style, wheel type, markings
-- googleQuery should be specific enough to find this exact item on Google Images
+- Be very specific about car number based on the exact load/color/mechanism visible
+- googleQuery: "Lionel postwar [number] [item name]" format for best Google Lens results
 
 Here are real catalog items for reference (itemNum|type|roadName|description):
 ${catalogSample}`;
@@ -7993,9 +8029,54 @@ function useIdentifiedItem() {
 }
 
 function openGoogleImageSearch() {
+  // Use Google Lens visual search if we have the image — far more accurate than keyword search
+  if (_identifyImageBase64) {
+    try {
+      const byteStr = atob(_identifyImageBase64);
+      const ab = new ArrayBuffer(byteStr.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteStr.length; i++) ia[i] = byteStr.charCodeAt(i);
+      const blob = new Blob([ab], { type: 'image/jpeg' });
+      const file = new File([blob], 'lionel.jpg', { type: 'image/jpeg' });
+
+      // Create a hidden form and submit to Google's reverse image search
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = 'https://www.google.com/searchbyimage/upload';
+      form.enctype = 'multipart/form-data';
+      form.target = '_blank';
+      form.style.cssText = 'display:none;position:fixed;top:-9999px';
+
+      // Create a real file input and assign our file via DataTransfer
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.name = 'encoded_image';
+      try {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        fileInput.files = dt.files;
+      } catch(e) {
+        throw new Error('DataTransfer not supported: ' + e.message);
+      }
+
+      const hlInput = document.createElement('input');
+      hlInput.type = 'hidden';
+      hlInput.name = 'hl';
+      hlInput.value = 'en';
+
+      form.appendChild(fileInput);
+      form.appendChild(hlInput);
+      document.body.appendChild(form);
+      form.submit();
+      setTimeout(() => document.body.removeChild(form), 2000);
+      return;
+    } catch(e) {
+      console.warn('Google Lens submit failed, trying keyword fallback:', e.message);
+    }
+  }
+  // Fallback: keyword image search
   const query = window._identifyGoogleQuery || ('Lionel postwar train ' + (_identifySelectedNum || ''));
-  const url = 'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(query);
-  window.open(url, '_blank');
+  window.open('https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(query), '_blank');
 }
 
 // Close on backdrop click — deferred so DOM is ready
@@ -8494,8 +8575,8 @@ function pickerHandleFile(inputEl, isCamera) {
         <button onclick="useIdentifiedItem()" class="btn btn-primary" style="flex:1;justify-content:center;min-width:140px">Use This Item →</button>
         <button onclick="resetIdentify()" class="btn" style="justify-content:center">Try Another Photo</button>
         <button onclick="openGoogleImageSearch()" class="btn" style="justify-content:center;gap:0.35rem">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          Google Images
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><circle cx="11" cy="11" r="3"/><path d="m21 21-4.35-4.35"/></svg>
+          Google Lens
         </button>
       </div>
       <div style="text-align:center;margin-top:0.25rem">
