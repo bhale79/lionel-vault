@@ -7607,42 +7607,150 @@ async function quickEntryAdd() {
   if (!itemNum) { showToast('Please enter an item number first'); return; }
   const variation = (d.variation || '').trim();
 
-  // Cols: ItemNum, Variation, Cond, AllOrig, PriceItem, PriceBox, Complete,
-  //       HasBox, BoxCond, PhotoItem, PhotoBox, Notes, DatePurch, EstWorth,
-  //       MatchedTo, SetId, YearMade, IsError, ErrDesc, QuickEntry
-  const row = [
-    itemNum, variation,
-    '','','','','','','','','',
-    '','','','','','',
-    '','',
-    'Yes'  // col T — Quick Entry flag
-  ];
+  // Check if this item needs multi-unit questions
+  const tenders = getMatchingTenders(itemNum);
+  const isSet   = isSetUnit(itemNum);
+  const bUnit   = !itemNum.endsWith('C') ? getBUnit(itemNum) : null;
+
+  if ((tenders.length > 0 || (isSet && bUnit)) && !d._qeMultiResolved) {
+    _showQuickEntryMultiUI(itemNum, variation, tenders, isSet, bUnit);
+    return;
+  }
+
+  // Build rows to save
+  const setId = (d._qeTender && d._qeTender !== 'none') || (d._qeSetPartner && d._qeSetPartner !== 'none')
+    ? genSetId(itemNum) : '';
+
+  const rows = [];
+  rows.push({ itemNum, variation, matchedTo: d._qeTender && d._qeTender !== 'none' ? d._qeTender : (d._qeSetPartner && d._qeSetPartner !== 'none' ? d._qeSetPartner : ''), setId, notes: '' });
+  if (d._qeTender && d._qeTender !== 'none')
+    rows.push({ itemNum: d._qeTender,     variation: '', matchedTo: itemNum, setId, notes: 'Quick Entry — paired with ' + itemNum });
+  if (d._qeSetPartner && d._qeSetPartner !== 'none')
+    rows.push({ itemNum: d._qeSetPartner, variation: '', matchedTo: itemNum, setId, notes: 'Quick Entry — paired with ' + itemNum });
+  if (d._qeUnit3 && d._qeUnit3 !== 'none')
+    rows.push({ itemNum: d._qeUnit3,      variation: '', matchedTo: itemNum, setId, notes: 'Quick Entry — ABA set with ' + itemNum });
+
   try {
     const _nextBtn = document.getElementById('wizard-next-btn');
-    if (_nextBtn) { _nextBtn.disabled = true; }
-    console.log('[QE] Starting save. sheetId:', state.personalSheetId, 'accessToken:', accessToken ? 'present' : 'MISSING');
-    await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
-    console.log('[QE] Sheet write succeeded');
-    // Add to local state only after confirmed write
-    const rowNum = Date.now();
-    const key = `${itemNum}|${variation}|${rowNum}`;
-    state.personalData[key] = {
-      row: rowNum, itemNum, variation,
-      status: 'Owned', owned: true,
-      condition: '', allOriginal: '', priceItem: '', priceBox: '', priceComplete: '',
-      hasBox: '', boxCond: '', photoItem: '', photoBox: '',
-      notes: '', datePurchased: '', userEstWorth: '', matchedTo: '',
-      setId: '', yearMade: '', isError: '', errorDesc: '',
-      quickEntry: true,
-    };
+    if (_nextBtn) _nextBtn.disabled = true;
+
+    for (const r of rows) {
+      const row = [r.itemNum, r.variation,'','','','','','','','','', r.notes,'','',r.matchedTo,r.setId,'','','','Yes'];
+      console.log('[QE] Saving', r.itemNum);
+      await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
+      const key = r.itemNum + '|' + r.variation + '|' + Date.now();
+      state.personalData[key] = {
+        row: Date.now(), itemNum: r.itemNum, variation: r.variation,
+        status: 'Owned', owned: true,
+        condition: '', allOriginal: '', priceItem: '', priceBox: '', priceComplete: '',
+        hasBox: '', boxCond: '', photoItem: '', photoBox: '',
+        notes: r.notes, datePurchased: '', userEstWorth: '',
+        matchedTo: r.matchedTo, setId: r.setId,
+        yearMade: '', isError: '', errorDesc: '', quickEntry: true,
+      };
+    }
+
+    const label = rows.length > 1 ? rows.map(r => r.itemNum).join(' + ') + ' added' : itemNum + ' added';
     closeWizard();
-    showToast('⚡ ' + itemNum + ' added (Quick Entry)');
+    showToast('⚡ ' + label + ' (Quick Entry)');
     buildDashboard();
     renderBrowse();
-    if (_nextBtn) { _nextBtn.disabled = false; }
+    if (_nextBtn) _nextBtn.disabled = false;
   } catch(e) {
-    showToast('Error: ' + e.message);
+    console.error('[QE] Save error:', e);
+    showToast('❌ Save failed: ' + e.message, 6000, true);
   }
+}
+
+function _showQuickEntryMultiUI(itemNum, variation, tenders, isSet, bUnit) {
+  const body = document.getElementById('wiz-body');
+  if (!body) return;
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;flex-direction:column;gap:0.75rem';
+
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'font-size:0.8rem;color:var(--text-mid);line-height:1.5;padding:0.6rem 0.75rem;background:var(--surface2);border-radius:8px;border:1px solid var(--border)';
+  hdr.innerHTML = '<strong style="color:var(--text)">' + itemNum + '</strong> can be part of a multi-unit set.';
+  wrap.appendChild(hdr);
+
+  if (tenders.length > 0) {
+    const sec = document.createElement('div');
+    sec.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem';
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'font-family:var(--font-head);font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim)';
+    lbl.textContent = 'Tender?';
+    sec.appendChild(lbl);
+    const btns = document.createElement('div');
+    btns.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem';
+    const noChip = _qeChip('No tender');
+    noChip.onclick = () => { _qeSelectChip(btns, noChip); wizard.data._qeTender = 'none'; };
+    btns.appendChild(noChip);
+    tenders.forEach(t => {
+      const chip = _qeChip(t);
+      chip.onclick = () => { _qeSelectChip(btns, chip); wizard.data._qeTender = t; };
+      btns.appendChild(chip);
+    });
+    sec.appendChild(btns);
+    wrap.appendChild(sec);
+  }
+
+  if (isSet && bUnit) {
+    const sec = document.createElement('div');
+    sec.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem';
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'font-family:var(--font-head);font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim)';
+    lbl.textContent = 'Set partner?';
+    sec.appendChild(lbl);
+    const btns = document.createElement('div');
+    btns.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem';
+    const noChip = _qeChip('None');
+    noChip.onclick = () => { _qeSelectChip(btns, noChip); wizard.data._qeSetPartner = 'none'; wizard.data._qeUnit3 = null; };
+    btns.appendChild(noChip);
+    const abChip = _qeChip('AB set — add ' + bUnit);
+    abChip.onclick = () => { _qeSelectChip(btns, abChip); wizard.data._qeSetPartner = bUnit; wizard.data._qeUnit3 = null; };
+    btns.appendChild(abChip);
+    const abaChip = _qeChip('ABA set — add ' + bUnit + ' + 2nd A');
+    abaChip.onclick = () => { _qeSelectChip(btns, abaChip); wizard.data._qeSetPartner = bUnit; wizard.data._qeUnit3 = itemNum; };
+    btns.appendChild(abaChip);
+    sec.appendChild(btns);
+    wrap.appendChild(sec);
+  }
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn btn-primary';
+  saveBtn.style.cssText = 'width:100%;justify-content:center;padding:0.8rem;font-size:0.9rem;margin-top:0.25rem';
+  saveBtn.textContent = '⚡ Save Quick Entry';
+  saveBtn.onclick = () => { wizard.data._qeMultiResolved = true; quickEntryAdd(); };
+  wrap.appendChild(saveBtn);
+
+  body.innerHTML = '';
+  body.appendChild(wrap);
+
+  const titleEl = document.getElementById('wiz-title');
+  if (titleEl) titleEl.textContent = 'Quick Entry — ' + itemNum;
+  const nextBtn = document.getElementById('wizard-next-btn');
+  const backBtn = document.getElementById('wizard-back-btn');
+  if (nextBtn) nextBtn.style.display = 'none';
+  if (backBtn) backBtn.style.display = 'none';
+}
+
+function _qeChip(label) {
+  const btn = document.createElement('button');
+  btn.textContent = label;
+  btn.style.cssText = 'padding:0.4rem 0.8rem;border-radius:20px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-mid);font-size:0.82rem;cursor:pointer;font-family:var(--font-body);transition:all 0.15s';
+  return btn;
+}
+
+function _qeSelectChip(container, selected) {
+  container.querySelectorAll('button').forEach(b => {
+    b.style.borderColor = 'var(--border)';
+    b.style.background  = 'var(--surface2)';
+    b.style.color       = 'var(--text-mid)';
+  });
+  selected.style.borderColor = 'var(--accent)';
+  selected.style.background  = 'rgba(232,64,28,0.12)';
+  selected.style.color       = 'var(--accent)';
 }
 
 function showToast(msg, duration, isError) {
