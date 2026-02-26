@@ -7467,21 +7467,20 @@ function showToast(msg, duration, isError) {
 
 
 // ══════════════════════════════════════════════════════════════════
-// IDENTIFY BY PHOTO — Gemini Vision AI
 // ══════════════════════════════════════════════════════════════════
-
-let _identifyCallerContext = null; // 'wizard' | null (browse)
+// IDENTIFY BY PHOTO
+// ══════════════════════════════════════════════════════════════════
+let _identifyCallerContext = null;
 let _identifyImageBase64 = null;
+let _identifyMimeType = 'image/jpeg';
 let _identifySelectedNum = null;
 
 function openIdentify(context) {
   _identifyCallerContext = context;
   _identifyImageBase64 = null;
   _identifySelectedNum = null;
-  const modal = document.getElementById('identify-modal');
-  modal.classList.add('open');
-  // Show setup or ready state
-  showIdentifyReady();
+  document.getElementById('identify-modal').classList.add('open');
+  resetIdentify();
 }
 
 function closeIdentify() {
@@ -7489,124 +7488,37 @@ function closeIdentify() {
   resetIdentify();
 }
 
-function showGeminiSetup() {
-  document.getElementById('identify-setup').style.display = 'block';
-  document.getElementById('identify-ready').style.display = 'none';
-}
-
-function showIdentifyReady() {
-  document.getElementById('identify-setup').style.display = 'none';
-  const ready = document.getElementById('identify-ready');
-  ready.style.display = 'flex';
-  ready.style.flexDirection = 'column';
-  resetIdentify();
-}
-
-async function testWorkerConnection() {
-  const url = (document.getElementById('gemini-proxy-input').value || localStorage.getItem('lv_gemini_proxy') || '').trim();
-  if (!url) { showToast('Enter a Worker URL first', 2500, true); return; }
-  showToast('Testing connection…');
-  try {
-    // Send a minimal test POST
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ test: true, contents: [] })
-    });
-    const txt = await r.text();
-    if (r.status === 500 && txt.includes('GEMINI_API_KEY')) {
-      showToast('✓ Worker reached! But GEMINI_API_KEY secret not set yet — add it in Worker Settings.', 6000, true);
-    } else if (r.ok || r.status === 400) {
-      showToast('✓ Worker is reachable! Connection good.', 4000);
-    } else {
-      showToast('Worker replied with HTTP ' + r.status + ': ' + txt.slice(0,80), 5000, true);
-    }
-  } catch(e) {
-    showToast('✗ Cannot reach worker: ' + e.message, 6000, true);
-  }
-}
-
-function saveGeminiProxy() {
-  const url = (document.getElementById('gemini-proxy-input').value || '').trim();
-  if (!url) { showToast('Please enter your Worker URL', 2000, true); return; }
-  localStorage.setItem('lv_gemini_proxy', url);
-  showToast('✓ Worker URL saved — Identify is ready!');
-  showIdentifyReady();
-}
-
-function saveGeminiKey() {
-  const key = (document.getElementById('gemini-key-input').value || '').trim();
-  if (!key) { showToast('Please paste your Gemini API key', 3000, true); return; }
-  GEMINI_KEY = key;
-  localStorage.setItem('lv_gemini_key', key);
-  showToast('✓ Gemini API key saved!');
-  showIdentifyReady();
-}
-
 function resetIdentify() {
   _identifyImageBase64 = null;
   _identifySelectedNum = null;
   const preview = document.getElementById('identify-preview');
-  if (preview) { preview.style.display = 'none'; preview.src = ''; }
+  if (preview) { preview.src = ''; preview.style.display = 'none'; }
   const hint = document.getElementById('identify-drop-hint');
-  if (hint) hint.style.display = 'block';
-  const analyzeBtn = document.getElementById('identify-analyze-btn');
-  if (analyzeBtn) analyzeBtn.style.display = 'none';
+  if (hint) hint.style.display = 'flex';
+  const findBtn = document.getElementById('identify-find-btn');
+  if (findBtn) findBtn.style.display = 'none';
   const status = document.getElementById('identify-status');
   if (status) status.style.display = 'none';
-  const desc = document.getElementById('identify-description');
-  if (desc) desc.style.display = 'none';
-  const cands = document.getElementById('identify-candidates');
-  if (cands) { cands.style.display = 'none'; cands.innerHTML = '<div style="font-family:var(--font-head);font-size:0.62rem;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.1rem">Select the best match:</div>'; }
-  const actions = document.getElementById('identify-actions');
-  if (actions) actions.style.display = 'none';
-}
-
-function showIdentifyPicker() {
-  // On mobile show camera option; on desktop go straight to file picker
-  const isTouchDev = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-  if (isTouchDev) {
-    // Show picker sheet — reuse the photo picker but route to identify
-    _pickerStepId = '__identify__';
-    _pickerViewKey = '__identify__';
-    document.getElementById('photo-picker-sheet').classList.add('open');
-    // Override the picker buttons temporarily for identify
-    document.getElementById('picker-btn-cam').onclick = function() {
-      closePhotoPicker();
-      document.getElementById('identify-input-cam').click();
-      // Restore
-      document.getElementById('picker-btn-cam').onclick = null;
-      document.getElementById('picker-btn-lib').onclick = null;
-    };
-    document.getElementById('picker-btn-lib').onclick = function() {
-      closePhotoPicker();
-      document.getElementById('identify-input-lib').click();
-      document.getElementById('picker-btn-cam').onclick = null;
-      document.getElementById('picker-btn-lib').onclick = null;
-    };
-  } else {
-    document.getElementById('identify-input-lib').click();
-  }
+  const results = document.getElementById('identify-results');
+  if (results) { results.innerHTML = ''; results.style.display = 'none'; }
 }
 
 function handleIdentifyDrop(e) {
   e.preventDefault();
   document.getElementById('identify-drop').classList.remove('dragover');
-  const file = e.dataTransfer?.files?.[0];
+  const file = e.dataTransfer.files[0];
   if (file && file.type.startsWith('image/')) handleIdentifyFile(file);
 }
 
-let _identifyMimeType = 'image/jpeg';
 function handleIdentifyFile(file) {
   if (!file) return;
   _identifyMimeType = 'image/jpeg';
   const reader = new FileReader();
   reader.onload = function(e) {
     const dataUrl = e.target.result;
-    // Compress via canvas
     const img = new Image();
     img.onload = function() {
-      const MAX = 640;
+      const MAX = 800;
       let w = img.width, h = img.height;
       if (w > MAX || h > MAX) {
         if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
@@ -7615,17 +7527,14 @@ function handleIdentifyFile(file) {
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      let compressed = canvas.toDataURL('image/jpeg', 0.7);
-      if (compressed.length > 400000) compressed = canvas.toDataURL('image/jpeg', 0.5);
-      if (compressed.length > 400000) compressed = canvas.toDataURL('image/jpeg', 0.35);
+      let compressed = canvas.toDataURL('image/jpeg', 0.8);
+      if (compressed.length > 500000) compressed = canvas.toDataURL('image/jpeg', 0.6);
+      if (compressed.length > 500000) compressed = canvas.toDataURL('image/jpeg', 0.4);
       _identifyImageBase64 = compressed.split(',')[1];
-      console.log('Identify image ready:', Math.round(_identifyImageBase64.length/1024) + 'KB');
       showIdentifyPreview(compressed);
     };
     img.onerror = function() {
-      // Canvas failed — use raw data
       _identifyImageBase64 = dataUrl.split(',')[1];
-      console.log('Identify image (raw):', Math.round(_identifyImageBase64.length/1024) + 'KB');
       showIdentifyPreview(dataUrl);
     };
     img.src = dataUrl;
@@ -7635,448 +7544,333 @@ function handleIdentifyFile(file) {
 
 function showIdentifyPreview(dataUrl) {
   const preview = document.getElementById('identify-preview');
-  if (preview) { preview.src = dataUrl; preview.style.display = 'block'; }
-  const hint = document.getElementById('identify-drop-hint');
-  if (hint) hint.style.display = 'none';
-  const btn = document.getElementById('identify-analyze-btn');
-  if (btn) { btn.style.display = 'flex'; btn.style.width = '100%'; btn.style.justifyContent = 'center'; }
-  const ids = ['identify-status','identify-description','identify-candidates','identify-actions'];
-  ids.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+  preview.src = dataUrl;
+  preview.style.display = 'block';
+  document.getElementById('identify-drop-hint').style.display = 'none';
+  document.getElementById('identify-find-btn').style.display = 'flex';
+  document.getElementById('identify-status').style.display = 'none';
+  const results = document.getElementById('identify-results');
+  results.innerHTML = '';
+  results.style.display = 'none';
 }
 
 async function runGeminiIdentify() {
-  if (!_identifyImageBase64) { showToast('Please select a photo first', 3000, true); return; }
-  // Show spinner
-  document.getElementById('identify-analyze-btn').style.display = 'none';
+  if (!_identifyImageBase64) { showToast('Pick a photo first', 2500, true); return; }
+
+  const findBtn  = document.getElementById('identify-find-btn');
   const statusEl = document.getElementById('identify-status');
-  statusEl.style.display = 'block';
-  document.getElementById('identify-status-msg').textContent = 'Analyzing with Gemini Vision…';
-  document.getElementById('identify-description').style.display = 'none';
-  document.getElementById('identify-candidates').style.display = 'none';
-  document.getElementById('identify-actions').style.display = 'none';
+  const statusMsg = statusEl.querySelectorAll('div')[1] || statusEl.querySelector('div');
+  findBtn.style.display  = 'none';
+  statusEl.style.display = 'flex';
+  document.getElementById('identify-results').style.display = 'none';
+
+  const proxyUrl = (localStorage.getItem('lv_gemini_proxy') || '').trim();
+  const apiKey   = (localStorage.getItem('lv_gemini_key')   || '').trim();
+
+  if (!proxyUrl && !apiKey) {
+    statusEl.style.display = 'none';
+    findBtn.style.display  = 'flex';
+    showToast('No Gemini API key configured', 4000, true);
+    return;
+  }
+
+  async function callGemini(body) {
+    const url = proxyUrl
+      ? proxyUrl
+      : 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
+    const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!res.ok) {
+      const e = await res.json().catch(()=>({}));
+      throw new Error('Gemini ' + res.status + ': ' + (e && e.error ? e.error.message : res.statusText));
+    }
+    const d = await res.json();
+    return (d && d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts && d.candidates[0].content.parts[0] && d.candidates[0].content.parts[0].text) || '';
+  }
+
+  function parseJSON(text) {
+    const cleaned = text.replace(/```json|```/gi,'').trim();
+    const m = cleaned.match(/\{[\s\S]*\}/);
+    return JSON.parse(m ? m[0] : cleaned);
+  }
+
+  // itemType aliases Gemini might use -> master itemType values
+  const TYPE_MAP = [
+    { keys: ['flat car','flatcar','flat-car'],                    types: ['Flat Car'] },
+    { keys: ['box car','boxcar','box-car'],                       types: ['Box Car','Operating Box Car'] },
+    { keys: ['gondola'],                                          types: ['Gondola Car','Gondola'] },
+    { keys: ['hopper'],                                           types: ['Hopper Car'] },
+    { keys: ['tank car','tanker','tank-car'],                     types: ['Tank Car'] },
+    { keys: ['caboose'],                                          types: ['Caboose','SP Type Caboose'] },
+    { keys: ['passenger car','coach','vista','observation','pullman'], types: ['Passenger Car'] },
+    { keys: ['steam locomotive','steam loco','steam engine'],     types: ['Steam Locomotive'] },
+    { keys: ['diesel locomotive','diesel loco'],                  types: ['Diesel Locomotive','Diesel Switcher'] },
+    { keys: ['switcher','switch engine'],                         types: ['Diesel Switcher'] },
+    { keys: ['electric locomotive','electric loco'],              types: ['Electric Locomotive'] },
+    { keys: ['motorized','inspection car','handcar','trolley','gang car'], types: ['Motorized Unit'] },
+    { keys: ['operating car','action car'],                       types: ['Operating Car','Cattle Car','Milk Car','Vat Car','Log Dump Car','Side Dump Car','Crane Car'] },
+    { keys: ['cattle car'],                                       types: ['Cattle Car'] },
+    { keys: ['milk car'],                                         types: ['Milk Car'] },
+    { keys: ['log','dump car'],                                   types: ['Log Dump Car','Side Dump Car'] },
+    { keys: ['crane'],                                            types: ['Crane Car'] },
+    { keys: ['refrigerator','reefer'],                            types: ['Refrigerator Car'] },
+    { keys: ['accessory'],                                        types: ['Accessory'] },
+  ];
 
   try {
-    // Build catalog context — top item numbers for Gemini to reference
-    const catalogSample = (state.masterData || []).slice(0, 800).map(i =>
-      `${i.itemNum}|${i.type || ''}|${i.roadName || ''}|${i.description || ''}`
-    ).join('\n');
+    // ── STEP 1: Vision — pure description, no item number guessing ─────────
+    statusMsg.textContent = 'Step 1 of 2 — examining photo…';
 
-    const prompt = `You are a world-class expert on Lionel postwar O-gauge and O27-gauge electric trains from the 1945–1969 era.
-This app covers ONLY Lionel postwar items manufactured between 1945 and 1969. Do not suggest items outside this era.
+    const visionRaw = await callGemini({
+      contents: [{ parts: [
+        { text:
+            'You are examining a vintage Lionel O-gauge model train item (1945-1969).\n'
+          + 'Describe ONLY what you physically see. Do NOT guess the catalog number.\n\n'
+          + 'Answer each field carefully:\n'
+          + '- itemType: one of: flat car / box car / gondola / hopper / tank car / caboose / passenger car / steam locomotive / diesel locomotive / electric locomotive / switcher / motorized unit / operating car / cattle car / milk car / log car / crane / refrigerator car / accessory\n'
+          + '- bodyColor: exact color(s) of the main body and frame\n'
+          + '- loadDesc: describe any load or mechanism on top — color, shape, material. Say "none" if empty\n'
+          + '- isDecorated: true if road name or text is printed on the sides, false if plain/undecorated\n'
+          + '- letteringText: the road name or text visible, or "none"\n'
+          + '- truckStyle: arch-bar / die-cast / scout / AAR / other\n'
+          + '- extraDetails: any other features — depressed center, operating parts, military markings, color of specific components\n\n'
+          + 'Respond ONLY with raw JSON (no markdown):\n'
+          + '{"itemType":"flat car","bodyColor":"olive drab green","loadDesc":"blue plastic turbo missile launcher with angled ramp","isDecorated":false,"letteringText":"none","truckStyle":"arch-bar","extraDetails":"depressed center, manual spring mechanism, missing missile on top"}'
+        },
+        { inline_data: { mime_type: _identifyMimeType, data: _identifyImageBase64 } }
+      ]}],
+      generationConfig: { temperature: 0.1, maxOutputTokens: 350 }
+    });
 
-Item types include: steam locomotives, diesel locomotives, electric locomotives, passenger cars, freight cars (boxcars, gondolas, hoppers, tank cars, flatcars, cabooses, refrigerator cars, stock cars, ore cars), operating/action cars, military cars, space/science cars, motorized units (handcars, inspection cars, helicopters, etc.), accessories, and sets.
+    let vision;
+    try { vision = parseJSON(visionRaw); }
+    catch(e) { throw new Error('Could not read photo — try again'); }
 
-KEY IDENTIFICATION CLUES TO LOOK FOR:
-- Car body color and material (die-cast metal vs molded plastic)
-- Load type on flat cars (missiles, rockets, lumber, pipes, vehicles, aircraft)
-- Military markings (olive drab = Army, gray = Navy/Air Force)
-- Operating mechanisms (cranes, dump cars, operating doors, barrels)
-- Truck type (arch-bar, magnetic, scout, die-cast)
-- Road name lettering or herald on the car side
-- Distinctive orange/red/blue/black frame colors
+    // ── STEP 2: JS pre-filter, then Gemini text match ──────────────────────
+    statusMsg.textContent = 'Step 2 of 2 — searching catalog…';
 
-SPECIAL CARS TO KNOW (pay close attention to loads and mechanisms):
-Flat cars with loads:
-- 3349: Olive drab flat car with BLUE turbo missile launcher (1962-65)
-- 3309/3519: Flat car with GRAY/WHITE satellite launcher (1961-64)
-- 6544: Missile firing car (gray, white missile, 1960-64)
-- 6175: Flat car with rocket (gray, 1958-60)
-- 6800: Flat car with airplane (yellow plane on red/black car, 1957-60)
-- 6801: Flat car with boat (1957-60)
-- 6805/6806: Flat car with radioactive/medical containers (1958-59)
-- 3665: Minuteman missile launching boxcar (white, 1961-64)
-
-Military cars:
-- 6448: Exploding boxcar (white, red lettering, 1961-63)
-- 3419: Helicopter launching flat car (1959-65)
-- 44/45: US Army missile launcher (olive drab, 1959-62)
-- 41: US Army switcher (olive drab, 1955-57)
-- 42: Picatinny Arsenal switcher (olive drab, 1957-58)
-
-Motorized units:
-- No. 68: Inspection Car (red/cream station wagon, 1958-61)
-- No. 50: Gang Car (yellow, 1954-64)
-- No. 60: Trolley (orange/cream, 1955-58)
-- No. 65: Handcar (1962-66)
-
-Operating cars:
-- 3356: Horse car (orange, 1956-60)
-- 3562: Barrel car (orange or gray, 1954-58)
-- 3361: Log dump car (gray, 1955-58)
-- 3460: Lumber car (black, 1954-55)
-
-Examine this photo carefully and identify the Lionel postwar item (1945–1969) shown. Pay special attention to:
-1. What load or mechanism is on top of the car
-2. The exact color of the car body AND any loads/mechanisms
-3. Any military or space theme markings
-
-Respond with ONLY a raw JSON object — no markdown, no code fences, no explanation:
-{"description":"2-3 sentence description: item type, color scheme, road name/markings, distinctive features, approximate year range","candidates":[{"itemNum":"3349","confidence":"high","reason":"Olive drab flat car with blue turbo missile launcher, matches 1962-1965 production"},{"itemNum":"3309","confidence":"low","reason":"Similar flat car but typically has gray satellite launcher not blue missile"}],"googleQuery":"Lionel postwar 3349 turbo missile flat car"}
-
-Rules:
-- ONLY suggest Lionel postwar catalog numbers from 1945–1969
-- List 1–5 candidates, most likely first
-- confidence: "high" | "medium" | "low"
-- Be very specific about car number based on the exact load/color/mechanism visible
-- googleQuery: "Lionel postwar [number] [item name]" format for best Google Lens results
-
-Here are real catalog items for reference (itemNum|type|roadName|description):
-${catalogSample}`;
-
-    const body = {
-      contents: [{
-        parts: [
-          { text: prompt },
-          { inline_data: { mime_type: _identifyMimeType, data: _identifyImageBase64 } }
-        ]
-      }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 512 }
-    };
-
-    const proxyUrl = (localStorage.getItem('lv_gemini_proxy') || '').trim();
-    let res;
-    if (proxyUrl) {
-      document.getElementById('identify-status-msg').textContent = 'Connecting to ' + proxyUrl + '…';
-      try {
-        res = await fetch(proxyUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-      } catch(fetchErr) {
-        // Try without trailing slash in case that's the issue
-        const altUrl = proxyUrl.endsWith('/') ? proxyUrl.slice(0,-1) : proxyUrl + '/';
-        document.getElementById('identify-status-msg').textContent = 'Retrying ' + altUrl + '…';
-        try {
-          res = await fetch(altUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-          });
-        } catch(fetchErr2) {
-          throw new Error('Cannot reach worker at ' + proxyUrl + ' — check the URL is correct and worker is deployed. (' + fetchErr2.message + ')');
-        }
+    // Resolve which master itemTypes match what vision saw
+    const vType = (vision.itemType || '').toLowerCase();
+    let allowedTypes = null;
+    for (const entry of TYPE_MAP) {
+      if (entry.keys.some(k => vType.includes(k))) {
+        allowedTypes = entry.types;
+        break;
       }
-    } else if (GEMINI_KEY) {
-      document.getElementById('identify-status-msg').textContent = 'Calling Gemini directly…';
-      res = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_KEY,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-      );
-    } else {
-      showGeminiSetup();
-      statusEl.style.display = 'none';
-      document.getElementById('identify-analyze-btn').style.display = 'flex';
-      return;
     }
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const msg = err?.error?.message || res.statusText || 'unknown error';
-      if (res.status === 400 && msg.toLowerCase().includes('api_key')) throw new Error('Invalid Gemini API key — check Settings.');
-      if (res.status === 400 && msg.toLowerCase().includes('billing')) throw new Error('Gemini billing not enabled for this API key.');
-      if (res.status === 401 || res.status === 403) throw new Error('Gemini API key rejected (HTTP ' + res.status + ').');
-      if (res.status === 404) throw new Error('Gemini model not found (HTTP 404). Model: gemini-2.0-flash');
-      if (res.status === 429) throw new Error('Gemini rate limit — wait a moment and retry.');
-      throw new Error('Gemini HTTP ' + res.status + ': ' + msg);
+    // Filter master catalog by itemType
+    const allMaster = state.masterData || [];
+    let filtered = allMaster.filter(function(i) {
+      if (!i.itemNum) return false;
+      if (allowedTypes && allowedTypes.indexOf(i.itemType) === -1) return false;
+      return true;
+    });
+
+    // If clearly undecorated and we still have plenty, prefer items without road name
+    if (vision.isDecorated === false && filtered.length > 30) {
+      const noRoad = filtered.filter(function(i) { return !i.roadName || i.roadName === 'Lionel Lines'; });
+      if (noRoad.length >= 5) filtered = noRoad;
     }
 
-    const data = await res.json();
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // Collapse to unique itemNums, collecting all varDescs per item
+    const byNum = {};
+    filtered.forEach(function(i) {
+      const k = String(i.itemNum);
+      if (!byNum[k]) byNum[k] = { num: k, itemType: i.itemType, roadName: i.roadName, description: i.description, yearProd: i.yearProd, varDescs: [] };
+      if (i.varDesc) byNum[k].varDescs.push(i.varDesc);
+    });
 
-    // Parse JSON from response — handle markdown fences, extract JSON block if needed
-    let parsed;
-    try {
-      // Strip markdown fences
-      let cleaned = rawText.replace(/```json|```/gi, '').trim();
-      // Try direct parse first
-      try {
-        parsed = JSON.parse(cleaned);
-      } catch(e1) {
-        // Try to extract just the JSON object from the text
-        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          parsed = JSON.parse(jsonMatch[0]);
-        } else {
-          // Last resort: show raw text as description
-          parsed = {
-            description: cleaned.slice(0, 500),
-            candidates: [],
-            googleQuery: ''
-          };
-        }
-      }
-    } catch(e) {
-      // Show the raw response so user can see what Gemini said
-      const descEl = document.getElementById('identify-description');
-      descEl.style.display = 'block';
-      descEl.textContent = 'Gemini response: ' + rawText.slice(0, 300);
-      statusEl.style.display = 'none';
-      document.getElementById('identify-analyze-btn').style.display = 'flex';
-      return;
-    }
+    const catalogText = Object.values(byNum).map(function(i) {
+      return [
+        i.num,
+        i.itemType,
+        i.roadName || 'undecorated',
+        i.description ? i.description.slice(0,100) : '',
+        i.varDescs.length ? 'Colors/variants: ' + i.varDescs.slice(0,6).join(' | ') : '',
+        i.yearProd || ''
+      ].filter(Boolean).join(' | ');
+    }).join('\n');
+
+    const visionSummary =
+        'Item type: ' + vision.itemType + '\n'
+      + 'Body color: ' + vision.bodyColor + '\n'
+      + (vision.loadDesc && vision.loadDesc !== 'none' ? 'Load/mechanism: ' + vision.loadDesc + '\n' : 'No load or mechanism\n')
+      + (vision.isDecorated ? 'Road name visible: ' + vision.letteringText + '\n' : 'Undecorated — no road name or markings\n')
+      + 'Truck style: ' + (vision.truckStyle || 'unknown') + '\n'
+      + (vision.extraDetails ? 'Extra: ' + vision.extraDetails : '');
+
+    const matchRaw = await callGemini({
+      contents: [{ parts: [{ text:
+          'You are a Lionel postwar train catalog expert (1945-1969).\n\n'
+        + 'An AI vision model examined a photo and reported:\n'
+        + visionSummary + '\n\n'
+        + 'KEY RULES:\n'
+        + '- If undecorated: match items with no road name or "Lionel Lines"\n'
+        + '- Match body color against the Colors/variants field — exact color words matter (OLIVE DRAB vs RED vs TEAL are different items)\n'
+        + '- Match load description carefully — a BLUE launcher vs GRAY launcher are completely different items\n'
+        + '- Only return item numbers that exist in the catalog below\n'
+        + '- 1 to 4 candidates, best match first\n'
+        + '- confidence: high = strong match on type + color + load; medium = type matches but color uncertain; low = weak or partial match\n'
+        + '- reason: cite specific catalog details that match or conflict\n\n'
+        + 'CATALOG (' + Object.keys(byNum).length + ' items pre-filtered by type):\n'
+        + catalogText + '\n\n'
+        + 'Respond ONLY with raw JSON:\n'
+        + '{"candidates":[{"itemNum":"3349","confidence":"high","reason":"Flat Car, olive drab, BLUE turbo missile launcher matches variation exactly"},{"itemNum":"3309","confidence":"low","reason":"Also a flat car with missile launcher but body is RED not olive drab"}]}'
+      }]}],
+      generationConfig: { temperature: 0.1, maxOutputTokens: 500 }
+    });
+
+    let matched;
+    try { matched = parseJSON(matchRaw); }
+    catch(e) { throw new Error('Could not parse catalog match — try again'); }
 
     statusEl.style.display = 'none';
-    renderIdentifyResults(parsed);
+
+    const displayDesc = [
+      vision.bodyColor ? vision.bodyColor.charAt(0).toUpperCase() + vision.bodyColor.slice(1) : '',
+      vision.itemType,
+      (vision.loadDesc && vision.loadDesc !== 'none') ? '· ' + vision.loadDesc : '',
+      !vision.isDecorated ? '· undecorated' : (vision.letteringText && vision.letteringText !== 'none' ? '· "' + vision.letteringText + '"' : '')
+    ].filter(Boolean).join(' ');
+
+    renderIdentifyResults({
+      description: displayDesc,
+      visionSummary: visionSummary,
+      candidates: matched.candidates || [],
+      catalogSize: Object.keys(byNum).length
+    });
 
   } catch(err) {
     statusEl.style.display = 'none';
-    document.getElementById('identify-analyze-btn').style.display = 'flex';
-    document.getElementById('identify-analyze-btn').style.width = '100%';
-    document.getElementById('identify-analyze-btn').style.justifyContent = 'center';
-    // Show error in the description panel so it's visible
-    const descEl2 = document.getElementById('identify-description');
-    descEl2.style.display = 'block';
-    descEl2.innerHTML = '<span style="color:#e04028;font-family:var(--font-head);font-size:0.65rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase">Error</span><br>'
-      + '<span style="color:var(--text);font-size:0.82rem">' + err.message + '</span>';
-    showToast('Identify failed: ' + err.message, 6000, true);
+    findBtn.style.display  = 'flex';
+    showToast('Error: ' + err.message, 5000, true);
   }
 }
+
 
 function renderIdentifyResults(parsed) {
-  // AI description
-  const descEl = document.getElementById('identify-description');
-  descEl.style.display = 'block';
-  descEl.innerHTML = '<span style="color:var(--gold);font-family:var(--font-head);font-size:0.65rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase">AI Analysis</span><br>' + (parsed.description || 'No description available.');
+  const el = document.getElementById('identify-results');
+  el.innerHTML = '';
+  el.style.display = 'flex';
+  el.style.flexDirection = 'column';
+  el.style.gap = '0.5rem';
 
-  // Candidates
-  const cands = document.getElementById('identify-candidates');
-  cands.style.display = 'flex';
-  cands.style.flexDirection = 'column';
-  cands.style.gap = '0.5rem';
+  // What the AI saw — shown as the description card
+  if (parsed.description) {
+    const d = document.createElement('div');
+    d.style.cssText = 'font-size:0.8rem;color:var(--text-mid);line-height:1.5;padding:0.65rem 0.75rem;background:var(--surface2);border-radius:8px;border:1px solid var(--border)';
+    d.innerHTML = '<span style="font-size:0.65rem;font-family:var(--font-head);letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);display:block;margin-bottom:0.3rem">AI saw:</span>'
+      + _escHtml(parsed.description);
+    el.appendChild(d);
+  }
 
-  // Keep the label div, re-add candidates
-  const label = cands.firstElementChild;
-  cands.innerHTML = '';
-  cands.appendChild(label);
+  // Catalog filter info — subtle, shows how focused the search was
+  if (parsed.catalogSize != null) {
+    const info = document.createElement('div');
+    info.style.cssText = 'font-size:0.68rem;color:var(--text-dim);text-align:center';
+    info.textContent = 'Searched ' + parsed.catalogSize + ' matching catalog entries';
+    el.appendChild(info);
+  }
 
   const candidates = parsed.candidates || [];
-  if (candidates.length === 0) {
-    const none = document.createElement('div');
-    none.style.cssText = 'color:var(--text-dim);font-size:0.82rem;padding:0.5rem 0';
-    none.textContent = 'No specific item identified. Try a closer or clearer photo.';
-    cands.appendChild(none);
-  } else {
-    candidates.forEach((c, i) => {
-      // Try to find in master catalog
-      const masterMatch = (state.masterData || []).find(m => m.itemNum === c.itemNum);
-      const card = document.createElement('div');
-      card.className = 'identify-candidate';
-      if (i === 0) { card.classList.add('selected'); _identifySelectedNum = c.itemNum; }
-      const confClass = c.confidence === 'high' ? 'high' : c.confidence === 'medium' ? 'med' : 'low';
-      card.innerHTML = `
-        <div class="identify-num">${c.itemNum}</div>
-        <div class="identify-desc">
-          <div style="color:var(--text);font-weight:600;font-size:0.85rem;margin-bottom:0.15rem">
-            ${masterMatch ? (masterMatch.type || '') + (masterMatch.roadName ? ' · ' + masterMatch.roadName : '') : c.itemNum}
-          </div>
-          ${masterMatch?.description ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.15rem">' + masterMatch.description + '</div>' : ''}
-          <div style="font-size:0.75rem;color:var(--text-dim)">${c.reason || ''}</div>
-        </div>
-        <span class="identify-conf ${confClass}">${c.confidence}</span>`;
-      card.onclick = function() {
-        document.querySelectorAll('.identify-candidate').forEach(el => el.classList.remove('selected'));
-        card.classList.add('selected');
-        _identifySelectedNum = c.itemNum;
-      };
-      cands.appendChild(card);
-    });
+  if (!candidates.length) {
+    const n = document.createElement('div');
+    n.style.cssText = 'color:var(--text-dim);font-size:0.85rem;text-align:center;padding:0.5rem';
+    n.textContent = 'No match found — try a clearer or closer photo';
+    el.appendChild(n);
+    const retry = document.createElement('button');
+    retry.className = 'btn';
+    retry.style.cssText = 'width:100%;justify-content:center;margin-top:0.25rem';
+    retry.textContent = 'Try Another Photo';
+    retry.onclick = resetIdentify;
+    el.appendChild(retry);
+    return;
   }
 
-  // Store google query for the button
-  window._identifyGoogleQuery = parsed.googleQuery || '';
+  const lbl = document.createElement('div');
+  lbl.style.cssText = 'font-family:var(--font-head);font-size:0.62rem;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-dim)';
+  lbl.textContent = candidates.length === 1 ? 'Best match:' : 'Best matches — tap to select:';
+  el.appendChild(lbl);
 
-  // Show action buttons
-  const actions = document.getElementById('identify-actions');
-  actions.style.display = 'flex';
-  actions.style.flexWrap = 'wrap';
-  actions.style.gap = '0.5rem';
+  candidates.forEach(function(c, i) {
+    const masterRows = (state.masterData||[]).filter(function(m) { return String(m.itemNum).trim() === String(c.itemNum).trim(); });
+    const master     = masterRows[0];
+    const tandemLink = masterRows.map(function(r){return r.refLink;}).find(function(l){return l&&l.includes('tandem');});
+    const cottLink   = masterRows.map(function(r){return r.refLink;}).find(function(l){return l&&l.includes('cornucopia');});
+    const confColor  = c.confidence==='high' ? '#4dc880' : c.confidence==='medium' ? '#e8c060' : '#f08070';
 
-  // Auto-enrich candidates with master data + reference links
-  if (parsed.candidates && parsed.candidates.length > 0) {
-    enrichIdentifyCandidates(parsed.candidates);
-  }
+    const card = document.createElement('div');
+    card.className = 'identify-candidate' + (i===0 ? ' selected' : '');
+    if (i===0) _identifySelectedNum = c.itemNum;
+
+    card.innerHTML =
+      '<div class="identify-num">' + _escHtml(String(c.itemNum)) + '</div>' +
+      '<div class="identify-desc">' +
+        (master ? '<div style="color:var(--text);font-weight:600;font-size:0.85rem;margin-bottom:0.1rem">' +
+          _escHtml(master.itemType||'') + (master.roadName ? ' · ' + _escHtml(master.roadName) : '') + '</div>' : '') +
+        (master && master.description ? '<div style="font-size:0.73rem;color:var(--text-dim);margin-bottom:0.15rem">' + _escHtml(master.description.slice(0,90)) + '</div>' : '') +
+        '<div style="font-size:0.73rem;color:var(--text-dim);font-style:italic">' + _escHtml(c.reason||'') + '</div>' +
+        (master && master.yearProd ? '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.1rem">📅 ' + _escHtml(master.yearProd) + '</div>' : '') +
+        ((tandemLink||cottLink) ? '<div style="display:flex;gap:0.3rem;flex-wrap:wrap;margin-top:0.35rem">' +
+          (tandemLink ? '<a href="' + tandemLink + '" target="_blank" onclick="event.stopPropagation()" style="font-size:0.68rem;color:var(--gold);text-decoration:none;background:rgba(212,168,67,0.1);border:1px solid rgba(212,168,67,0.25);padding:0.1rem 0.4rem;border-radius:3px">📖 Tandem ↗</a>' : '') +
+          (cottLink   ? '<a href="' + cottLink   + '" target="_blank" onclick="event.stopPropagation()" style="font-size:0.68rem;color:#4dc880;text-decoration:none;background:rgba(77,200,128,0.1);border:1px solid rgba(77,200,128,0.25);padding:0.1rem 0.4rem;border-radius:3px">🌽 COTT ↗</a>'   : '') +
+        '</div>' : '') +
+      '</div>' +
+      '<span class="identify-conf" style="color:' + confColor + ';background:' + confColor + '22">' + c.confidence + '</span>';
+
+    card.onclick = function() {
+      document.querySelectorAll('.identify-candidate').forEach(function(x){x.classList.remove('selected');});
+      card.classList.add('selected');
+      _identifySelectedNum = c.itemNum;
+    };
+    el.appendChild(card);
+  });
+
+  const actions = document.createElement('div');
+  actions.style.cssText = 'display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.1rem';
+  actions.innerHTML =
+    '<button onclick="useIdentifiedItem()" class="btn btn-primary" style="flex:1;justify-content:center">Use This Item →</button>' +
+    '<button onclick="resetIdentify()" class="btn" style="justify-content:center">Try Again</button>';
+  el.appendChild(actions);
 }
 
-function enrichIdentifyCandidates(candidates) {
-  // For each candidate, look up master data and inject reference links directly
-  candidates.forEach((c, i) => {
-    const itemNum = String(c.itemNum).trim();
-
-    // Find all master rows for this item number
-    const masterRows = (state.masterData || []).filter(m => String(m.itemNum).trim() === itemNum);
-    const master = masterRows[0];
-    if (!master) return;
-
-    // Find the COTT (cornucopia) link and tandem link
-    const cottLink = masterRows.map(r => r.refLink).find(l => l && l.includes('cornucopia'));
-    const tandemLink = masterRows.map(r => r.refLink).find(l => l && l.includes('tandem-associates'));
-
-    // If no tandem link in master data, try to construct it from master index pattern
-    // Pattern: lionel_trains_68_executive_inspection_car.htm
-    // We'll use the tandem link from master data if available, otherwise show a search link
-    const refLink = tandemLink || cottLink || null;
-
-    // Find the rendered candidate card
-    const cards = document.querySelectorAll('.identify-candidate');
-    const card = Array.from(cards).find(card => {
-      const numEl = card.querySelector('.identify-num');
-      return numEl && numEl.textContent.trim() === itemNum;
-    });
-    if (!card) return;
-
-    const descDiv = card.querySelector('.identify-desc');
-    if (!descDiv) return;
-
-    // Build reference links row
-    const linksRow = document.createElement('div');
-    linksRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem;padding-top:0.4rem;border-top:1px solid rgba(255,255,255,0.08)';
-
-    // Tandem-Associates link
-    if (tandemLink) {
-      const tLink = document.createElement('a');
-      tLink.href = tandemLink;
-      tLink.target = '_blank';
-      tLink.rel = 'noopener';
-      tLink.style.cssText = 'font-size:0.7rem;color:var(--gold);text-decoration:none;display:inline-flex;align-items:center;gap:0.25rem;background:rgba(212,168,67,0.1);border:1px solid rgba(212,168,67,0.25);padding:0.15rem 0.45rem;border-radius:4px;white-space:nowrap';
-      tLink.innerHTML = '📖 Tandem ID Guide ↗';
-      tLink.onclick = e => e.stopPropagation();
-      linksRow.appendChild(tLink);
-    }
-
-    // COTT (Cornucopia of Toy Trains) link
-    if (cottLink) {
-      const cLink = document.createElement('a');
-      cLink.href = cottLink;
-      cLink.target = '_blank';
-      cLink.rel = 'noopener';
-      cLink.style.cssText = 'font-size:0.7rem;color:#4dc880;text-decoration:none;display:inline-flex;align-items:center;gap:0.25rem;background:rgba(77,200,128,0.1);border:1px solid rgba(77,200,128,0.25);padding:0.15rem 0.45rem;border-radius:4px;white-space:nowrap';
-      cLink.innerHTML = '🌽 COTT ↗';
-      cLink.onclick = e => e.stopPropagation();
-      linksRow.appendChild(cLink);
-    }
-
-    // If we have a tandem link but no COTT link, add a COTT search fallback
-    if (tandemLink && !cottLink) {
-      const cottSearch = document.createElement('a');
-      cottSearch.href = 'https://cornucopiaoftoytrains.com/?s=' + encodeURIComponent('Lionel ' + itemNum);
-      cottSearch.target = '_blank';
-      cottSearch.rel = 'noopener';
-      cottSearch.style.cssText = 'font-size:0.7rem;color:#4dc880;text-decoration:none;display:inline-flex;align-items:center;gap:0.25rem;background:rgba(77,200,128,0.1);border:1px solid rgba(77,200,128,0.25);padding:0.15rem 0.45rem;border-radius:4px;white-space:nowrap';
-      cottSearch.innerHTML = '🌽 Search COTT ↗';
-      cottSearch.onclick = e => e.stopPropagation();
-      linksRow.appendChild(cottSearch);
-    }
-
-    // Tandem search fallback if no direct link
-    if (!tandemLink) {
-      const tSearch = document.createElement('a');
-      tSearch.href = 'https://www.tandem-associates.com/lionel/lionel_trains_master_index.htm';
-      tSearch.target = '_blank';
-      tSearch.rel = 'noopener';
-      tSearch.style.cssText = 'font-size:0.7rem;color:var(--gold);text-decoration:none;display:inline-flex;align-items:center;gap:0.25rem;background:rgba(212,168,67,0.1);border:1px solid rgba(212,168,67,0.25);padding:0.15rem 0.45rem;border-radius:4px;white-space:nowrap';
-      tSearch.innerHTML = '📖 Tandem Index ↗';
-      tSearch.onclick = e => e.stopPropagation();
-      linksRow.appendChild(tSearch);
-    }
-
-    // Year range from master data
-    if (master.yearProd) {
-      const yearSpan = document.createElement('span');
-      yearSpan.style.cssText = 'font-size:0.7rem;color:var(--text-dim);display:inline-flex;align-items:center;padding:0.15rem 0.45rem;background:rgba(255,255,255,0.05);border-radius:4px;white-space:nowrap';
-      yearSpan.textContent = '📅 ' + master.yearProd;
-      linksRow.appendChild(yearSpan);
-    }
-
-    if (linksRow.children.length > 0) {
-      descDiv.appendChild(linksRow);
-    }
-
-    // Add ✓ In Catalog badge to the item number if found in master data
-    const numEl = card.querySelector('.identify-num');
-    if (numEl && !card.querySelector('.catalog-badge')) {
-      const badge = document.createElement('div');
-      badge.className = 'catalog-badge';
-      badge.style.cssText = 'font-size:0.6rem;background:rgba(212,168,67,0.2);color:var(--gold);padding:0.1rem 0.3rem;border-radius:3px;text-align:center;margin-top:0.2rem;white-space:nowrap';
-      badge.textContent = '✓ Catalog';
-      numEl.parentElement.insertBefore(badge, numEl.nextSibling);
-    }
-  });
+// XSS-safe HTML escaping for dynamic content
+function _escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function useIdentifiedItem() {
-  if (!_identifySelectedNum) { showToast('Please select a candidate first', 3000, true); return; }
+  if (!_identifySelectedNum) { showToast('Select a match first', 2000, true); return; }
   closeIdentify();
   if (_identifyCallerContext === 'wizard') {
-    // Fill in the wizard itemNum field and trigger lookup
     const inp = document.getElementById('wiz-input');
     if (inp) {
       inp.value = _identifySelectedNum;
       wizard.data.itemNum = _identifySelectedNum;
       updateItemSuggestions(_identifySelectedNum);
-      inp.focus();
     }
   } else {
-    // Fill the browse search box and filter
     const search = document.getElementById('browse-search');
-    if (search) {
-      search.value = _identifySelectedNum;
-      onPageSearch(_identifySelectedNum, 'browse');
-    }
+    if (search) { search.value = _identifySelectedNum; onPageSearch(_identifySelectedNum, 'browse'); }
     showPage('browse');
   }
-  showToast('✓ Item ' + _identifySelectedNum + ' loaded — confirm the match below');
+  showToast('✓ ' + _identifySelectedNum + ' loaded');
 }
 
-function openGoogleLensDirect() {
-  // If we have a loaded image, submit it directly
-  if (_identifyImageBase64) {
-    submitToGoogleLens(_identifyImageBase64);
-  } else {
-    window.open('https://lens.google.com/', '_blank');
-  }
+function saveGeminiProxy() {
+  const url = (document.getElementById('gemini-proxy-input').value||'').trim();
+  if (!url) { showToast('Enter a Worker URL first', 2000, true); return; }
+  localStorage.setItem('lv_gemini_proxy', url);
+  document.getElementById('identify-api-setup').style.display = 'none';
+  showToast('✓ Worker URL saved');
 }
 
-function openGoogleImageSearch() {
-  if (_identifyImageBase64) {
-    submitToGoogleLens(_identifyImageBase64);
-  } else {
-    const query = window._identifyGoogleQuery || ('Lionel postwar ' + (_identifySelectedNum || ''));
-    window.open('https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(query), '_blank');
-  }
-}
-
-function submitToGoogleLens(base64data) {
-  // Store the image in sessionStorage so the new tab can read it
-  // (avoids embedding a large base64 string inside a template literal which can break JS parsing)
-  try { sessionStorage.setItem('_lv_lens_img', base64data); } catch(e) {}
-
-  const html = '<!DOCTYPE html><html><head><title>Opening Google Lens\u2026</title>'
-    + '<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;'
-    + 'height:100vh;margin:0;background:#111;color:#aaa;flex-direction:column;gap:1rem}'
-    + '.sp{width:36px;height:36px;border:3px solid #333;border-top-color:#4285f4;'
-    + 'border-radius:50%;animation:spin 0.8s linear infinite}'
-    + '@keyframes spin{to{transform:rotate(360deg)}}</style></head><body>'
-    + '<div class="sp"></div><div>Sending to Google Lens\u2026</div>'
-    + '<form id="f" method="POST" action="https://www.google.com/searchbyimage/upload" enctype="multipart/form-data">'
-    + '<input type="hidden" name="hl" value="en"></form>'
-    + '<script>'
-    + 'var b64=window.opener&&window.opener.sessionStorage?window.opener.sessionStorage.getItem("_lv_lens_img"):sessionStorage.getItem("_lv_lens_img");'
-    + 'if(!b64){document.body.innerHTML="<p style=color:red>Image not found. Please try again.</p>";}'
-    + 'else{'
-    + 'var bin=atob(b64),arr=new Uint8Array(bin.length);'
-    + 'for(var i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);'
-    + 'var blob=new Blob([arr],{type:"image/jpeg"});'
-    + 'var file=new File([blob],"lionel.jpg",{type:"image/jpeg"});'
-    + 'var dt=new DataTransfer();dt.items.add(file);'
-    + 'var inp=document.createElement("input");'
-    + 'inp.type="file";inp.name="encoded_image";inp.files=dt.files;'
-    + 'document.getElementById("f").appendChild(inp);'
-    + 'document.getElementById("f").submit();}'
-    + '<\/script></body></html>';
-
-  const dataUri = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
-  window.open(dataUri, '_blank');
+function saveGeminiKey() {
+  const key = (document.getElementById('gemini-key-input').value||'').trim();
+  if (!key) { showToast('Paste your API key first', 2000, true); return; }
+  localStorage.setItem('lv_gemini_key', key);
+  document.getElementById('identify-api-setup').style.display = 'none';
+  showToast('✓ API key saved');
 }
 
 // Close on backdrop click — deferred so DOM is ready
@@ -8494,104 +8288,66 @@ function pickerHandleFile(inputEl, isCamera) {
 <!-- ══ IDENTIFY ITEM MODAL ══════════════════════════════════════════ -->
 <div id="identify-modal">
   <div id="identify-panel">
-    <div style="display:flex;align-items:center;justify-content:space-between">
-      <div style="font-family:var(--font-head);font-size:1.1rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--cream)">
-        🔍 Identify by Photo
-      </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+      <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--cream)">🔍 Identify by Photo</div>
       <button onclick="closeIdentify()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;padding:0 0.25rem;line-height:1">×</button>
     </div>
-    <div id="identify-setup" style="display:none">
-      <div class="gemini-setup">
-        <div style="font-family:var(--font-head);font-size:0.72rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:0.5rem">⚙ Gemini AI Setup</div>
-        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.75rem;line-height:1.5">
-          Enter your <strong style="color:var(--text-mid)">Worker URL</strong> (recommended — keeps your key private) <em>or</em> paste a Gemini API key directly.
-        </div>
-        <div style="display:flex;flex-direction:column;gap:0.5rem">
-          <div style="display:flex;gap:0.5rem;align-items:center">
-            <input id="gemini-proxy-input" type="url" placeholder="https://your-worker.workers.dev/gemini"
-              style="flex:1;padding:0.55rem 0.7rem;background:var(--bg);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--font-mono);font-size:0.78rem"
-              value="">
-            <button onclick="saveGeminiProxy()" class="btn btn-primary" style="font-size:0.75rem;padding:0.5rem 0.85rem;white-space:nowrap">Save URL</button>
-            <button onclick="testWorkerConnection()" class="btn btn-secondary" style="font-size:0.75rem;padding:0.5rem 0.85rem;white-space:nowrap">Test</button>
-          </div>
-          <div style="text-align:center;font-size:0.68rem;color:var(--text-dim)">— or use API key directly —</div>
-          <div style="display:flex;gap:0.5rem">
-            <input id="gemini-key-input" type="password" placeholder="Paste Gemini API key…"
-              style="flex:1;padding:0.55rem 0.7rem;background:var(--bg);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--font-mono);font-size:0.78rem">
-            <button onclick="saveGeminiKey()" class="btn btn-secondary" style="font-size:0.75rem;padding:0.5rem 0.85rem;white-space:nowrap">Save Key</button>
-          </div>
-        </div>
-        <div style="margin-top:0.75rem;padding:0.6rem;background:rgba(201,146,42,0.08);border:1px solid rgba(201,146,42,0.25);border-radius:7px;font-size:0.7rem;color:var(--text-dim);line-height:1.5">
-          📋 <strong>Quick setup:</strong> Deploy a free Cloudflare Worker from the instructions below — paste the URL above and you're done. No user sign-up ever needed.
-        </div>
+
+    <!-- API key setup (hidden by default, shown if no key configured) -->
+    <div id="identify-api-setup" style="display:none;flex-direction:column;gap:0.5rem;padding:0.75rem;background:rgba(201,146,42,0.07);border:1px solid rgba(201,146,42,0.25);border-radius:8px;margin-bottom:0.75rem">
+      <div style="font-size:0.75rem;color:var(--text-dim);font-weight:600">⚙ Gemini API Setup required</div>
+      <input id="gemini-proxy-input" type="url" placeholder="Worker URL (recommended)"
+        style="padding:0.5rem 0.65rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;font-family:var(--font-mono)">
+      <div style="display:flex;gap:0.4rem">
+        <input id="gemini-key-input" type="password" placeholder="Or paste Gemini API key"
+          style="flex:1;padding:0.5rem 0.65rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;font-family:var(--font-mono)">
+        <button onclick="saveGeminiProxy()||saveGeminiKey()" class="btn btn-primary" style="font-size:0.75rem;white-space:nowrap">Save</button>
       </div>
     </div>
-    <div id="identify-ready" style="display:none;flex-direction:column;gap:1rem">
-      <!-- Hidden file inputs — triggered by buttons below -->
-      <input type="file" id="identify-input-cam" accept="image/*" capture="environment"
-        style="position:fixed;top:-999px;left:-999px;opacity:0"
-        onchange="handleIdentifyFile(this.files[0]);this.value=''">
-      <input type="file" id="identify-input-lib" accept="image/*"
-        style="position:fixed;top:-999px;left:-999px;opacity:0"
-        onchange="handleIdentifyFile(this.files[0]);this.value=''">
-      <!-- Preview area (tap to re-pick) -->
-      <div class="identify-drop" id="identify-drop"
-        ondragover="event.preventDefault();this.classList.add('dragover')"
-        ondragleave="this.classList.remove('dragover')"
-        ondrop="handleIdentifyDrop(event)"
-        onclick="showIdentifyPicker()"
-        style="cursor:pointer">
-        <div id="identify-drop-hint" style="pointer-events:none">
-          <div style="font-size:2.5rem;margin-bottom:0.5rem">📷</div>
-          <div style="font-family:var(--font-head);font-size:0.85rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-mid)" id="identify-drop-label">Tap to add a photo</div>
-          <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.3rem">Locomotive, car, accessory — any angle</div>
-        </div>
-        <img id="identify-preview" class="identify-preview" alt="preview">
+
+    <!-- Hidden file inputs -->
+    <input type="file" id="identify-input-cam" accept="image/*" capture="environment"
+      style="position:fixed;top:-999px;opacity:0" onchange="handleIdentifyFile(this.files[0]);this.value=''">
+    <input type="file" id="identify-input-lib" accept="image/*"
+      style="position:fixed;top:-999px;opacity:0" onchange="handleIdentifyFile(this.files[0]);this.value=''">
+
+    <!-- Photo drop zone -->
+    <div class="identify-drop" id="identify-drop"
+      ondragover="event.preventDefault();this.classList.add('dragover')"
+      ondragleave="this.classList.remove('dragover')"
+      ondrop="handleIdentifyDrop(event)"
+      onclick="document.getElementById('identify-input-lib').click()"
+      style="cursor:pointer;margin-bottom:0.75rem">
+      <div id="identify-drop-hint" style="pointer-events:none;display:flex;flex-direction:column;align-items:center">
+        <div style="font-size:2.2rem;margin-bottom:0.4rem">📷</div>
+        <div style="font-family:var(--font-head);font-size:0.82rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-mid)">Tap to choose a photo</div>
+        <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem">or drag one here</div>
       </div>
-      <!-- Camera / Library buttons always visible on mobile -->
-      <div id="identify-pick-btns" style="display:flex;gap:0.5rem">
-        <button onclick="document.getElementById('identify-input-cam').click()"
-          class="btn btn-secondary" style="flex:1;justify-content:center;font-size:0.8rem;gap:0.4rem">
-          📷 Take Photo
-        </button>
-        <button onclick="document.getElementById('identify-input-lib').click()"
-          class="btn btn-secondary" style="flex:1;justify-content:center;font-size:0.8rem;gap:0.4rem">
-          🖼️ Library
-        </button>
-      </div>
-      <div style="display:flex;align-items:center;gap:0.5rem;margin-top:-0.25rem">
-        <div style="flex:1;height:1px;background:var(--border)"></div>
-        <div style="font-size:0.68rem;color:var(--text-dim);white-space:nowrap">or skip AI — search visually</div>
-        <div style="flex:1;height:1px;background:var(--border)"></div>
-      </div>
-      <button onclick="openGoogleLensDirect()" class="btn" style="width:100%;justify-content:center;gap:0.5rem;border-color:rgba(66,133,244,0.4);color:#4285f4;background:rgba(66,133,244,0.07);font-size:0.82rem">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><circle cx="11" cy="11" r="3"/><path d="m21 21-4.35-4.35"/></svg>
-        Search with Google Lens
-      </button>
-      <button id="identify-analyze-btn" onclick="runGeminiIdentify()"
-        style="display:none;width:100%;padding:0.75rem;border-radius:8px;border:none;background:var(--accent);color:white;font-family:var(--font-head);font-size:0.88rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;align-items:center;justify-content:center;gap:0.5rem">
-        🔍 Identify This Item
-      </button>
-      <div id="identify-status" style="display:none;text-align:center;padding:1rem">
-        <div class="spinner" style="margin:0 auto 0.75rem;width:28px;height:28px;border-width:2px"></div>
-        <div style="font-size:0.82rem;color:var(--text-mid)" id="identify-status-msg">Analyzing image with Gemini Vision…</div>
-      </div>
-      <div id="identify-description" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.85rem;font-size:0.8rem;color:var(--text-mid);line-height:1.6"></div>
-      <div id="identify-candidates" style="display:none;flex-direction:column;gap:0.5rem">
-        <div style="font-family:var(--font-head);font-size:0.62rem;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.1rem">Select the best match:</div>
-      </div>
-      <div id="identify-actions" style="display:none;gap:0.5rem;flex-wrap:wrap">
-        <button onclick="useIdentifiedItem()" class="btn btn-primary" style="flex:1;justify-content:center;min-width:140px">Use This Item →</button>
-        <button onclick="resetIdentify()" class="btn" style="justify-content:center">Try Another Photo</button>
-        <button onclick="openGoogleImageSearch()" class="btn" style="justify-content:center;gap:0.35rem">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><circle cx="11" cy="11" r="3"/><path d="m21 21-4.35-4.35"/></svg>
-          Google Lens
-        </button>
-      </div>
-      <div style="text-align:center;margin-top:0.25rem">
-        <button onclick="showGeminiSetup()" class="link-btn" style="font-size:0.72rem">Change API key</button>
-      </div>
+      <img id="identify-preview" class="identify-preview" alt="preview" style="display:none">
     </div>
+
+    <!-- Camera button (mobile) -->
+    <button onclick="document.getElementById('identify-input-cam').click()"
+      class="btn btn-secondary" style="width:100%;justify-content:center;gap:0.4rem;margin-bottom:0.5rem;font-size:0.82rem">
+      📷 Take Photo with Camera
+    </button>
+
+    <!-- FIND button — shown after photo selected -->
+    <button id="identify-find-btn" onclick="runGeminiIdentify()"
+      style="display:none;width:100%;padding:0.8rem;border-radius:8px;border:none;background:var(--accent);color:white;font-family:var(--font-head);font-size:0.9rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;align-items:center;justify-content:center;gap:0.5rem;margin-bottom:0.5rem">
+      🔍 Find This Item
+    </button>
+
+    <!-- Spinner -->
+    <div id="identify-status" style="display:none;flex-direction:column;align-items:center;padding:1rem;gap:0.5rem">
+      <div class="spinner" style="width:28px;height:28px;border-width:2px"></div>
+      <div style="font-size:0.8rem;color:var(--text-mid)">Analyzing photo…</div>
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:-0.25rem">This takes 5–10 seconds</div>
+    </div>
+
+    <!-- Results -->
+    <div id="identify-results" style="display:none"></div>
+
   </div>
 </div>
 <!-- ══ VIEW PICTURES PAGE ════════════════════════════════════════════ -->
@@ -8686,4 +8442,3 @@ function pickerHandleFile(inputEl, isCamera) {
   style="position:fixed;top:-999px;left:-999px;opacity:0"
   onchange="pickerHandleFile(this, false)">
 </body>
-</html>
