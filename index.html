@@ -8047,39 +8047,33 @@ function openGoogleImageSearch() {
 }
 
 function submitToGoogleLens(base64data) {
-  // Build a self-contained HTML page that auto-submits the image to Google Lens.
-  // Opening it as a data: URI in a new tab sidesteps cross-origin restrictions because
-  // the form POST originates from the new tab itself, not from our app.
-  const html = `<!DOCTYPE html>
-<html>
-<head><title>Opening Google Lens…</title>
-<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#111;color:#aaa;flex-direction:column;gap:1rem}
-.spinner{width:36px;height:36px;border:3px solid #333;border-top-color:#4285f4;border-radius:50%;animation:spin 0.8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}</style>
-</head>
-<body>
-<div class="spinner"></div>
-<div>Sending to Google Lens…</div>
-<form id="f" method="POST" action="https://www.google.com/searchbyimage/upload" enctype="multipart/form-data">
-  <input type="hidden" name="hl" value="en">
-</form>
-<script>
-// Convert base64 back to a File and append to the form, then submit
-const b64 = "${base64data}";
-const bin = atob(b64);
-const arr = new Uint8Array(bin.length);
-for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
-const blob = new Blob([arr],{type:'image/jpeg'});
-const file = new File([blob],'lionel.jpg',{type:'image/jpeg'});
-const dt = new DataTransfer();
-dt.items.add(file);
-const inp = document.createElement('input');
-inp.type='file'; inp.name='encoded_image';
-inp.files = dt.files;
-document.getElementById('f').appendChild(inp);
-document.getElementById('f').submit();
-</script>
-</body></html>`;
+  // Store the image in sessionStorage so the new tab can read it
+  // (avoids embedding a large base64 string inside a template literal which can break JS parsing)
+  try { sessionStorage.setItem('_lv_lens_img', base64data); } catch(e) {}
+
+  const html = '<!DOCTYPE html><html><head><title>Opening Google Lens\u2026</title>'
+    + '<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;'
+    + 'height:100vh;margin:0;background:#111;color:#aaa;flex-direction:column;gap:1rem}'
+    + '.sp{width:36px;height:36px;border:3px solid #333;border-top-color:#4285f4;'
+    + 'border-radius:50%;animation:spin 0.8s linear infinite}'
+    + '@keyframes spin{to{transform:rotate(360deg)}}</style></head><body>'
+    + '<div class="sp"></div><div>Sending to Google Lens\u2026</div>'
+    + '<form id="f" method="POST" action="https://www.google.com/searchbyimage/upload" enctype="multipart/form-data">'
+    + '<input type="hidden" name="hl" value="en"></form>'
+    + '<script>'
+    + 'var b64=window.opener&&window.opener.sessionStorage?window.opener.sessionStorage.getItem("_lv_lens_img"):sessionStorage.getItem("_lv_lens_img");'
+    + 'if(!b64){document.body.innerHTML="<p style=color:red>Image not found. Please try again.</p>";}'
+    + 'else{'
+    + 'var bin=atob(b64),arr=new Uint8Array(bin.length);'
+    + 'for(var i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);'
+    + 'var blob=new Blob([arr],{type:"image/jpeg"});'
+    + 'var file=new File([blob],"lionel.jpg",{type:"image/jpeg"});'
+    + 'var dt=new DataTransfer();dt.items.add(file);'
+    + 'var inp=document.createElement("input");'
+    + 'inp.type="file";inp.name="encoded_image";inp.files=dt.files;'
+    + 'document.getElementById("f").appendChild(inp);'
+    + 'document.getElementById("f").submit();}'
+    + '<\/script></body></html>';
 
   const dataUri = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
   window.open(dataUri, '_blank');
