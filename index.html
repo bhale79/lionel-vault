@@ -4190,23 +4190,25 @@ async function saveItem() {
     }
   }
 
-  // Bust cache so we always get fresh data after a save
+  // Bust cache then background sync — don't block the UI
   localStorage.removeItem('lv_personal_cache');
   localStorage.removeItem('lv_personal_cache_ts');
-  await loadPersonalData();
-
-  // Reset all filters so the browse view shows everything
-  state.filters.wantList = false;
-  state.filters.owned = false;
-  state.filters.unowned = false;
-  state.filters.boxed = false;
-  // Reset toggle button visual states
-
 
   closeModal();
   buildDashboard();
   buildSoldPage();
   renderBrowse();
+  showToast('✓ Item updated!');
+
+  // Background sync after a delay to give Sheets time to propagate
+  const _syncDelay = typeof _isTouchDevice !== 'undefined' && _isTouchDevice ? 3000 : 1500;
+  setTimeout(async function() {
+    try {
+      await loadPersonalData();
+      buildDashboard();
+      renderBrowse();
+    } catch(e) { console.warn('Background sync after saveItem:', e); }
+  }, _syncDelay);
 }
 
 // ── REPORTS ─────────────────────────────────────────────────────
@@ -7383,17 +7385,63 @@ async function saveWizardItem() {
     }
 
     closeWizard();
-    // Bust the personal data cache so the reload always fetches fresh from Sheets
-    localStorage.removeItem('lv_personal_cache');
-    localStorage.removeItem('lv_personal_cache_ts');
-    // Delay to ensure Google Sheets has committed the data (longer on mobile)
-    await new Promise(r => setTimeout(r, 1200));
-    await loadPersonalData();
+
+    // ── Optimistic update: inject directly into state so item appears immediately ──
+    // Don't wait for Sheets to propagate — add it to state right now
+    const _tempKey = `${itemNum}|${variation}|temp_${Date.now()}`;
+    if (tab === 'collection') {
+      state.personalData[_tempKey] = {
+        row: 99999, itemNum, variation,
+        status: 'Owned', owned: true,
+        condition: d.condition || '',
+        allOriginal: d.allOriginal || '',
+        priceItem: d.priceItem || '',
+        priceBox: d.priceBox || '',
+        priceComplete: d.priceComplete || '',
+        hasBox: d.hasBox || 'No',
+        boxCond: d.boxCondition || '',
+        notes: d.notes || '',
+        datePurchased: d.datePurchased || '',
+      };
+    } else if (tab === 'sold') {
+      state.soldData[`${itemNum}|${variation}`] = {
+        row: 99999, itemNum, variation,
+        condition: d.condition || '',
+        priceItem: d.priceItem || '',
+        salePrice: d.salePrice || '',
+        dateSold: d.dateSold || '',
+        notes: d.notes || '',
+      };
+    } else if (tab === 'want') {
+      state.wantData[`${itemNum}|${variation}`] = {
+        row: 99999, itemNum, variation,
+        priority: d.priority || 'Medium',
+        expectedPrice: d.expectedPrice || '',
+        notes: d.notes || '',
+      };
+    }
+
+    // Rebuild UI immediately with the optimistic data
     resetFilters();
     buildDashboard();
     buildSoldPage();
     renderBrowse();
     showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
+
+    // ── Background sync: bust cache and re-fetch from Sheets to get real row numbers ──
+    // Longer delay on mobile to give Sheets time to propagate
+    localStorage.removeItem('lv_personal_cache');
+    localStorage.removeItem('lv_personal_cache_ts');
+    const _syncDelay = typeof _isTouchDevice !== 'undefined' && _isTouchDevice ? 3000 : 1500;
+    setTimeout(async function() {
+      try {
+        await loadPersonalData();
+        resetFilters();
+        buildDashboard();
+        buildSoldPage();
+        renderBrowse();
+      } catch(e) { console.warn('Background sync after save:', e); }
+    }, _syncDelay);
 
   } catch(e) {
     console.error('Save error:', e);
