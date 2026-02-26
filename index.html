@@ -2392,9 +2392,13 @@ function _cachePersonalData() {
 }
 
 async function _loadPersonalFromSheets(sheetId) {
-  state.personalData = {};
-  state.soldData = {};
-  state.wantData = {};
+  // Use temporary objects — only commit to state if fetch succeeds
+  // This prevents a failed/slow fetch from wiping items that were just saved
+  const newPersonal = {};
+  const newSold     = {};
+  const newWant     = {};
+  const newIsData   = {};
+  const newEphemera = { catalogs:{}, paper:{}, mockups:{}, other:{} };
 
   // Fetch all tabs in parallel
   const [collRes, soldRes, wantRes,
@@ -2414,7 +2418,7 @@ async function _loadPersonalFromSheets(sheetId) {
     if (!r[0] || r[0] === 'Item Number') return;
     const rowNum = idx + 3;
     const key = `${r[0]}|${r[1] || ''}|${rowNum}`;
-    state.personalData[key] = {
+    newPersonal[key] = {
       row: rowNum, itemNum: r[0]||'', variation: r[1]||'',
       status: 'Owned', owned: true,
       condition: r[2]||'', allOriginal: r[3]||'',
@@ -2433,7 +2437,7 @@ async function _loadPersonalFromSheets(sheetId) {
   (soldRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return;
     const key = `${r[0]}|${r[1]||''}`;
-    state.soldData[key] = {
+    newSold[key] = {
       row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
       copy: r[2]||'1', condition: r[3]||'', priceItem: r[4]||'',
       salePrice: r[5]||'', dateSold: r[6]||'', notes: r[7]||'',
@@ -2444,28 +2448,26 @@ async function _loadPersonalFromSheets(sheetId) {
   (wantRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return;
     const key = `${r[0]}|${r[1]||''}`;
-    state.wantData[key] = {
+    newWant[key] = {
       row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
       priority: r[2]||'Medium', expectedPrice: r[3]||'', notes: r[4]||'',
     };
   });
 
   // Instruction Sheets
-  state.isData = {};
   const _isRows = (isRes && isRes.values) || [];
   _isRows.forEach((r, idx) => {
     if (!r[0] || r[0] === 'Sheet #' || r[0] === 'Instruction Sheets') return;
     const key = idx + 3;
-    state.isData[key] = {
+    newIsData[key] = {
       row: key, sheetNum: r[0]||'', linkedItem: r[1]||'', year: r[2]||'',
       condition: r[3]||'', notes: r[4]||'', photoLink: r[5]||'',
     };
   });
 
   // Ephemera tabs
-  state.ephemeraData = { catalogs:{}, paper:{}, mockups:{}, other:{} };
   // Initialize user-defined tab buckets
-  (state.userDefinedTabs||[]).forEach(t => { state.ephemeraData[t.id] = {}; });
+  (state.userDefinedTabs||[]).forEach(t => { newEphemera[t.id] = {}; });
 
   function parseEphemeraRows(rows, bucket) {
     (rows || []).forEach((r, idx) => {
@@ -2498,15 +2500,15 @@ async function _loadPersonalFromSheets(sheetId) {
     const catType = r[1]||'';
     const year = r[2]||'';
     const title = [year, catType, 'Catalog'].filter(Boolean).join(' ');
-    state.ephemeraData.catalogs[key] = {
+    newEphemera.catalogs[key] = {
       row: key, itemNum: r[0]||'', title,
       catType, year, hasMailer: r[3]||'No',
       condition: r[4]||'', estValue: r[5]||'', dateAcquired: r[6]||'',
       notes: r[7]||'', photoLink: r[8]||'',
     };
   });
-  parseEphemeraRows(paperRes.values, state.ephemeraData.paper);
-  parseEphemeraRows(otherRes.values, state.ephemeraData.other);
+  parseEphemeraRows(paperRes.values, newEphemera.paper);
+  parseEphemeraRows(otherRes.values, newEphemera.other);
   // Re-populate type filter now that ephemera data is loaded (only if already populated)
   if (typeof populateFilters === 'function' && document.getElementById('filter-type') &&
       document.getElementById('filter-type').options.length > 1) {
@@ -2518,7 +2520,7 @@ async function _loadPersonalFromSheets(sheetId) {
   // User-defined tabs — load their sheet data
   const _utPromises = (state.userDefinedTabs||[]).map(ut =>
     sheetsGet(sheetId, ut.label + '!A3:J').catch(() => ({values:[]}))
-      .then(utRes => parseEphemeraRows(utRes.values, state.ephemeraData[ut.id]))
+      .then(utRes => parseEphemeraRows(utRes.values, newEphemera[ut.id]))
       .catch(() => {})
   );
   await Promise.all(_utPromises);
@@ -2527,7 +2529,7 @@ async function _loadPersonalFromSheets(sheetId) {
   (mockRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Title') return;
     const key = idx + 3;
-    state.ephemeraData.mockups[key] = {
+    newEphemera.mockups[key] = {
       row: key, title: r[0]||'', itemNumRef: r[1]||'', description: r[2]||'',
       year: r[3]||'', manufacturer: r[4]||'Lionel', condition: r[5]||'',
       productionStatus: r[6]||'', material: r[7]||'', dimensions: r[8]||'',
@@ -2535,6 +2537,20 @@ async function _loadPersonalFromSheets(sheetId) {
       photoLink: r[12]||'', notes: r[13]||'', dateAcquired: r[14]||'',
     };
   });
+
+  // ── Commit to state — only replace if fetch succeeded (non-empty) ──
+  // If Sheets returned data, use it. If empty (race condition), keep existing state.
+  if (Object.keys(newPersonal).length > 0 || Object.keys(state.personalData).length === 0) {
+    state.personalData = newPersonal;
+  }
+  if (Object.keys(newSold).length > 0 || Object.keys(state.soldData).length === 0) {
+    state.soldData = newSold;
+  }
+  if (Object.keys(newWant).length > 0 || Object.keys(state.wantData).length === 0) {
+    state.wantData = newWant;
+  }
+  state.isData = newIsData;
+  state.ephemeraData = newEphemera;
 }
 
 // ── BUILD APP ───────────────────────────────────────────────────
@@ -6923,7 +6939,7 @@ async function saveCatalogItem() {
         const key = idx + 3;
         const catType2 = r[1]||''; const year2 = r[2]||'';
         const t = [year2, catType2, 'Catalog'].filter(Boolean).join(' ');
-        state.ephemeraData.catalogs[key] = {
+        newEphemera.catalogs[key] = {
           row: key, itemNum: r[0]||'', title: t,
           catType: catType2, year: year2, hasMailer: r[3]||'No',
           condition: r[4]||'', estValue: r[5]||'', dateAcquired: r[6]||'',
@@ -7473,7 +7489,7 @@ async function quickEntryAdd() {
     // Add to local state immediately
     const rowNum = Date.now();
     const key = `${itemNum}|${variation}|${rowNum}`;
-    state.personalData[key] = {
+    newPersonal[key] = {
       row: rowNum, itemNum, variation,
       status: 'Owned', owned: true,
       condition: '', allOriginal: '', priceItem: '', priceBox: '', priceComplete: '',
