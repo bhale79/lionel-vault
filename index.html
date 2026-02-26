@@ -8029,7 +8029,6 @@ function useIdentifiedItem() {
 }
 
 function openGoogleImageSearch() {
-  // Use Google Lens visual search if we have the image — far more accurate than keyword search
   if (_identifyImageBase64) {
     try {
       const byteStr = atob(_identifyImageBase64);
@@ -8037,45 +8036,35 @@ function openGoogleImageSearch() {
       const ia = new Uint8Array(ab);
       for (let i = 0; i < byteStr.length; i++) ia[i] = byteStr.charCodeAt(i);
       const blob = new Blob([ab], { type: 'image/jpeg' });
-      const file = new File([blob], 'lionel.jpg', { type: 'image/jpeg' });
+      const blobUrl = URL.createObjectURL(blob);
 
-      // Create a hidden form and submit to Google's reverse image search
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = 'https://www.google.com/searchbyimage/upload';
-      form.enctype = 'multipart/form-data';
-      form.target = '_blank';
-      form.style.cssText = 'display:none;position:fixed;top:-9999px';
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-      // Create a real file input and assign our file via DataTransfer
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.name = 'encoded_image';
-      try {
-        const dt = new DataTransfer();
-        dt.items.add(file);
-        fileInput.files = dt.files;
-      } catch(e) {
-        throw new Error('DataTransfer not supported: ' + e.message);
+      if (isIOS) {
+        // iOS Safari: open image in new tab — user long-presses → Save to Photos → use in Lens
+        window.open(blobUrl, '_blank');
+        setTimeout(() => window.open('https://lens.google.com/', '_blank'), 600);
+        showToast('Long-press the photo → Save → upload to Lens', 5000);
+      } else {
+        // Android / desktop: direct download + open Lens
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = 'lionel-identify.jpg';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => window.open('https://lens.google.com/', '_blank'), 400);
+        showToast('📷 Photo saved — upload it to Google Lens', 4000);
       }
 
-      const hlInput = document.createElement('input');
-      hlInput.type = 'hidden';
-      hlInput.name = 'hl';
-      hlInput.value = 'en';
-
-      form.appendChild(fileInput);
-      form.appendChild(hlInput);
-      document.body.appendChild(form);
-      form.submit();
-      setTimeout(() => document.body.removeChild(form), 2000);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
       return;
     } catch(e) {
-      console.warn('Google Lens submit failed, trying keyword fallback:', e.message);
+      console.warn('Download failed:', e.message);
     }
   }
-  // Fallback: keyword image search
-  const query = window._identifyGoogleQuery || ('Lionel postwar train ' + (_identifySelectedNum || ''));
+  // Fallback: keyword search
+  const query = window._identifyGoogleQuery || ('Lionel postwar ' + (_identifySelectedNum || ''));
   window.open('https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(query), '_blank');
 }
 
@@ -8576,7 +8565,7 @@ function pickerHandleFile(inputEl, isCamera) {
         <button onclick="resetIdentify()" class="btn" style="justify-content:center">Try Another Photo</button>
         <button onclick="openGoogleImageSearch()" class="btn" style="justify-content:center;gap:0.35rem">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><circle cx="11" cy="11" r="3"/><path d="m21 21-4.35-4.35"/></svg>
-          Google Lens
+          Save + Google Lens
         </button>
       </div>
       <div style="text-align:center;margin-top:0.25rem">
