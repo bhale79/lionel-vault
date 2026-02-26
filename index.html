@@ -2170,23 +2170,36 @@ async function _withTokenRetry(fetchFn) {
 async function sheetsUpdate(spreadsheetId, range, values) {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
   const body = JSON.stringify({ range, majorDimension: 'ROWS', values });
+  if (!accessToken) throw new Error('Not signed in — no access token');
   const res = await _withTokenRetry(() => fetch(url, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body,
   }));
-  return res.json();
+  const json = await res.json();
+  if (json.error) {
+    console.error('sheetsUpdate error:', JSON.stringify(json.error));
+    throw new Error('Sheets update failed: ' + (json.error.message || JSON.stringify(json.error)));
+  }
+  return json;
 }
 
 async function sheetsAppend(spreadsheetId, range, values) {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
   const body = JSON.stringify({ values });
+  if (!accessToken) throw new Error('Not signed in — no access token');
   const res = await _withTokenRetry(() => fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body,
   }));
-  return res.json();
+  const json = await res.json();
+  if (json.error) {
+    console.error('sheetsAppend error:', JSON.stringify(json.error));
+    throw new Error('Sheets write failed: ' + (json.error.message || JSON.stringify(json.error)));
+  }
+  console.log('[Sheets] Appended to', range, '— updated range:', json.updates && json.updates.updatedRange);
+  return json;
 }
 
 async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber) {
@@ -7460,8 +7473,8 @@ async function saveWizardItem() {
     }, _syncDelay);
 
   } catch(e) {
-    console.error('Save error:', e);
-    showToast('Error saving: ' + e.message, 4000, true);
+    console.error('Save error:', e, '| accessToken:', accessToken ? 'present' : 'MISSING');
+    showToast('❌ Save failed: ' + e.message, 8000, true);
   }
 }
 
@@ -7801,7 +7814,6 @@ async function runGeminiIdentify() {
         + 'q values: h=high m=medium l=low. Max 3 items. No reason field.'
       }]}],
       generationConfig: { temperature: 0.1, maxOutputTokens: 80 }
-    });
     });
 
     let matched;
