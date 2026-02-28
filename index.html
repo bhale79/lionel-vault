@@ -7223,6 +7223,7 @@ async function saveWizardItem() {
   const photos    = [anyItemLink];
   const boxPhotos = [anyBoxLink];
 
+  let _grpId = '';  // hoisted so IS save can access it
   try {
     if (tab === 'collection') {
       // Find existing by row-keyed lookup (key includes row number now)
@@ -7252,7 +7253,7 @@ async function saveWizardItem() {
       let row;
       const _paired = d.tenderMatch && d.tenderMatch !== 'none';
       const _isGrouped = _paired || d.setMatch === 'set-now';
-      const _grpId = _isGrouped ? generateGroupId() : '';
+      _grpId = _isGrouped ? generateGroupId() : '';
       if (d.boxOnly) {
         const ex = existing || {};
         const itemExists = !!existing;
