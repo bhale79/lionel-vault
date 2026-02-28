@@ -1,4 +1,255 @@
 <!DOCTYPE html>
+<!--
+╔══════════════════════════════════════════════════════════════════════╗
+║  MY COLLECTION APP — Postwar Lionel 1945–1969                      ║
+║  Single-file HTML/CSS/JS app · Google Sheets backend               ║
+║  Last updated: 2026-02-28                                          ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+CODE MAP (update line numbers after major edits)
+─────────────────────────────────────────────────
+SECTION                              LINES (approx)
+───────────────────────────────────── ──────────────
+HTML <head> & <style>                   3 –  730
+  CSS variables & theme                25 –   45
+  Component styles                     46 –  730
+
+HTML <body> — Layout & Pages          732 – 1400
+  Auth / sign-in screen               734 –  770
+  First-time setup screen             771 –  796
+  Main app shell (header + sidebar)   798 –  890
+  Dashboard page                      894 –  953
+  Quick Entry List page               955 –  970
+  Browse page                         972 – 1027
+  Sold page                          1028 – 1078
+  Want List page                     1080 – 1112
+  Reports & Ephemera pages           1113 – 1145
+  Mobile bottom nav                  1146 – 1177
+  Item Detail Modal                  1179 – 1342
+  Sold Modal                         1344 – 1370
+  Add Item Wizard (HTML shell)       1372 – 1400
+
+SCRIPT BLOCK 1 (inline)               895 –  899
+  startWizardFor() helper
+
+SCRIPT BLOCK 2 (main app logic)      1402 – 4863
+  ┌─ CONFIG & CONSTANTS              1402 – 1525
+  │   App config (CONFIG object)     1402 – 1410
+  │   Google API constants           1405 – 1410
+  │   Sheet headers & tab defs       1411 – 1452
+  │   Tender/Loco mapping tables     1453 – 1456
+  │   Item utility functions         1457 – 1525
+  │     isSetUnit, getBUnit, getAUnit, getSetPartner
+  │     normalizeItemNum, isF3AlcoUnit, genSetId
+  │     isTender, isBoxOnlyEntry, displayItemType
+  │     isLocomotive, getMatchingTenders/Locos
+  │     findOwnedMatch
+  │
+  ├─ STATE & AUTH                    1527 – 1677
+  │   state object                   1527 – 1545
+  │   tokenClient                    1546
+  │   initGoogle()                   1548 – 1569
+  │   handleSignIn/Out               1571 – 1676
+  │   onGoogleSignIn, onTokenReceived
+  │
+  ├─ ONBOARDING & SETUP             1677 – 1800
+  │   closeOnboarding, showOnboarding
+  │   showApp, showSetup, updateUserUI
+  │   completeSetup, initPersonalSheet
+  │
+  ├─ SHEET INITIALIZATION            1801 – 1880
+  │   ensurePersonalHeaders()
+  │   ensureEphemeraSheets()
+  │
+  ├─ PHOTO VIEW DEFINITIONS          1881 – 1930
+  │   ITEM_VIEWS, ERROR_VIEWS, BOX_VIEWS
+  │   getItemLabel()
+  │
+  ├─ GOOGLE DRIVE INTEGRATION        1928 – 2175
+  │   driveCache, driveRequest
+  │   driveUploadFile, driveFindOrCreateFolder
+  │   driveUploadPhoto, driveMoveFileToFolder
+  │   driveSetupVault, driveEnsureSetup
+  │   driveEnsureItemFolder
+  │   driveGetFolderPhotos, loadDriveThumb
+  │   driveFolderLink, driveUploadItemPhoto
+  │   driveMoveToSold
+  │   driveReadConfig, driveWriteConfig
+  │   driveMoveSheetToVault
+  │
+  ├─ GOOGLE SHEETS API               2179 – 2360
+  │   sheetsGet, _withTokenRetry
+  │   sheetsUpdate, sheetsAppend
+  │   sheetsDeleteRow
+  │   createPersonalSheet
+  │   loadUserDefinedTabs, saveUserDefinedTabs
+  │
+  ├─ DATA LOADING                    2370 – 2660
+  │   loadAllData()                  2370
+  │   loadMasterData()               2385
+  │   parseMasterRows()              2427
+  │   loadPersonalData()             2448
+  │   _cachePersonalData()           2482
+  │   _loadPersonalFromSheets()      2496
+  │   parseEphemeraRows()            2574
+  │
+  ├─ APP BUILDING & DASHBOARD        2660 – 2865
+  │   buildApp()                     2660
+  │   showLoading()                  2676
+  │   forceRefreshData()             2683
+  │   buildDashboard()               2713
+  │
+  ├─ BROWSE — FILTERS & RENDERING    2866 – 3410
+  │   populateFilters()              2866
+  │   applyFilters, toggleFilter     2906 – 2920
+  │   resetFilters                   2922
+  │   filterOwned, removeQEFilter    2936 – 2971
+  │   buildQuickEntryList()          2973
+  │   goToMyCollection/WantList      3071 – 3085
+  │   renderOwnedItems               3087
+  │   filterWanted, filterByType     3101 – 3106
+  │   onPageSearch                   3108
+  │   renderBrowse()                 3127 – 3409
+  │   goPage()                       3410
+  │
+  ├─ ITEM INTERACTION MENUS          3413 – 3548
+  │   openPhotoWizard                3413
+  │   openPhotoFolder                3441
+  │   showOwnedItemMenu              3449
+  │   sellFromCollection             3519
+  │   updateCollectionItem           3544
+  │
+  ├─ ITEM PANEL (detail editor)      3548 – 3923
+  │   showItemPanel()                3548
+  │   renderFields() (inner fn)      3733
+  │   buildFooter() (inner fn)       3875
+  │
+  ├─ INSTRUCTION SHEET DETAIL        3924 – 3955
+  │   openISDetail()                 3924
+  │
+  ├─ BROWSE ROW CLICK HANDLER        3956 – 4097
+  │   browseRowClick()               3956
+  │   addFromBrowse()                4098
+  │
+  ├─ ITEM DETAIL MODAL               4120 – 4240
+  │   openItem()                     4120
+  │   fillItemFromBoxRow()           4208
+  │   closeModal, closeModalOnOverlay 4233
+  │
+  ├─ SAVE TO SHEETS                  4243 – 4375
+  │   setStatus()                    4243
+  │   saveItem()                     4267
+  │
+  ├─ REPORTS                         4376 – 4472
+  │   buildReport()                  4376
+  │   exportReport()                 4456
+  │
+  ├─ EPHEMERA PAGE                   4473 – 4606
+  │   buildEphemeraPage()            4473
+  │   switchEphTab()                 4491
+  │   openEphemeraDetail()           4535
+  │
+  ├─ WANT LIST PAGE                  4607 – 4690
+  │   buildWantPage()                4607
+  │
+  ├─ POPUPS (Var Desc, Want Desc)    4690 – 4761
+  │   showVarDescPopup()             4690
+  │   showWantDesc()                 4718
+  │
+  ├─ SOLD PAGE                       4762 – 4839
+  │   toggleSoldSummary()            4752
+  │   buildSoldPage()                4762
+  │
+  └─ PAGE NAVIGATION                 4834 – 4863
+      clearPageSearch()              4834
+      showPage()                     4840
+      parseJwt()                     4854
+
+SCRIPT BLOCK 3 (wizard + photos)     4868 – 8290
+  ┌─ WIZARD STEP DEFINITIONS         4883 – 5233
+  │   getSteps() — returns step      4883
+  │     arrays for each tab/category
+  │   startAddWizard, openWizard     5234 – 5256
+  │   closeWizard                    5257
+  │
+  ├─ WIZARD RENDERING                5266 – 6301
+  │   renderWizardStep()             5266
+  │     (massive fn — all step type rendering)
+  │
+  ├─ WIZARD INTERACTION              6302 – 6710
+  │   wizardChooseCategory()         6302
+  │   ensureUserDefinedSheet()       6334
+  │   wizardChooseTab()              6358
+  │   wizardChoose()                 6365
+  │   findPD, findPDKey              6376 – 6386
+  │   handlePhotoDrop/File           6388 – 6401
+  │   uploadWizardPhoto              6402
+  │   toggleBoxOnly()                6479
+  │   wizardChooseAndAdvance         6486
+  │   toggleAttachToBox              6492
+  │   wizardPickSoldItem/Row         6498 – 6515
+  │   wizardChooseVariation          6516
+  │   updateWizardPhoto              6521
+  │   updateItemSuggestions          6593 – 6675
+  │   selectSuggestion               6676
+  │   debounceItemLookup             6708
+  │   lookupItem()                   6713
+  │
+  ├─ WIZARD NAVIGATION               6794 – 6870
+  │   wizardBack()                   6794
+  │   wizardNextWithYearCheck()      6805
+  │   initCondDesc()                 6830
+  │   yearMadeReenter/Next           6838 – 6869
+  │
+  ├─ WIZARD SAVE LOGIC               6870 – 7760
+  │   wizardAdvance, wizardNext      6870 – 6894
+  │   _wizardNextCore()              6895
+  │   generateEphemeraItemNum()      6975
+  │   saveInstructionSheet()         6996
+  │   saveCatalogItem()              7040
+  │   saveEphemeraItem()             7126
+  │   savePhotoOnlyUpdate()          7193
+  │   saveWizardItem()               7227
+  │   quickEntryAdd()                7625
+  │   _showQuickEntryMultiUI         7686
+  │   _qeChip, _qeSelectChip        7759 – 7776
+  │
+  ├─ TOAST NOTIFICATIONS             7777 – 7805
+  │   showToast()                    7777
+  │
+  ├─ IDENTIFY ITEM (Gemini/Lens)     7806 – 7902
+  │   openIdentify, closeIdentify    7806 – 7817
+  │   openGoogleLens                 7818
+  │   useIdentifiedItem              7822
+  │   extractLionelNumber            7843
+  │   _applyIdentifiedItem           7862
+  │
+  ├─ PHOTOS PAGE                     7903 – 8244
+  │   buildPhotosTicker()            7903
+  │   loadTickerThumbs()             7943
+  │   loadDriveThumbUrl()            7964
+  │   _tickerClick()                 7978
+  │   onPhotosSearch()               7996
+  │   openPhotosViewer()             8034
+  │   loadPhotosFrame()              8099
+  │   photosNav/NavTo                8130 – 8148
+  │   renderPhotosDots               8136
+  │   renderPhotosItemHeader         8150
+  │   renderPhotosDetails            8167
+  │   photosOpenDrive                8198
+  │   setupPhotosSwipe               8203
+  │   buildPhotosPage()              8222
+  │
+  └─ PHOTO SOURCE PICKER             8250 – 8290
+      showPhotoSourcePicker()        8250
+      closePhotoPicker()             8269
+      pickerHandleFile()             8275
+
+HTML — Trailing Modals & Widgets     8291 – 8417
+  Identify Item modal                8291 – 8323
+  View Pictures page                 8325 – 8389
+  Photo Source Picker sheet          8390 – 8417
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1400,15 +1651,106 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 
 <!-- ══ SCRIPTS ══════════════════════════════════════════════════ -->
 <script>
-// ── CONFIG ─────────────────────────────────────────────────────
-// Replace with your actual Google OAuth Client ID after setup
-const CLIENT_ID = '161569968813-vrhet7p68vkthkunare60nqr34li5uuh.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
-const API_KEY = ''; // Set your Google Cloud API key in settings if needed
-// Gemini Vision API key — get a free key at https://aistudio.google.com/app/apikey
-// Paste your key here to enable photo-based item identification
-let GEMINI_KEY = localStorage.getItem('lv_gemini_key') || '';
-const PERSONAL_SHEET_NAME = 'Lionel Vault — My Collection'; // Sheet tab name — kept stable for existing users
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  CONFIGURATION — All hardcoded values in one place              ║
+// ╚══════════════════════════════════════════════════════════════════╝
+const CONFIG = {
+  // ── Google API ──────────────────────────────────────────────────
+  MASTER_SHEET_ID: '1M1i0hKHkN6WETaZnhIQvL4RzxQvDoddCk6bGJKRatW4',
+  CLIENT_ID: '161569968813-vrhet7p68vkthkunare60nqr34li5uuh.apps.googleusercontent.com',
+  SCOPES: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+  API_KEY: '',
+
+  // ── Sheet Tab Names ─────────────────────────────────────────────
+  MASTER_TAB:   'Master Inventory',
+  MASTER_TAB_FALLBACK: 'Sheet1',
+  PERSONAL_TAB: 'My Collection',
+  SOLD_TAB:     'Sold',
+  WANT_TAB:     'Want List',
+  CATALOG_TAB:  'Catalogs',
+  PAPER_TAB:    'Paper Items',
+  MOCKUP_TAB:   'Mock-Ups',
+  OTHER_TAB:    'Other Lionel',
+  IS_TAB:       'Instruction Sheets',
+  PERSONAL_SHEET_NAME: 'Lionel Vault — My Collection',
+
+  // ── Google Drive Folder Names ───────────────────────────────────
+  VAULT_FOLDER:  'Lionel Vault',
+  PHOTOS_FOLDER: 'Photos',
+  SOLD_PHOTOS_FOLDER: 'Sold Items',
+  CONFIG_FILE:   'lionel-vault-config.json',
+
+  // ── Cache ───────────────────────────────────────────────────────
+  CACHE_VERSION: '2',
+  CACHE_TTL_MS:  5 * 60 * 1000,  // 5 minutes
+
+  // ── localStorage Keys ───────────────────────────────────────────
+  LS: {
+    USER:            'lv_user',
+    TOKEN:           'lv_token',
+    MASTER_ID:       'lv_master_id',
+    PERSONAL_ID:     'lv_personal_id',
+    VAULT_ID:        'lv_vault_id',
+    PHOTOS_ID:       'lv_photos_id',
+    SOLD_PHOTOS_ID:  'lv_sold_photos_id',
+    CATALOGS_ID:     'lv_catalogs_id',
+    IS_ID:           'lv_is_id',
+    GEMINI_KEY:      'lv_gemini_key',
+    ONBOARDED:       'lv_onboarded',
+    USER_TABS:       'lv_user_tabs',
+    CACHE_VER:       'lv_cache_ver',
+    MASTER_CACHE:    'lv_master_cache',
+    MASTER_CACHE_TS: 'lv_master_cache_ts',
+    PERSONAL_CACHE:    'lv_personal_cache',
+    PERSONAL_CACHE_TS: 'lv_personal_cache_ts',
+    SOLD_SUMMARY:    'soldSummaryHidden',
+  },
+};
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  COLUMN INDEX MAPS — Named references to sheet columns          ║
+// ╚══════════════════════════════════════════════════════════════════╝
+// Master Inventory columns (A=0 through P=15)
+const MC = {
+  ITEM_NUM: 0, ITEM_TYPE: 1, SUB_TYPE: 2, ROAD_NAME: 3,
+  DESCRIPTION: 4, YEAR_PROD: 5, VARIATION: 6, VAR_DESC: 7,
+  RARITY: 8, RARITY_LABEL: 9, REF_LINK: 10, NOTES: 11,
+  EBAY_AVG: 12, EBAY_SAMPLE: 13, EBAY_UPDATED: 14, MARKET_VAL: 15,
+};
+
+// Personal Collection columns (A=0 through T=19)
+const PC = {
+  ITEM_NUM: 0, VARIATION: 1, CONDITION: 2, ALL_ORIGINAL: 3,
+  PRICE_ITEM: 4, PRICE_BOX: 5, PRICE_COMPLETE: 6,
+  HAS_BOX: 7, BOX_COND: 8,
+  PHOTO_ITEM: 9, PHOTO_BOX: 10,
+  NOTES: 11, DATE_PURCHASED: 12,
+  USER_EST_WORTH: 13, MATCHED_TO: 14, SET_ID: 15, YEAR_MADE: 16,
+  IS_ERROR: 17, ERROR_DESC: 18, QUICK_ENTRY: 19,
+};
+
+// Sold columns (A=0 through H=7)
+const SC = {
+  ITEM_NUM: 0, VARIATION: 1, COPY: 2, CONDITION: 3,
+  PRICE_ITEM: 4, SALE_PRICE: 5, DATE_SOLD: 6, NOTES: 7,
+};
+
+// Want List columns (A=0 through E=4)
+const WC = {
+  ITEM_NUM: 0, VARIATION: 1, PRIORITY: 2, EXPECTED_PRICE: 3, NOTES: 4,
+};
+
+// Instruction Sheet columns (A=0 through F=5)
+const ISC = {
+  SHEET_NUM: 0, LINKED_ITEM: 1, YEAR: 2, CONDITION: 3, NOTES: 4, PHOTO: 5,
+};
+
+// Backward-compatible aliases
+const CLIENT_ID = CONFIG.CLIENT_ID;
+const SCOPES = CONFIG.SCOPES;
+const API_KEY = CONFIG.API_KEY;
+let GEMINI_KEY = localStorage.getItem(CONFIG.LS.GEMINI_KEY) || '';
+const PERSONAL_SHEET_NAME = CONFIG.PERSONAL_SHEET_NAME;
 const PERSONAL_HEADERS = [
   'Item Number','Variation','Condition (1-10)','All Original',
   'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
@@ -1507,6 +1849,39 @@ function displayItemType(item, pd) {
   if (isBoxOnlyEntry(pd)) return 'Box';
   return item?.itemType || '';
 }
+
+// Returns the best display name for an item (roadName preferred, falls back to type)
+function displayItemName(item, pd) {
+  return item?.roadName || displayItemType(item, pd) || '—';
+}
+
+// Returns condition CSS class for pip coloring
+function conditionClass(cond) {
+  if (!cond) return '';
+  const n = parseInt(cond);
+  if (n >= 9) return 'cond-9';
+  if (n >= 7) return 'cond-7';
+  if (n >= 5) return 'cond-5';
+  return n ? 'cond-low' : '';
+}
+
+// Returns {class, text} for owned/wanted badge
+function ownerBadge(itemNum, variation, pd) {
+  const isOwned = pd?.owned || false;
+  const isWanted = !!state.wantData[`${itemNum}|${variation}`];
+  return {
+    class: isOwned ? 'yes' : isWanted ? 'want' : 'no',
+    text:  isOwned ? '✓ Owned' : isWanted ? '★ Want' : '—',
+  };
+}
+
+// Formats a numeric value as currency, or returns fallback
+function displayPrice(val, fallback) {
+  if (!val) return fallback || '—';
+  const n = parseFloat(val);
+  return isNaN(n) ? (fallback || '—') : '$' + n.toLocaleString();
+}
+
 function isLocomotive(itemNum) { return !!LOCO_TO_TENDERS[itemNum?.toString().trim()]; }
 function getMatchingTenders(itemNum) { return LOCO_TO_TENDERS[itemNum?.toString().trim()] || []; }
 function getMatchingLocos(tenderNum) { return TENDER_TO_LOCOS[tenderNum?.toString().trim()] || []; }
@@ -1552,11 +1927,11 @@ function initGoogle() {
     callback: onTokenReceived,
   });
 
-  // Check for existing session — master ID is hardcoded, just need saved user
-  const savedUser = localStorage.getItem('lv_user');
-  const savedPersonalId = localStorage.getItem('lv_personal_id');
-  state.masterSheetId = '1M1i0hKHkN6WETaZnhIQvL4RzxQvDoddCk6bGJKRatW4';
-  localStorage.setItem('lv_master_id', state.masterSheetId);
+  // Check for existing session — master ID from CONFIG, just need saved user
+  const savedUser = localStorage.getItem(CONFIG.LS.USER);
+  const savedPersonalId = localStorage.getItem(CONFIG.LS.PERSONAL_ID);
+  state.masterSheetId = CONFIG.MASTER_SHEET_ID;
+  localStorage.setItem(CONFIG.LS.MASTER_ID, state.masterSheetId);
 
   if (savedUser) {
     state.user = JSON.parse(savedUser);
@@ -1630,9 +2005,9 @@ function onTokenReceived(resp) {
     updateUserUI();
   }
 
-  // Master sheet is hardcoded
-  state.masterSheetId = '1M1i0hKHkN6WETaZnhIQvL4RzxQvDoddCk6bGJKRatW4';
-  localStorage.setItem('lv_master_id', state.masterSheetId);
+  // Master sheet from CONFIG
+  state.masterSheetId = CONFIG.MASTER_SHEET_ID;
+  localStorage.setItem(CONFIG.LS.MASTER_ID, state.masterSheetId);
 
   // Always sync from Drive config to ensure correct sheet ID across devices
   driveReadConfig().then(config => {
@@ -2426,22 +2801,22 @@ async function loadMasterData() {
 
 function parseMasterRows(rows) {
   state.masterData = rows.map(r => ({
-    itemNum:     r[0]  || '',
-    itemType:    r[1]  || '',
-    subType:     r[2]  || '',
-    roadName:    r[3]  || '',
-    description: r[4]  || '',
-    yearProd:    r[5]  || '',
-    variation:   r[6]  || '',
-    varDesc:     r[7]  || '',
-    rarity:      r[8]  || '',
-    rarityLabel: r[9]  || '',
-    refLink:     r[10] || '',
-    notes:       r[11] || '',
-    ebayAvg:     r[12] || '',
-    ebaySample:  r[13] || '',
-    ebayUpdated: r[14] || '',
-    marketVal:   r[15] || '',
+    itemNum:     r[MC.ITEM_NUM]     || '',
+    itemType:    r[MC.ITEM_TYPE]    || '',
+    subType:     r[MC.SUB_TYPE]     || '',
+    roadName:    r[MC.ROAD_NAME]    || '',
+    description: r[MC.DESCRIPTION]  || '',
+    yearProd:    r[MC.YEAR_PROD]    || '',
+    variation:   r[MC.VARIATION]    || '',
+    varDesc:     r[MC.VAR_DESC]     || '',
+    rarity:      r[MC.RARITY]       || '',
+    rarityLabel: r[MC.RARITY_LABEL] || '',
+    refLink:     r[MC.REF_LINK]     || '',
+    notes:       r[MC.NOTES]        || '',
+    ebayAvg:     r[MC.EBAY_AVG]     || '',
+    ebaySample:  r[MC.EBAY_SAMPLE]  || '',
+    ebayUpdated: r[MC.EBAY_UPDATED] || '',
+    marketVal:   r[MC.MARKET_VAL]   || '',
   }));
 }
 
@@ -2517,53 +2892,53 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
 
   // My Collection
   (collRes.values || []).forEach((r, idx) => {
-    if (!r[0] || r[0] === 'Item Number') return;
+    if (!r[PC.ITEM_NUM] || r[PC.ITEM_NUM] === 'Item Number') return;
     const rowNum = idx + 3;
-    const key = `${r[0]}|${r[1] || ''}|${rowNum}`;
+    const key = `${r[PC.ITEM_NUM]}|${r[PC.VARIATION] || ''}|${rowNum}`;
     newPersonal[key] = {
-      row: rowNum, itemNum: r[0]||'', variation: r[1]||'',
+      row: rowNum, itemNum: r[PC.ITEM_NUM]||'', variation: r[PC.VARIATION]||'',
       status: 'Owned', owned: true,
-      condition: r[2]||'', allOriginal: r[3]||'',
-      priceItem: r[4]||'', priceBox: r[5]||'', priceComplete: r[6]||'',
-      hasBox: r[7]||'', boxCond: r[8]||'',
-      photoItem: r[9]||'', photoBox: r[10]||'',
-      notes: r[11]||'', datePurchased: r[12]||'',
-      userEstWorth: r[13]||'', matchedTo: r[14]||'',
-      setId: r[15]||'', yearMade: r[16]||'',
-      isError: r[17]||'', errorDesc: r[18]||'',
-      quickEntry: r[19] === 'Yes',
+      condition: r[PC.CONDITION]||'', allOriginal: r[PC.ALL_ORIGINAL]||'',
+      priceItem: r[PC.PRICE_ITEM]||'', priceBox: r[PC.PRICE_BOX]||'', priceComplete: r[PC.PRICE_COMPLETE]||'',
+      hasBox: r[PC.HAS_BOX]||'', boxCond: r[PC.BOX_COND]||'',
+      photoItem: r[PC.PHOTO_ITEM]||'', photoBox: r[PC.PHOTO_BOX]||'',
+      notes: r[PC.NOTES]||'', datePurchased: r[PC.DATE_PURCHASED]||'',
+      userEstWorth: r[PC.USER_EST_WORTH]||'', matchedTo: r[PC.MATCHED_TO]||'',
+      setId: r[PC.SET_ID]||'', yearMade: r[PC.YEAR_MADE]||'',
+      isError: r[PC.IS_ERROR]||'', errorDesc: r[PC.ERROR_DESC]||'',
+      quickEntry: r[PC.QUICK_ENTRY] === 'Yes',
     };
   });
 
   // Sold
   (soldRes.values || []).forEach((r, idx) => {
-    if (!r[0] || r[0] === 'Item Number') return;
-    const key = `${r[0]}|${r[1]||''}`;
+    if (!r[SC.ITEM_NUM] || r[SC.ITEM_NUM] === 'Item Number') return;
+    const key = `${r[SC.ITEM_NUM]}|${r[SC.VARIATION]||''}`;
     newSold[key] = {
-      row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
-      copy: r[2]||'1', condition: r[3]||'', priceItem: r[4]||'',
-      salePrice: r[5]||'', dateSold: r[6]||'', notes: r[7]||'',
+      row: idx+3, itemNum: r[SC.ITEM_NUM]||'', variation: r[SC.VARIATION]||'',
+      copy: r[SC.COPY]||'1', condition: r[SC.CONDITION]||'', priceItem: r[SC.PRICE_ITEM]||'',
+      salePrice: r[SC.SALE_PRICE]||'', dateSold: r[SC.DATE_SOLD]||'', notes: r[SC.NOTES]||'',
     };
   });
 
   // Want List
   (wantRes.values || []).forEach((r, idx) => {
-    if (!r[0] || r[0] === 'Item Number') return;
-    const key = `${r[0]}|${r[1]||''}`;
+    if (!r[WC.ITEM_NUM] || r[WC.ITEM_NUM] === 'Item Number') return;
+    const key = `${r[WC.ITEM_NUM]}|${r[WC.VARIATION]||''}`;
     newWant[key] = {
-      row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
-      priority: r[2]||'Medium', expectedPrice: r[3]||'', notes: r[4]||'',
+      row: idx+3, itemNum: r[WC.ITEM_NUM]||'', variation: r[WC.VARIATION]||'',
+      priority: r[WC.PRIORITY]||'Medium', expectedPrice: r[WC.EXPECTED_PRICE]||'', notes: r[WC.NOTES]||'',
     };
   });
 
   // Instruction Sheets
   const _isRows = (isRes && isRes.values) || [];
   _isRows.forEach((r, idx) => {
-    if (!r[0] || r[0] === 'Sheet #' || r[0] === 'Instruction Sheets') return;
+    if (!r[ISC.SHEET_NUM] || r[ISC.SHEET_NUM] === 'Sheet #' || r[ISC.SHEET_NUM] === 'Instruction Sheets') return;
     const key = idx + 3;
     newIsData[key] = {
-      row: key, sheetNum: r[0]||'', linkedItem: r[1]||'', year: r[2]||'',
-      condition: r[3]||'', notes: r[4]||'', photoLink: r[5]||'',
+      row: key, sheetNum: r[ISC.SHEET_NUM]||'', linkedItem: r[ISC.LINKED_ITEM]||'', year: r[ISC.YEAR]||'',
+      condition: r[ISC.CONDITION]||'', notes: r[ISC.NOTES]||'', photoLink: r[ISC.PHOTO]||'',
     };
   });
 
@@ -3255,7 +3630,7 @@ function renderBrowse() {
       if (r._divider) return `<tr><td colspan="9" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
       const it = r.item;
       const cond = it.condition ? parseInt(it.condition) : null;
-      const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
+      const condClass = conditionClass(cond);
       if (r._is) {
         return `<tr onclick="openISDetail(${it.row})" style="cursor:pointer">
           <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:#16a085;font-weight:600">${it.sheetNum}</span></td>
@@ -3297,7 +3672,7 @@ function renderBrowse() {
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
     const cond = pd?.condition ? parseInt(pd.condition) : null;
-    const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
+    const condClass = conditionClass(cond);
     let globalIdx = state.masterData.indexOf(item);
     // For _personalOnly items not in masterData, use negative index via global array
     if (globalIdx < 0 && item._personalOnly) {
