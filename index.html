@@ -1422,10 +1422,10 @@ const PERSONAL_HEADERS = [
 ];
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
-  'Sale Price','Date Sold','Notes'
+  'Sale Price','Date Sold','Notes','Inventory ID','Group ID'
 ];
 const WANT_HEADERS = [
-  'Item Number','Variation','Priority','Expected Price','Notes'
+  'Item Number','Variation','Priority','Expected Price','Notes','Inventory ID','Group ID'
 ];
 
 // Ephemera tab definitions — shared structure, one tab per category
@@ -1437,20 +1437,20 @@ const EPHEMERA_TABS = [
 ];
 const EPHEMERA_HEADERS = [
   'Item ID','Title','Description','Year','Manufacturer','Condition (1-10)',
-  'Quantity','Est. Value','Photo Link','Notes','Date Acquired'
+  'Quantity','Est. Value','Photo Link','Notes','Date Acquired','Inventory ID','Group ID'
 ];
 const CATALOG_HEADERS = [
   'Item ID','Type','Year','Has Envelope/Mailer','Condition (1-10)',
-  'Est. Value','Date Acquired','Notes','Photo Link'
+  'Est. Value','Date Acquired','Notes','Photo Link','Inventory ID','Group ID'
 ];
 // Mock-ups get extra columns
 const IS_HEADERS = [
-  'Sheet #','Linked Item #','Year/Date Printed','Condition (1-10)','Notes','Photo Link'
+  'Sheet #','Linked Item #','Year/Date Printed','Condition (1-10)','Notes','Photo Link','Inventory ID','Group ID'
 ];
 const MOCKUP_HEADERS = [
   'Title','Item Number Ref','Description','Year','Manufacturer',
   'Condition (1-10)','Production Status','Material','Dimensions',
-  'Provenance','Lionel Verified','Est. Value','Photo Link','Notes','Date Acquired'
+  'Provenance','Lionel Verified','Est. Value','Photo Link','Notes','Date Acquired','Inventory ID','Group ID'
 ];
 
 // ── TENDER / LOCOMOTIVE RELATIONSHIPS ──────────────────────────
@@ -1811,9 +1811,9 @@ async function initPersonalSheet(sheetId) {
 
   // Write headers to all tabs
   await sheetsUpdate(sheetId, 'Sold!A1:A1',      [['Sold']]);
-  await sheetsUpdate(sheetId, 'Sold!A2:H2',      [SOLD_HEADERS]);
+  await sheetsUpdate(sheetId, 'Sold!A2:J2',      [SOLD_HEADERS]);
   await sheetsUpdate(sheetId, 'Want List!A1:A1', [['Want List']]);
-  await sheetsUpdate(sheetId, 'Want List!A2:E2', [WANT_HEADERS]);
+  await sheetsUpdate(sheetId, 'Want List!A2:G2', [WANT_HEADERS]);
 
   // Ephemera tabs
   await ensureEphemeraSheets(sheetId);
@@ -1875,13 +1875,13 @@ async function ensureEphemeraSheets(sheetId) {
   }));
   // Use values API to clear then rewrite cleanly
   await sheetsUpdate(sheetId, 'Catalogs!A1:P1',    [['Catalogs','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Catalogs!A2:P2',    [CATALOG_HEADERS.concat(['','','','','','',''])]);
+  await sheetsUpdate(sheetId, 'Catalogs!A2:K2',    [CATALOG_HEADERS.concat(['','','','','','',''])]);
   await sheetsUpdate(sheetId, 'Paper Items!A1:P1', [['Paper Items','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Paper Items!A2:P2', [EPHEMERA_HEADERS.concat(['','','','',''])]);
+  await sheetsUpdate(sheetId, 'Paper Items!A2:M2', [EPHEMERA_HEADERS.concat(['','','','',''])]);
   await sheetsUpdate(sheetId, 'Mock-Ups!A1:P1',    [['Mock-Ups','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Mock-Ups!A2:P2',    [MOCKUP_HEADERS.concat([''])]);
+  await sheetsUpdate(sheetId, 'Mock-Ups!A2:Q2',    [MOCKUP_HEADERS.concat([''])]);
   await sheetsUpdate(sheetId, 'Other Lionel!A1:P1',[['Other Lionel','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Other Lionel!A2:P2',[EPHEMERA_HEADERS.concat(['','','','',''])]);
+  await sheetsUpdate(sheetId, 'Other Lionel!A2:M2',[EPHEMERA_HEADERS.concat(['','','','',''])]);
   _ensureEphemDone = true;  // Don't run again this session
   // Instruction Sheets tab
   if (!existingTabs.includes('Instruction Sheets')) {
@@ -1891,7 +1891,7 @@ async function ensureEphemeraSheets(sheetId) {
     });
   }
   await sheetsUpdate(sheetId, 'Instruction Sheets!A1:A1', [['Instruction Sheets']]);
-  await sheetsUpdate(sheetId, 'Instruction Sheets!A2:F2', [IS_HEADERS]);
+  await sheetsUpdate(sheetId, 'Instruction Sheets!A2:H2', [IS_HEADERS]);
 }
 
 
@@ -2405,7 +2405,7 @@ async function loadAllData() {
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '5';
+  const _CACHE_VER = '6';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -2527,13 +2527,13 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   const [collRes, soldRes, wantRes,
          catRes, paperRes, mockRes, otherRes, isRes] = await Promise.all([
     sheetsGet(sheetId, 'My Collection!A3:V').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Sold!A3:H').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Want List!A3:E').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Catalogs!A3:I').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Paper Items!A3:J').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Mock-Ups!A3:O').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Other Lionel!A3:J').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Instruction Sheets!A3:F').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Sold!A3:J').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Want List!A3:G').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Catalogs!A3:K').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Paper Items!A3:M').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Mock-Ups!A3:Q').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Other Lionel!A3:M').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Instruction Sheets!A3:H').catch(() => ({values:[]})),
   ]);
 
   // My Collection
@@ -2565,6 +2565,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
       copy: r[2]||'1', condition: r[3]||'', priceItem: r[4]||'',
       salePrice: r[5]||'', dateSold: r[6]||'', notes: r[7]||'',
+      inventoryId: r[8]||'', groupId: r[9]||'',
     };
   });
 
@@ -2575,6 +2576,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     newWant[key] = {
       row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
       priority: r[2]||'Medium', expectedPrice: r[3]||'', notes: r[4]||'',
+      inventoryId: r[5]||'', groupId: r[6]||'',
     };
   });
 
@@ -2586,6 +2588,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     newIsData[key] = {
       row: key, sheetNum: r[0]||'', linkedItem: r[1]||'', year: r[2]||'',
       condition: r[3]||'', notes: r[4]||'', photoLink: r[5]||'',
+      inventoryId: r[6]||'', groupId: r[7]||'',
     };
   });
 
@@ -2604,6 +2607,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
           row: key, itemNum: r[0]||'', title: r[1]||'', description: r[2]||'', year: r[3]||'',
           manufacturer: r[4]||'Lionel', condition: r[5]||'', quantity: r[6]||'1',
           estValue: r[7]||'', photoLink: r[8]||'', notes: r[9]||'', dateAcquired: r[10]||'',
+          inventoryId: r[11]||'', groupId: r[12]||'',
         };
       } else {
         // Legacy row without Item ID
@@ -2611,6 +2615,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
           row: key, itemNum: '', title: r[0]||'', description: r[1]||'', year: r[2]||'',
           manufacturer: r[3]||'Lionel', condition: r[4]||'', quantity: r[5]||'1',
           estValue: r[6]||'', photoLink: r[7]||'', notes: r[8]||'', dateAcquired: r[9]||'',
+          inventoryId: r[10]||'', groupId: r[11]||'',
         };
       }
     });
@@ -2629,6 +2634,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       catType, year, hasMailer: r[3]||'No',
       condition: r[4]||'', estValue: r[5]||'', dateAcquired: r[6]||'',
       notes: r[7]||'', photoLink: r[8]||'',
+      inventoryId: r[9]||'', groupId: r[10]||'',
     };
   });
   parseEphemeraRows(paperRes.values, newEphemera.paper);
@@ -2643,7 +2649,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
 
   // User-defined tabs — load their sheet data
   const _utPromises = (state.userDefinedTabs||[]).map(ut =>
-    sheetsGet(sheetId, ut.label + '!A3:J').catch(() => ({values:[]}))
+    sheetsGet(sheetId, ut.label + '!A3:M').catch(() => ({values:[]}))
       .then(utRes => parseEphemeraRows(utRes.values, newEphemera[ut.id]))
       .catch(() => {})
   );
@@ -2659,6 +2665,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       productionStatus: r[6]||'', material: r[7]||'', dimensions: r[8]||'',
       provenance: r[9]||'', lionelVerified: r[10]||'', estValue: r[11]||'',
       photoLink: r[12]||'', notes: r[13]||'', dateAcquired: r[14]||'',
+      inventoryId: r[15]||'', groupId: r[16]||'',
     };
   });
 
@@ -4341,12 +4348,12 @@ async function saveItem() {
     // Remove from Sold tab if it was there
     const soldEntry = state.soldData[key];
     if (soldEntry && soldEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:H${soldEntry.row}`, [['','','','','','','','']]);
+      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:J${soldEntry.row}`, [['','','','','','','','','','']]);
     }
     // Remove from Want List if it was there
     const wantEntry = state.wantData[key];
     if (wantEntry && wantEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:E${wantEntry.row}`, [['','','','','']]);
+      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:G${wantEntry.row}`, [['','','','','','','']]);
     }
 
   } else if (currentStatus === 'Sold') {
@@ -4362,10 +4369,12 @@ async function saveItem() {
       document.getElementById('fc-sale-price').value,
       document.getElementById('fc-date-sold').value,
       document.getElementById('fc-notes').value,
+      existing?.inventoryId || generateInventoryId(),
+      existing?.groupId || '',
     ];
     const soldEntry = state.soldData[key];
     if (soldEntry && soldEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:H${soldEntry.row}`, [soldRow]);
+      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:J${soldEntry.row}`, [soldRow]);
     } else {
       await sheetsAppend(state.personalSheetId, 'Sold!A:A', [soldRow]);
     }
@@ -4383,10 +4392,12 @@ async function saveItem() {
       document.getElementById('fc-want-priority').value,
       document.getElementById('fc-want-price').value,
       document.getElementById('fc-want-notes').value,
+      generateInventoryId(),
+      '',
     ];
     const wantEntry = state.wantData[key];
     if (wantEntry && wantEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:E${wantEntry.row}`, [wantRow]);
+      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:G${wantEntry.row}`, [wantRow]);
     } else {
       await sheetsAppend(state.personalSheetId, 'Want List!A:A', [wantRow]);
     }
@@ -6388,7 +6399,7 @@ async function ensureUserDefinedSheet(id, label) {
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: label } } }] }),
       });
       await sheetsUpdate(state.personalSheetId, `${label}!A1:A1`, [[label]]);
-      await sheetsUpdate(state.personalSheetId, `${label}!A2:J2`, [EPHEMERA_HEADERS]);
+      await sheetsUpdate(state.personalSheetId, `${label}!A2:M2`, [EPHEMERA_HEADERS]);
     }
     // Initialize in state
     if (!state.ephemeraData[id]) state.ephemeraData[id] = {};
@@ -7060,7 +7071,24 @@ async function saveInstructionSheet() {
     } catch(e) { console.warn('IS photo folder:', e); }
   }
 
-  const row = [sheetNum, linkedItem, d.is_year||'', d.is_condition||'', d.is_notes||'', photoLink];
+  // Generate IDs — if linked to a collection item, share its groupId
+  const _isInvId = generateInventoryId();
+  let _isGrpId = '';
+  if (linkedItem) {
+    const _linkedPd = Object.values(state.personalData).find(pd => pd.itemNum === linkedItem);
+    if (_linkedPd && _linkedPd.groupId) {
+      _isGrpId = _linkedPd.groupId;
+    } else if (_linkedPd) {
+      // Create a new group and update the linked item too
+      _isGrpId = generateGroupId();
+      if (_linkedPd.row) {
+        sheetsUpdate(state.personalSheetId, `My Collection!V${_linkedPd.row}`, [[_isGrpId]]).catch(e => console.warn('IS group backfill:', e));
+        _linkedPd.groupId = _isGrpId;
+      }
+    }
+  }
+
+  const row = [sheetNum, linkedItem, d.is_year||'', d.is_condition||'', d.is_notes||'', photoLink, _isInvId, _isGrpId];
   try {
     await ensureEphemeraSheets(state.personalSheetId);
     await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:A', [row]);
@@ -7068,6 +7096,7 @@ async function saveInstructionSheet() {
     state.isData[newKey] = {
       row: newKey, sheetNum, linkedItem, year: d.is_year||'',
       condition: d.is_condition||'', notes: d.is_notes||'', photoLink,
+      inventoryId: _isInvId, groupId: _isGrpId,
     };
     showToast('✓ Instruction Sheet ' + sheetNum + ' saved!');
     closeWizard();
@@ -7111,6 +7140,7 @@ async function saveCatalogItem() {
     } catch(e) { console.warn('Drive folder:', e); }
   }
 
+  const _catInvId = generateInventoryId();
   const row = [
     itemNum,
     d.cat_type || '',
@@ -7121,15 +7151,17 @@ async function saveCatalogItem() {
     d.cat_dateAcquired || '',
     d.cat_notes || '',
     photoFolderLink,
+    _catInvId,
+    '',
   ];
   try {
     // Ensure Catalogs tab exists with proper headers before appending
     await ensureEphemeraSheets(state.personalSheetId);
-    const appendResult = await sheetsAppend(state.personalSheetId, 'Catalogs!A:I', [row]);
+    const appendResult = await sheetsAppend(state.personalSheetId, 'Catalogs!A:K', [row]);
     // Reload catalog rows from sheet to get accurate row numbers
     if (!state.ephemeraData.catalogs) state.ephemeraData.catalogs = {};
     try {
-      const freshCat = await sheetsGet(state.personalSheetId, 'Catalogs!A3:I');
+      const freshCat = await sheetsGet(state.personalSheetId, 'Catalogs!A3:K');
       state.ephemeraData.catalogs = {};
       (freshCat.values || []).forEach((r, idx) => {
         if (!r[0] || r[0] === 'Item ID' || r[0] === 'Type' || r[0] === 'Catalogs') return;
@@ -7141,6 +7173,7 @@ async function saveCatalogItem() {
           catType: catType2, year: year2, hasMailer: r[3]||'No',
           condition: r[4]||'', estValue: r[5]||'', dateAcquired: r[6]||'',
           notes: r[7]||'', photoLink: r[8]||'',
+          inventoryId: r[9]||'', groupId: r[10]||'',
         };
       });
     } catch(e) {
@@ -7174,6 +7207,8 @@ async function saveEphemeraItem() {
 
   const ephItemNum = generateEphemeraItemNum(tab, d.eph_year || '', '');
 
+  const _ephInvId = generateInventoryId();
+
   let row;
   if (tab === 'mockups') {
     row = [
@@ -7184,6 +7219,7 @@ async function saveEphemeraItem() {
       d.eph_provenance||'', d.eph_lionelVerified||'', d.eph_estValue||'',
       '', // photo link
       d.eph_notes||'', d.eph_dateAcquired||'',
+      _ephInvId, '',
     ];
   } else {
     row = [
@@ -7193,11 +7229,12 @@ async function saveEphemeraItem() {
       d.eph_quantity||'1', d.eph_estValue||'',
       '', // photo link
       d.eph_notes||'', d.eph_dateAcquired||'',
+      _ephInvId, '',
     ];
   }
 
   try {
-    await sheetsAppend(state.personalSheetId, sheetName + '!A:P', [row]);
+    await sheetsAppend(state.personalSheetId, sheetName + '!A:Q', [row]);
     // Add to local state
     const bucket = state.ephemeraData[tab] || {};
     const newKey = Date.now();
@@ -7210,6 +7247,7 @@ async function saveEphemeraItem() {
         dimensions: d.eph_dimensions||'', provenance: d.eph_provenance||'',
         lionelVerified: d.eph_lionelVerified||'', estValue: d.eph_estValue||'',
         photoLink: '', notes: d.eph_notes||'', dateAcquired: d.eph_dateAcquired||'',
+        inventoryId: _ephInvId, groupId: '',
       };
     } else {
       bucket[newKey] = {
@@ -7218,6 +7256,7 @@ async function saveEphemeraItem() {
         condition: d.eph_condition||'', quantity: d.eph_quantity||'1',
         estValue: d.eph_estValue||'', photoLink: '', notes: d.eph_notes||'',
         dateAcquired: d.eph_dateAcquired||'',
+        inventoryId: _ephInvId, groupId: '',
       };
     }
     state.ephemeraData[tab] = bucket;
@@ -7565,11 +7604,13 @@ async function saveWizardItem() {
         d.salePrice || '',
         d.dateSold || '',
         ( d.notes || '' ).trim(),
+        collectionEntry?.inventoryId || generateInventoryId(),
+        collectionEntry?.groupId || '',
       ];
       const soldKey = `${itemNum}|${soldVariation}`;
       const existingSold = state.soldData[soldKey];
       if (existingSold?.row) {
-        await sheetsUpdate(state.personalSheetId, `Sold!A${existingSold.row}:H${existingSold.row}`, [row]);
+        await sheetsUpdate(state.personalSheetId, `Sold!A${existingSold.row}:J${existingSold.row}`, [row]);
       } else {
         await sheetsAppend(state.personalSheetId, 'Sold!A:A', [row]);
       }
@@ -7588,10 +7629,12 @@ async function saveWizardItem() {
         d.priority || 'Medium',
         d.expectedPrice || '',
         ( d.notes || '' ).trim(),
+        generateInventoryId(),
+        '',
       ];
       const existing = state.wantData[key];
       if (existing?.row) {
-        await sheetsUpdate(state.personalSheetId, `Want List!A${existing.row}:E${existing.row}`, [row]);
+        await sheetsUpdate(state.personalSheetId, `Want List!A${existing.row}:G${existing.row}`, [row]);
       } else {
         await sheetsAppend(state.personalSheetId, 'Want List!A:A', [row]);
       }
@@ -7617,12 +7660,14 @@ async function saveWizardItem() {
             await driveUploadPhoto(fileObj.file, fname, isFolderId).catch(e => console.warn(e));
           }
         }
-        const isRow = [isSheetNum, itemNum, '', d.is_condition || '', '', isPhotoLink];
+        const _isInvId2 = generateInventoryId();
+        const isRow = [isSheetNum, itemNum, '', d.is_condition || '', '', isPhotoLink, _isInvId2, _grpId || ''];
         await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:A', [isRow]);
         const newISKey = Date.now();
         state.isData[newISKey] = {
           row: newISKey, sheetNum: isSheetNum, linkedItem: itemNum,
           year: '', condition: d.is_condition || '', notes: '', photoLink: isPhotoLink,
+          inventoryId: _isInvId2, groupId: _grpId || '',
         };
       } catch(e) { console.warn('IS save error:', e); }
     }
