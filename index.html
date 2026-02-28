@@ -927,7 +927,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <div class="stat-card" style="--card-accent: var(--gold,#c9922a)">
             <div class="stat-label">Collection Value</div>
             <div class="stat-value" id="stat-value">—</div>
-            <div class="stat-sub">total paid</div>
+            <div class="stat-sub">per user</div>
           </div>
           <div class="stat-card" style="--card-accent: #8b5cf6">
             <div class="stat-label">Est. Market Value</div>
@@ -1010,7 +1010,6 @@ document.addEventListener('touchmove', function(){}, {passive: true});
                 <th>Var.</th>
                 <th>Var. Descr.</th>
                 <th>Year</th>
-                <th>Rarity</th>
                 <th>Owned</th>
                 <th>Cond.</th>
                 <th>Market Value</th>
@@ -1208,10 +1207,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <div class="info-field"><label>Road Name</label><div class="info-val" id="mi-road"></div></div>
           <div class="info-field"><label>Variation</label><div class="info-val" id="mi-var"></div></div>
           <div class="info-field"><label>Est. Market Value</label><div class="info-val market-val" id="mi-market"></div></div>
-          <div class="info-field"><label>Rarity</label><div class="info-val" id="mi-rarity"></div></div>
           <div class="info-field"><label>COTT Reference</label><div class="info-val" id="mi-ref"></div></div>
-          <div class="info-field" id="mi-invid-wrap" style="display:none"><label>Inventory ID</label><div class="info-val" id="mi-invid" style="font-family:var(--font-mono);font-size:0.82rem"></div></div>
-          <div class="info-field" id="mi-grpid-wrap" style="display:none"><label>Group ID</label><div class="info-val" id="mi-grpid" style="font-family:var(--font-mono);font-size:0.82rem;color:#a855f7"></div></div>
         </div>
         <div id="mi-desc-wrap" style="margin-top:0.75rem">
           <div class="desc-block" id="mi-desc"></div>
@@ -1418,14 +1414,14 @@ const PERSONAL_HEADERS = [
   'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
   'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes',
   'Date Purchased','User Est. Worth','Matched Tender/Engine','Set ID','Year Made',
-  'Is Error','Error Description','Quick Entry','Inventory ID','Group ID','Item Type'
+  'Is Error','Error Description','Quick Entry'
 ];
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
-  'Sale Price','Date Sold','Notes','Inventory ID','Group ID'
+  'Sale Price','Date Sold','Notes'
 ];
 const WANT_HEADERS = [
-  'Item Number','Variation','Priority','Expected Price','Notes','Inventory ID','Group ID'
+  'Item Number','Variation','Priority','Expected Price','Notes'
 ];
 
 // Ephemera tab definitions — shared structure, one tab per category
@@ -1437,20 +1433,20 @@ const EPHEMERA_TABS = [
 ];
 const EPHEMERA_HEADERS = [
   'Item ID','Title','Description','Year','Manufacturer','Condition (1-10)',
-  'Quantity','Est. Value','Photo Link','Notes','Date Acquired','Inventory ID','Group ID'
+  'Quantity','Est. Value','Photo Link','Notes','Date Acquired'
 ];
 const CATALOG_HEADERS = [
   'Item ID','Type','Year','Has Envelope/Mailer','Condition (1-10)',
-  'Est. Value','Date Acquired','Notes','Photo Link','Inventory ID','Group ID'
+  'Est. Value','Date Acquired','Notes','Photo Link'
 ];
 // Mock-ups get extra columns
 const IS_HEADERS = [
-  'Sheet #','Linked Item #','Year/Date Printed','Condition (1-10)','Notes','Photo Link','Inventory ID','Group ID'
+  'Sheet #','Linked Item #','Year/Date Printed','Condition (1-10)','Notes','Photo Link'
 ];
 const MOCKUP_HEADERS = [
   'Title','Item Number Ref','Description','Year','Manufacturer',
   'Condition (1-10)','Production Status','Material','Dimensions',
-  'Provenance','Lionel Verified','Est. Value','Photo Link','Notes','Date Acquired','Inventory ID','Group ID'
+  'Provenance','Lionel Verified','Est. Value','Photo Link','Notes','Date Acquired'
 ];
 
 // ── TENDER / LOCOMOTIVE RELATIONSHIPS ──────────────────────────
@@ -1489,7 +1485,7 @@ function isF3AlcoUnit(itemNum) {
   return state.masterData.some(m =>
     normalizeItemNum(m.itemNum) === num &&
     m.itemType === 'Diesel Locomotive' &&
-    (m.description || '').match(/F-3|F3|Alco FA|FA No\.|FA-|ALCO A-A|Alco A-A|ALCO AA|Alco AA|A-A set|AA set/i)
+    (m.description || '').match(/F-3|F3|Alco FA|FA No\.|FA-/)
   );
 }
 function genSetId(baseNum) {
@@ -1497,6 +1493,20 @@ function genSetId(baseNum) {
 }
 
 function isTender(itemNum) { return !!TENDER_TO_LOCOS[itemNum?.toString().trim().toUpperCase()] || !!TENDER_TO_LOCOS[itemNum?.toString().trim()]; }
+
+// Check if a personal data entry is a box-only row (has box but no item info)
+function isBoxOnlyEntry(pd) {
+  if (!pd) return false;
+  const noCondition = !pd.condition || pd.condition === 'N/A';
+  const noItemPrice = !pd.priceItem || pd.priceItem === 'N/A';
+  return pd.hasBox === 'Yes' && noCondition && noItemPrice;
+}
+
+// Returns the display type — "Box" for box-only entries, otherwise the original itemType
+function displayItemType(item, pd) {
+  if (isBoxOnlyEntry(pd)) return 'Box';
+  return item?.itemType || '';
+}
 function isLocomotive(itemNum) { return !!LOCO_TO_TENDERS[itemNum?.toString().trim()]; }
 function getMatchingTenders(itemNum) { return LOCO_TO_TENDERS[itemNum?.toString().trim()] || []; }
 function getMatchingLocos(tenderNum) { return TENDER_TO_LOCOS[tenderNum?.toString().trim()] || []; }
@@ -1511,37 +1521,6 @@ function findOwnedMatch(itemNum) {
     if (owned) return { itemNum: num, pd: owned };
   }
   return null;
-}
-
-// ── INVENTORY ID & GROUP ID ─────────────────────────────────────
-let _invCounter = 0;  // running counter to prevent duplicates within a save session
-let _grpCounter = 0;
-
-function _syncInventoryCounter() {
-  // Ensure counter is at least as high as what's already in the data
-  Object.values(state.personalData).forEach(pd => {
-    const m = (pd.inventoryId || '').match(/^INV-(\d+)$/);
-    if (m) _invCounter = Math.max(_invCounter, parseInt(m[1]));
-  });
-}
-
-function generateInventoryId() {
-  _syncInventoryCounter();
-  _invCounter++;
-  return 'INV-' + String(_invCounter).padStart(4, '0');
-}
-
-function _syncGroupCounter() {
-  Object.values(state.personalData).forEach(pd => {
-    const m = (pd.groupId || '').match(/^GRP-(\d+)$/);
-    if (m) _grpCounter = Math.max(_grpCounter, parseInt(m[1]));
-  });
-}
-
-function generateGroupId() {
-  _syncGroupCounter();
-  _grpCounter++;
-  return 'GRP-' + String(_grpCounter).padStart(4, '0');
 }
 
 // ── STATE ───────────────────────────────────────────────────────
@@ -1576,7 +1555,7 @@ function initGoogle() {
   // Check for existing session — master ID is hardcoded, just need saved user
   const savedUser = localStorage.getItem('lv_user');
   const savedPersonalId = localStorage.getItem('lv_personal_id');
-  state.masterSheetId = '1M1i0hKHkN6WETaZnhIQvL4RzxQvDoddCk6bGJKRatW4';
+  state.masterSheetId = '1cLmCcI4Ekao2gn-TntAGjhsPrIYe39-cX6rV1WAyDCM';
   localStorage.setItem('lv_master_id', state.masterSheetId);
 
   if (savedUser) {
@@ -1652,7 +1631,7 @@ function onTokenReceived(resp) {
   }
 
   // Master sheet is hardcoded
-  state.masterSheetId = '1M1i0hKHkN6WETaZnhIQvL4RzxQvDoddCk6bGJKRatW4';
+  state.masterSheetId = '1cLmCcI4Ekao2gn-TntAGjhsPrIYe39-cX6rV1WAyDCM';
   localStorage.setItem('lv_master_id', state.masterSheetId);
 
   // Always sync from Drive config to ensure correct sheet ID across devices
@@ -1783,10 +1762,10 @@ async function initPersonalSheet(sheetId) {
   if (rows.length === 0 || !rows[0] || rows[0].length === 0) {
     // Brand new sheet — write title row 1 and headers row 2
     await sheetsUpdate(sheetId, 'My Collection!A1:A1', [['My Collection']]);
-    await sheetsUpdate(sheetId, 'My Collection!A2:W2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
   } else if (rows.length === 1 || !rows[1] || rows[1].length < 13) {
     // Has title but missing/old headers — rewrite row 2
-    await sheetsUpdate(sheetId, 'My Collection!A2:W2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
   }
   // Get existing sheet tab names
   const metaRes = await fetch(
@@ -1811,23 +1790,26 @@ async function initPersonalSheet(sheetId) {
 
   // Write headers to all tabs
   await sheetsUpdate(sheetId, 'Sold!A1:A1',      [['Sold']]);
-  await sheetsUpdate(sheetId, 'Sold!A2:J2',      [SOLD_HEADERS]);
+  await sheetsUpdate(sheetId, 'Sold!A2:H2',      [SOLD_HEADERS]);
   await sheetsUpdate(sheetId, 'Want List!A1:A1', [['Want List']]);
-  await sheetsUpdate(sheetId, 'Want List!A2:G2', [WANT_HEADERS]);
+  await sheetsUpdate(sheetId, 'Want List!A2:E2', [WANT_HEADERS]);
+
+  // Ephemera tabs
+  await ensureEphemeraSheets(sheetId);
 }
 
 let _ensureEphemDone = false;
 async function ensurePersonalHeaders(sheetId) {
   if (!sheetId) return;
   try {
-    // Fetch current row 2 headers (A2:V2)
-    const res = await sheetsGet(sheetId, 'My Collection!A2:W2');
+    // Fetch current row 2 headers (A2:T2)
+    const res = await sheetsGet(sheetId, 'My Collection!A2:T2');
     const current = (res.values && res.values[0]) || [];
 
     // Check each expected header — write the full row if anything is missing or wrong
     const needsUpdate = PERSONAL_HEADERS.some((h, i) => current[i] !== h);
     if (needsUpdate) {
-      await sheetsUpdate(sheetId, 'My Collection!A2:W2', [PERSONAL_HEADERS]);
+      await sheetsUpdate(sheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
       console.log('[Headers] My Collection headers repaired');
     }
 
@@ -1872,13 +1854,13 @@ async function ensureEphemeraSheets(sheetId) {
   }));
   // Use values API to clear then rewrite cleanly
   await sheetsUpdate(sheetId, 'Catalogs!A1:P1',    [['Catalogs','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Catalogs!A2:K2',    [CATALOG_HEADERS.concat(['','','','','','',''])]);
+  await sheetsUpdate(sheetId, 'Catalogs!A2:P2',    [CATALOG_HEADERS.concat(['','','','','','',''])]);
   await sheetsUpdate(sheetId, 'Paper Items!A1:P1', [['Paper Items','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Paper Items!A2:M2', [EPHEMERA_HEADERS.concat(['','','','',''])]);
+  await sheetsUpdate(sheetId, 'Paper Items!A2:P2', [EPHEMERA_HEADERS.concat(['','','','',''])]);
   await sheetsUpdate(sheetId, 'Mock-Ups!A1:P1',    [['Mock-Ups','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Mock-Ups!A2:Q2',    [MOCKUP_HEADERS.concat([''])]);
+  await sheetsUpdate(sheetId, 'Mock-Ups!A2:P2',    [MOCKUP_HEADERS.concat([''])]);
   await sheetsUpdate(sheetId, 'Other Lionel!A1:P1',[['Other Lionel','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Other Lionel!A2:M2',[EPHEMERA_HEADERS.concat(['','','','',''])]);
+  await sheetsUpdate(sheetId, 'Other Lionel!A2:P2',[EPHEMERA_HEADERS.concat(['','','','',''])]);
   _ensureEphemDone = true;  // Don't run again this session
   // Instruction Sheets tab
   if (!existingTabs.includes('Instruction Sheets')) {
@@ -1888,7 +1870,7 @@ async function ensureEphemeraSheets(sheetId) {
     });
   }
   await sheetsUpdate(sheetId, 'Instruction Sheets!A1:A1', [['Instruction Sheets']]);
-  await sheetsUpdate(sheetId, 'Instruction Sheets!A2:H2', [IS_HEADERS]);
+  await sheetsUpdate(sheetId, 'Instruction Sheets!A2:F2', [IS_HEADERS]);
 }
 
 
@@ -2357,7 +2339,7 @@ async function createPersonalSheet() {
 
   // 3. Write headers and create all tabs
   await sheetsUpdate(state.personalSheetId, 'My Collection!A1:A1', [['My Collection']]);
-  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:W2', [PERSONAL_HEADERS]);
+  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
   await initPersonalSheet(state.personalSheetId);
 
   // 4. Move the sheet file into the vault folder
@@ -2396,13 +2378,13 @@ async function loadAllData() {
   } catch(e) {
     showToast('Load error: ' + e.message);
     const tb = document.getElementById('browse-tbody');
-    if (tb) tb.innerHTML = '<tr><td colspan="10" style="padding:2rem;color:var(--red);text-align:center">Error loading data. Please refresh.<br><small>' + e.message + '</small></td></tr>';
+    if (tb) tb.innerHTML = '<tr><td colspan="9" style="padding:2rem;color:var(--red);text-align:center">Error loading data. Please refresh.<br><small>' + e.message + '</small></td></tr>';
   }
 }
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '9';
+  const _CACHE_VER = '3';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -2491,7 +2473,7 @@ async function loadPersonalData() {
     } catch(e) {}
   }
 
-  // Ephemera tabs no longer needed — all items stored in My Collection
+  ensureEphemeraSheets(state.personalSheetId).catch(() => {});
   ensurePersonalHeaders(state.personalSheetId).catch(() => {});
   await _loadPersonalFromSheets(state.personalSheetId);
   _cachePersonalData();
@@ -2517,12 +2499,20 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   const newPersonal = {};
   const newSold     = {};
   const newWant     = {};
+  const newIsData   = {};
+  const newEphemera = { catalogs:{}, paper:{}, mockups:{}, other:{} };
 
   // Fetch all tabs in parallel
-  const [collRes, soldRes, wantRes] = await Promise.all([
-    sheetsGet(sheetId, 'My Collection!A3:W').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Sold!A3:J').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Want List!A3:G').catch(() => ({values:[]})),
+  const [collRes, soldRes, wantRes,
+         catRes, paperRes, mockRes, otherRes, isRes] = await Promise.all([
+    sheetsGet(sheetId, 'My Collection!A3:T').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Sold!A3:H').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Want List!A3:E').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Catalogs!A3:I').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Paper Items!A3:J').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Mock-Ups!A3:O').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Other Lionel!A3:J').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Instruction Sheets!A3:F').catch(() => ({values:[]})),
   ]);
 
   // My Collection
@@ -2542,8 +2532,6 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       setId: r[15]||'', yearMade: r[16]||'',
       isError: r[17]||'', errorDesc: r[18]||'',
       quickEntry: r[19] === 'Yes',
-      inventoryId: r[20]||'', groupId: r[21]||'',
-      itemType: r[22]||'',
     };
   });
 
@@ -2555,7 +2543,6 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
       copy: r[2]||'1', condition: r[3]||'', priceItem: r[4]||'',
       salePrice: r[5]||'', dateSold: r[6]||'', notes: r[7]||'',
-      inventoryId: r[8]||'', groupId: r[9]||'',
     };
   });
 
@@ -2566,7 +2553,90 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     newWant[key] = {
       row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
       priority: r[2]||'Medium', expectedPrice: r[3]||'', notes: r[4]||'',
-      inventoryId: r[5]||'', groupId: r[6]||'',
+    };
+  });
+
+  // Instruction Sheets
+  const _isRows = (isRes && isRes.values) || [];
+  _isRows.forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Sheet #' || r[0] === 'Instruction Sheets') return;
+    const key = idx + 3;
+    newIsData[key] = {
+      row: key, sheetNum: r[0]||'', linkedItem: r[1]||'', year: r[2]||'',
+      condition: r[3]||'', notes: r[4]||'', photoLink: r[5]||'',
+    };
+  });
+
+  // Ephemera tabs
+  // Initialize user-defined tab buckets
+  (state.userDefinedTabs||[]).forEach(t => { newEphemera[t.id] = {}; });
+
+  function parseEphemeraRows(rows, bucket) {
+    (rows || []).forEach((r, idx) => {
+      if (!r[0] || r[0] === 'Item ID' || r[0] === 'Title') return;
+      const key = idx + 3;
+      // Detect old format (no Item ID): if r[0] looks like a title (not a system ID like 8157-PAP)
+      const hasItemId = /^\d{4}-[A-Z]+/.test(r[0]);
+      if (hasItemId) {
+        bucket[key] = {
+          row: key, itemNum: r[0]||'', title: r[1]||'', description: r[2]||'', year: r[3]||'',
+          manufacturer: r[4]||'Lionel', condition: r[5]||'', quantity: r[6]||'1',
+          estValue: r[7]||'', photoLink: r[8]||'', notes: r[9]||'', dateAcquired: r[10]||'',
+        };
+      } else {
+        // Legacy row without Item ID
+        bucket[key] = {
+          row: key, itemNum: '', title: r[0]||'', description: r[1]||'', year: r[2]||'',
+          manufacturer: r[3]||'Lionel', condition: r[4]||'', quantity: r[5]||'1',
+          estValue: r[6]||'', photoLink: r[7]||'', notes: r[8]||'', dateAcquired: r[9]||'',
+        };
+      }
+    });
+  }
+  // Catalogs have their own column layout
+  (catRes.values || []).forEach((r, idx) => {
+    // Skip header rows: first cell is 'Item ID', 'Type', or 'Catalogs'
+    if (!r[0] || r[0] === 'Item ID' || r[0] === 'Type' || r[0] === 'Catalogs') return;
+    const key = idx + 3;
+    // Columns: ItemID(0) Type(1) Year(2) HasMailer(3) Condition(4) EstValue(5) DateAcq(6) Notes(7) PhotoLink(8)
+    const catType = r[1]||'';
+    const year = r[2]||'';
+    const title = [year, catType, 'Catalog'].filter(Boolean).join(' ');
+    newEphemera.catalogs[key] = {
+      row: key, itemNum: r[0]||'', title,
+      catType, year, hasMailer: r[3]||'No',
+      condition: r[4]||'', estValue: r[5]||'', dateAcquired: r[6]||'',
+      notes: r[7]||'', photoLink: r[8]||'',
+    };
+  });
+  parseEphemeraRows(paperRes.values, newEphemera.paper);
+  parseEphemeraRows(otherRes.values, newEphemera.other);
+  // Re-populate type filter now that ephemera data is loaded (only if already populated)
+  if (typeof populateFilters === 'function' && document.getElementById('filter-type') &&
+      document.getElementById('filter-type').options.length > 1) {
+    document.getElementById('filter-type').innerHTML = '<option value="">All Types</option>';
+    document.getElementById('filter-road').innerHTML = '<option value="">All Roads</option>';
+    populateFilters();
+  }
+
+  // User-defined tabs — load their sheet data
+  const _utPromises = (state.userDefinedTabs||[]).map(ut =>
+    sheetsGet(sheetId, ut.label + '!A3:J').catch(() => ({values:[]}))
+      .then(utRes => parseEphemeraRows(utRes.values, newEphemera[ut.id]))
+      .catch(() => {})
+  );
+  await Promise.all(_utPromises);
+
+  // Mock-ups have extra fields
+  (mockRes.values || []).forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Title') return;
+    const key = idx + 3;
+    newEphemera.mockups[key] = {
+      row: key, title: r[0]||'', itemNumRef: r[1]||'', description: r[2]||'',
+      year: r[3]||'', manufacturer: r[4]||'Lionel', condition: r[5]||'',
+      productionStatus: r[6]||'', material: r[7]||'', dimensions: r[8]||'',
+      provenance: r[9]||'', lionelVerified: r[10]||'', estValue: r[11]||'',
+      photoLink: r[12]||'', notes: r[13]||'', dateAcquired: r[14]||'',
     };
   });
 
@@ -2582,75 +2652,6 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   if (forceOverwrite || Object.keys(newWant).length > 0 || Object.keys(state.wantData).length === 0) {
     state.wantData = newWant;
   }
-
-  // ── Derive ephemera data from personalData by itemType ──
-  // This keeps existing display code working while storing everything in My Collection
-  const newIsData = {};
-  const newEphemera = { catalogs:{}, paper:{}, mockups:{}, other:{} };
-  (state.userDefinedTabs||[]).forEach(t => { newEphemera[t.id] = {}; });
-  Object.entries(state.personalData).forEach(([key, pd]) => {
-    if (!pd.itemType) return;
-    const type = pd.itemType;
-    if (type === 'Instruction Sheet') {
-      newIsData[key] = {
-        row: pd.row, sheetNum: pd.itemNum, linkedItem: pd.matchedTo||'',
-        year: pd.yearMade||'', condition: pd.condition||'',
-        notes: pd.notes||'', photoLink: pd.photoItem||'',
-        inventoryId: pd.inventoryId||'', groupId: pd.groupId||'',
-      };
-    } else if (type === 'Catalog') {
-      newEphemera.catalogs[key] = {
-        row: pd.row, itemNum: pd.itemNum, title: pd.notes||'',
-        catType: '', year: pd.yearMade||'', hasMailer: pd.hasBox||'No',
-        condition: pd.condition||'', estValue: pd.userEstWorth||'',
-        dateAcquired: pd.datePurchased||'', notes: pd.notes||'',
-        photoLink: pd.photoItem||'',
-        inventoryId: pd.inventoryId||'', groupId: pd.groupId||'',
-      };
-    } else if (type === 'Paper Item') {
-      newEphemera.paper[key] = {
-        row: pd.row, itemNum: pd.itemNum, title: pd.notes||'',
-        description: '', year: pd.yearMade||'', manufacturer: 'Lionel',
-        condition: pd.condition||'', quantity: '1',
-        estValue: pd.userEstWorth||'', photoLink: pd.photoItem||'',
-        notes: pd.notes||'', dateAcquired: pd.datePurchased||'',
-        inventoryId: pd.inventoryId||'', groupId: pd.groupId||'',
-      };
-    } else if (type === 'Mock-Up') {
-      newEphemera.mockups[key] = {
-        row: pd.row, itemNum: pd.itemNum, title: pd.notes||'',
-        itemNumRef: pd.matchedTo||'', description: '', year: pd.yearMade||'',
-        manufacturer: 'Lionel', condition: pd.condition||'',
-        productionStatus: '', material: '', dimensions: '',
-        provenance: '', lionelVerified: '', estValue: pd.userEstWorth||'',
-        photoLink: pd.photoItem||'', notes: pd.notes||'',
-        dateAcquired: pd.datePurchased||'',
-        inventoryId: pd.inventoryId||'', groupId: pd.groupId||'',
-      };
-    } else if (type === 'Other Lionel') {
-      newEphemera.other[key] = {
-        row: pd.row, itemNum: pd.itemNum, title: pd.notes||'',
-        description: '', year: pd.yearMade||'', manufacturer: 'Lionel',
-        condition: pd.condition||'', quantity: '1',
-        estValue: pd.userEstWorth||'', photoLink: pd.photoItem||'',
-        notes: pd.notes||'', dateAcquired: pd.datePurchased||'',
-        inventoryId: pd.inventoryId||'', groupId: pd.groupId||'',
-      };
-    } else {
-      // User-defined tab or unknown type
-      const matchedTab = (state.userDefinedTabs||[]).find(t => t.label === type);
-      if (matchedTab && newEphemera[matchedTab.id]) {
-        newEphemera[matchedTab.id][key] = {
-          row: pd.row, itemNum: pd.itemNum, title: pd.notes||'',
-          description: '', year: pd.yearMade||'', manufacturer: 'Lionel',
-          condition: pd.condition||'', quantity: '1',
-          estValue: pd.userEstWorth||'', photoLink: pd.photoItem||'',
-          notes: pd.notes||'', dateAcquired: pd.datePurchased||'',
-          inventoryId: pd.inventoryId||'', groupId: pd.groupId||'',
-        };
-      }
-    }
-  });
   state.isData = newIsData;
   state.ephemeraData = newEphemera;
 }
@@ -2674,7 +2675,7 @@ function buildApp() {
 
 function showLoading() {
   const tb = document.getElementById('browse-tbody');
-  if (tb) tb.innerHTML = '<tr><td colspan="10"><div class="loading" style="padding:3rem;flex-direction:column;gap:0.75rem"><div class="spinner" style="width:36px;height:36px;border-width:3px"></div><div style="font-size:0.9rem;color:var(--text-dim)">Loading My Collection App…</div><div style="font-size:0.75rem;color:var(--text-dim);opacity:0.7">Fetching master inventory</div></div></td></tr>';
+  if (tb) tb.innerHTML = '<tr><td colspan="9"><div class="loading" style="padding:3rem;flex-direction:column;gap:0.75rem"><div class="spinner" style="width:36px;height:36px;border-width:3px"></div><div style="font-size:0.9rem;color:var(--text-dim)">Loading My Collection App…</div><div style="font-size:0.75rem;color:var(--text-dim);opacity:0.7">Fetching master inventory</div></div></td></tr>';
 }
 
 // ── DASHBOARD ───────────────────────────────────────────────────
@@ -2733,7 +2734,14 @@ function buildDashboard() {
     if (pd.priceComplete) totalValue += parseFloat(pd.priceComplete) || 0;
     else if (pd.priceItem && pd.priceItem !== 'N/A') totalValue += parseFloat(pd.priceItem) || 0;
     else if (pd.priceBox) totalValue += parseFloat(pd.priceBox) || 0;
-    else if (pd.userEstWorth) totalValue += parseFloat(pd.userEstWorth) || 0;
+  });
+  // Add ephemera values
+  let ephemeraCount = 0;
+  Object.values(state.ephemeraData || {}).forEach(bucket => {
+    Object.values(bucket).forEach(item => {
+      ephemeraCount++;
+      if (item.estValue) totalValue += parseFloat(item.estValue) || 0;
+    });
   });
 
   allOwned.forEach(pd => {
@@ -2742,8 +2750,9 @@ function buildDashboard() {
     if (pd.allOriginal === 'Yes') origCount++;
   });
 
-  document.getElementById('stat-owned').textContent = owned.toLocaleString();
-  document.getElementById('stat-owned-pct').textContent = `${pct}% of catalog`;
+  const totalOwned = owned + ephemeraCount;
+  document.getElementById('stat-owned').textContent = totalOwned.toLocaleString();
+  document.getElementById('stat-owned-pct').textContent = `${pct}% of catalog${ephemeraCount > 0 ? ' + ' + ephemeraCount + ' other' : ''}`;
   document.getElementById('stat-value').textContent = totalValue > 0 ? `$${Math.round(totalValue).toLocaleString()}` : '—';
 
   // Market value — sum from master sheet marketVal for all owned items
@@ -2875,6 +2884,8 @@ function populateFilters() {
   const sep = document.createElement('option');
   sep.disabled = true; sep.textContent = '── My Collection ──';
   typeEl.appendChild(sep);
+  // Box-only filter
+  const oBox = document.createElement('option'); oBox.value = 'Box'; oBox.textContent = '📦 Boxes Only'; typeEl.appendChild(oBox);
   // Catalog with subtypes
   const oCat = document.createElement('option'); oCat.value = 'Catalog'; oCat.textContent = '📒 Catalogs (all)'; typeEl.appendChild(oCat);
   catSubTypes.forEach(ct => {
@@ -3120,7 +3131,7 @@ function renderBrowse() {
   const personalOnlyItems = Object.values(state.personalData)
     .filter(pd => pd.owned && !masterNums.has(pd.itemNum + '|' + (pd.variation||'')))
     .map(pd => ({
-      itemNum: pd.itemNum, variation: pd.variation || '', itemType: pd.itemType || '',
+      itemNum: pd.itemNum, variation: pd.variation || '', itemType: pd.itemType || 'Diesel Locomotive',
       roadName: pd.roadName || '', description: pd.notes || '', yearProd: pd.datePurchased || '',
       marketVal: '', refLink: '', _personalOnly: true // market value from master sheet only
     }));
@@ -3143,24 +3154,25 @@ function renderBrowse() {
       if (_qf === 'quick' && !pd.quickEntry) return false;
       if (_qf === 'complete' && pd.quickEntry) return false;
     }
-    // Type filter
+    // If type filter is an ephemera category, hide train rows
     if (type) {
-      const itemType = item.itemType || (pd && pd.itemType) || '';
-      const _ephTypeKeys = ['Catalog','Paper Item','Mock-Up','Other Lionel','Instruction Sheet',
-        ...(state.userDefinedTabs||[]).map(t=>t.label)];
-      const _isEphFilter = _ephTypeKeys.some(k=>k.toLowerCase()===type.toLowerCase());
-      if (_isEphFilter) {
-        // Ephemera type filter: only show items with matching itemType
-        if (itemType.toLowerCase() !== type.toLowerCase()) return false;
+      // Special 'Box' filter — show only box-only entries
+      if (type === 'Box') {
+        if (!isBoxOnlyEntry(pd)) return false;
       } else {
-        // Regular type filter (Steam Locomotive, etc.)
-        if (itemType && _ephTypeKeys.some(k=>k.toLowerCase()===itemType.toLowerCase())) return false; // hide ephemera from train type filters
-        if (item.itemType !== type) return false;
+      const _ephTypeKeys = ['Catalog','Paper Item','Mock-Up','Other Lionel',
+        ...(state.userDefinedTabs||[]).map(t=>t.label)];
+      // Check for catalog subtype match too (e.g. "Advance")
+      const _isEphFilter = _ephTypeKeys.some(k=>k.toLowerCase()===type.toLowerCase())
+        || type.toLowerCase() === 'instruction sheet'
+        || Object.values(state.ephemeraData.catalogs||{}).some(it=>(it.catType||'').toLowerCase()===type.toLowerCase());
+      if (_isEphFilter) return false; // hide all train rows when filtering to ephemera
+      if (item.itemType !== type) return false;
       }
     }
     if (road && item.roadName !== road) return false;
     if (search) {
-      const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''} ${pd?.itemType||''}`.toLowerCase();
+      const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''}`.toLowerCase();
       if (!haystack.includes(search)) return false;
     }
     return true;
@@ -3172,10 +3184,65 @@ function renderBrowse() {
   const pageData = state.filteredData.slice(start, start + state.pageSize);
 
   // Ephemera items — shown when owned filter is on OR search has text OR type filter matches an ephemera category
-  // Ephemera items are now in the main personalData list — no separate rendering needed
   const _ephemeraRows = [];
-  document.getElementById('result-count').textContent = `${total.toLocaleString()} items`;
-  document.getElementById('page-info').textContent = `Showing ${start+1}–${Math.min(start+state.pageSize, total)} of ${total.toLocaleString()} items`;
+  const _ephLabels = { catalogs:'Catalog', paper:'Paper Item', mockups:'Mock-Up', other:'Other Lionel' };
+  const _ephEmojis = { catalogs:'📒', paper:'📄', mockups:'🔩', other:'📦' };
+  const _ephColors = { catalogs:'#e67e22', paper:'#3498db', mockups:'#9b59b6', other:'#27ae60' };
+  const _ephTypeMap = { 'Catalog':'catalogs', 'Paper Item':'paper', 'Mock-Up':'mockups', 'Other Lionel':'other' };
+  const sq = (state.filters.search||'').toLowerCase();
+  const tf = (state.filters.type||'').toLowerCase();
+  // Show ephemera if: owned view, searching, or type filter is an ephemera category
+  const _showEph = state.filters.owned || sq || Object.keys(_ephTypeMap).some(k => k.toLowerCase() === tf);
+  // Instruction Sheets in browse
+  if (_showEph || tf === 'instruction sheet') {
+    const isItems = Object.values(state.isData || {});
+    const isFiltered = isItems.filter(it => {
+      if (sq && !`${it.sheetNum||''} ${it.linkedItem||''} ${it.year||''} ${it.notes||''}`.toLowerCase().includes(sq)) return false;
+      if (tf && tf !== 'instruction sheet' && tf !== 'catalog') {
+        // Check linked item match
+        if (!(it.linkedItem||'').toLowerCase().includes(tf) && !(it.sheetNum||'').toLowerCase().includes(tf)) return false;
+      }
+      return true;
+    });
+    if (isFiltered.length) {
+      _ephemeraRows.push({ _divider: true, label: '📋 Instruction Sheets', color: '#16a085' });
+      isFiltered.sort((a,b)=>(a.linkedItem||'').localeCompare(b.linkedItem||'')).forEach(it => {
+        _ephemeraRows.push({ _is: true, item: it, label:'Instruction Sheet', emoji:'📋', color:'#16a085' });
+      });
+    }
+  }
+  if (_showEph) {
+    Object.entries(state.ephemeraData || {}).forEach(([tabId, bucket]) => {
+      const items = Object.values(bucket);
+      if (!items.length) return;
+      const label = _ephLabels[tabId] || ((state.userDefinedTabs||[]).find(t=>t.id===tabId)||{}).label || tabId;
+      const emoji = _ephEmojis[tabId] || '⭐';
+      const color = _ephColors[tabId] || '#f39c12';
+      // Type filter: if a specific ephemera type is selected, only show that bucket
+      if (tf && Object.keys(_ephTypeMap).some(k=>k.toLowerCase()===tf) && label.toLowerCase() !== tf) return;
+      // Also filter by catType if type filter matches a subtype like "Advance", "Consumer"
+      const filtered = items.filter(it => {
+        // Search filter across all fields
+        if (sq && !`${it.title||''} ${it.year||''} ${it.notes||''} ${it.catType||''} ${label}`.toLowerCase().includes(sq)) return false;
+        // Type dropdown filter — match label (Catalog) or catType (Advance/Consumer/Dealer)
+        if (tf) {
+          const matchesLabel = label.toLowerCase().includes(tf);
+          const matchesCatType = (it.catType||'').toLowerCase().includes(tf);
+          if (!matchesLabel && !matchesCatType) return false;
+        }
+        return true;
+      });
+      if (!filtered.length) return;
+      _ephemeraRows.push({ _divider: true, label: emoji + ' ' + label + 's', color });
+      filtered.sort((a,b)=>(b.row||0)-(a.row||0)).forEach(it => {
+        _ephemeraRows.push({ _eph: true, tabId, item: it, label, emoji, color });
+      });
+    });
+  }
+  const ephTotal = _ephemeraRows.filter(r=>r._eph).length;
+  const displayTotal = total + ephTotal;
+  document.getElementById('result-count').textContent = `${displayTotal.toLocaleString()} items`;
+  document.getElementById('page-info').textContent = `Showing ${start+1}–${Math.min(start+state.pageSize, total)} of ${total.toLocaleString()} trains${ephTotal ? ' + ' + ephTotal + ' other' : ''}`;
 
   // Rows
   const tbody = document.getElementById('browse-tbody');
@@ -3185,7 +3252,7 @@ function renderBrowse() {
   let _ephRowsHtml = '';
   if (_ephemeraRows.length) {
     _ephRowsHtml = _ephemeraRows.map(r => {
-      if (r._divider) return `<tr><td colspan="10" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
+      if (r._divider) return `<tr><td colspan="9" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
       const it = r.item;
       const cond = it.condition ? parseInt(it.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
@@ -3250,8 +3317,8 @@ function renderBrowse() {
       return `<div class="browse-card" onclick="browseRowClick(event,${globalIdx})">
         <div class="browse-card-left">
           <div class="browse-card-num">${item.itemNum}${item.variation ? ' <span style="font-size:0.75rem;color:var(--text-dim)">${item.variation}</span>' : ''}</div>
-          <div class="browse-card-name">${item.roadName || item.itemType || '—'}</div>
-          <div class="browse-card-sub">${[item.itemType, item.yearProd].filter(Boolean).join(' · ')}${item.rarity && item.rarity !== 'NRS' ? ' · <span style="font-weight:600;color:' + (parseInt(item.rarity)>=8?'#e74c3c':parseInt(item.rarity)>=6?'#e67e22':parseInt(item.rarity)>=4?'#f1c40f':'#27ae60') + '"title="' + (item.rarityLabel||'') + '">R' + item.rarity + '</span>' : ''}${pd?.matchedTo ? ' · <span style="color:var(--accent2)">' + (isTender(item.itemNum)?'🚂':'🚃') + ' ' + pd.matchedTo + '</span>' : ''}${pd?.groupId ? ' · <span style="color:#a855f7;font-size:0.65rem">🔗 ' + pd.groupId + '</span>' : ''}${pd?.inventoryId ? ' · <span style="font-size:0.65rem;color:var(--text-dim)">' + pd.inventoryId + '</span>' : ''}</div>
+          <div class="browse-card-name">${item.roadName || displayItemType(item, pd) || '—'}</div>
+          <div class="browse-card-sub">${[displayItemType(item, pd), item.yearProd].filter(Boolean).join(' · ')}${pd?.matchedTo ? ' · <span style="color:var(--accent2)">' + (isTender(item.itemNum)?'🚂':'🚃') + ' ' + pd.matchedTo + '</span>' : ''}${pd?.setId ? ' · <span style="color:#a855f7;font-size:0.7rem">🔗 ' + pd.setId.split('-').slice(0,2).join('-') + '</span>' : ''}</div>
         </div>
         <div class="browse-card-right">
           <span class="owned-badge ${badgeClass}">${badgeText}</span>
@@ -3272,12 +3339,11 @@ function renderBrowse() {
           <span class="item-num">${item.itemNum}${_isErrCar ? '<sup style="color:var(--accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? ' <span style="font-size:0.6rem;background:#27ae60;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600">⚡</span>' : ''}</span>
           <span id="cam-${item.itemNum}-${item.variation||''}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')" title="Open photo folder">📷</span>
         </td>
-        <td><span class="tag">${item.itemType || '—'}</span></td>
+        <td><span class="tag">${displayItemType(item, pd) || '—'}</span></td>
         <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
         <td>${item.variation || '<span class="text-dim">—</span>'}</td>
         <td>${vdCell}</td>
         <td class="text-dim">${item.yearProd || '—'}</td>
-        <td>${item.rarity ? (item.rarity === 'NRS' ? '<span class="text-dim" title="Not Regularly Sold">NRS</span>' : '<span style="font-size:0.78rem;font-weight:600;color:' + (parseInt(item.rarity)>=8?'#e74c3c':parseInt(item.rarity)>=6?'#e67e22':parseInt(item.rarity)>=4?'#f1c40f':'#27ae60') + '" title="' + (item.rarityLabel||'') + '">' + item.rarity + '</span>') : '<span class="text-dim">—</span>'}</td>
         <td><span class="owned-badge ${badgeClass}">${badgeText}</span></td>
         <td>${cond ? `<span class="condition-pip ${condClass}"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
         <td class="market-val">${item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '<span class="text-dim">—</span>'}</td>
@@ -3287,7 +3353,7 @@ function renderBrowse() {
 
   const emptyHtml = isMobile
     ? '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔍</div><p>No items match your filters</p></div>'
-    : '<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div></td></tr>';
+    : '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div></td></tr>';
 
   if (isMobile) {
     let _ephCardsHtml = '';
@@ -3505,7 +3571,7 @@ function showItemPanel(idx, pdKey, mode) {
   header.innerHTML = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.5rem">'
     + '<div>'
     + '<div style="font-family:var(--font-head);font-size:1rem;color:#2980b9">No. ' + item.itemNum + (item.variation ? ' <span style="color:var(--text-dim);font-size:0.75rem">Var. ' + item.variation + '</span>' : '') + '</div>'
-    + '<div style="font-size:0.82rem;color:var(--text-mid);margin-top:2px">' + (item.roadName || item.itemType || '') + (item.yearProd ? ' · ' + item.yearProd : '') + '</div>'
+    + '<div style="font-size:0.82rem;color:var(--text-mid);margin-top:2px">' + (item.roadName || displayItemType(item, pd) || '') + (item.yearProd ? ' · ' + item.yearProd : '') + '</div>'
     + '</div>'
     + '<button id="item-panel-close-btn" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;flex-shrink:0">✕</button>'
     + '</div>';
@@ -4062,10 +4128,10 @@ function openItem(idx) {
   const _errPd = findPD(item.itemNum, item.variation);
   const _errSuffix = _errPd && _errPd.isError ? ' ⚠ Error' : '';
   document.getElementById('modal-item-num').textContent = `No. ${item.itemNum}${item.variation ? ' — Variation ' + item.variation : ''}${_errSuffix}`;
-  document.getElementById('modal-title').textContent = item.roadName || item.itemType || item.description.substring(0, 60);
+  document.getElementById('modal-title').textContent = item.roadName || displayItemType(item, pd) || item.description.substring(0, 60);
   const modalMatchedTo = pd?.matchedTo || '';
   const modalIsTender = isTender(item.itemNum);
-  document.getElementById('modal-subtitle').textContent = `${item.itemType}${item.subType ? ' — ' + item.subType : ''}${item.yearProd ? ' · ' + item.yearProd : ''}`;
+  document.getElementById('modal-subtitle').textContent = `${displayItemType(item, pd)}${item.subType ? ' — ' + item.subType : ''}${item.yearProd ? ' · ' + item.yearProd : ''}`;
   // Set ID badge
   const setIdBadgeEl = document.getElementById('modal-set-badge');
   if (setIdBadgeEl) {
@@ -4090,34 +4156,11 @@ function openItem(idx) {
       matchedBadgeEl.style.display = 'none';
     }
   }
-  document.getElementById('mi-type').textContent = item.itemType || '—';
+  document.getElementById('mi-type').textContent = displayItemType(item, pd) || '—';
   document.getElementById('mi-year').textContent = item.yearProd || '—';
   document.getElementById('mi-road').textContent = item.roadName || '—';
   document.getElementById('mi-var').textContent = item.variation || '(no variation)';
   document.getElementById('mi-market').textContent = item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '—';
-  // Rarity display
-  const _rarityEl = document.getElementById('mi-rarity');
-  if (item.rarity && item.rarity !== 'NRS') {
-    const _rNum = parseInt(item.rarity) || 0;
-    const _rColor = _rNum >= 8 ? '#e74c3c' : _rNum >= 6 ? '#e67e22' : _rNum >= 4 ? '#f1c40f' : '#27ae60';
-    _rarityEl.innerHTML = `<span style="color:${_rColor};font-weight:600">${item.rarity}/10</span> — ${item.rarityLabel || ''}`;
-  } else if (item.rarity === 'NRS') {
-    _rarityEl.innerHTML = '<span style="color:var(--text-dim)">NRS (Not Regularly Sold)</span>';
-  } else {
-    _rarityEl.textContent = '—';
-  }
-  // Inventory ID & Group ID (from personal data)
-  const _pd = pd || {};
-  const _invWrap = document.getElementById('mi-invid-wrap');
-  const _grpWrap = document.getElementById('mi-grpid-wrap');
-  if (_pd.inventoryId) {
-    document.getElementById('mi-invid').textContent = _pd.inventoryId;
-    _invWrap.style.display = '';
-  } else { _invWrap.style.display = 'none'; }
-  if (_pd.groupId) {
-    document.getElementById('mi-grpid').textContent = _pd.groupId;
-    _grpWrap.style.display = '';
-  } else { _grpWrap.style.display = 'none'; }
   document.getElementById('mi-ref').innerHTML = item.refLink ? `<a href="${item.refLink}" target="_blank">View on COTT ↗</a>` : '—';
   document.getElementById('mi-desc').textContent = item.description || 'No description available.';
   const vd = document.getElementById('mi-varDesc-wrap');
@@ -4247,32 +4290,29 @@ async function saveItem() {
       _ex.matchedTo || '', _ex.setId || '', _ex.yearMade || '',
       _ex.isError || '', _ex.errorDesc || '',
       _ex.quickEntry ? 'Yes' : '',  // preserve Quick Entry flag
-      _ex.inventoryId || generateInventoryId(),  // Inventory ID — preserve existing or generate new
-      _ex.groupId || '',  // Group ID — preserve existing
-      _ex.itemType || item.itemType || '',  // Item Type
     ];
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:W${existing.row}`, [ownedRow]);
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:T${existing.row}`, [ownedRow]);
     } else {
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [ownedRow]);
     }
     // Remove from Sold tab if it was there
     const soldEntry = state.soldData[key];
     if (soldEntry && soldEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:J${soldEntry.row}`, [['','','','','','','','','','']]);
+      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:H${soldEntry.row}`, [['','','','','','','','']]);
     }
     // Remove from Want List if it was there
     const wantEntry = state.wantData[key];
     if (wantEntry && wantEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:G${wantEntry.row}`, [['','','','','','','']]);
+      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:E${wantEntry.row}`, [['','','','','']]);
     }
 
   } else if (currentStatus === 'Sold') {
     // Remove from My Collection
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:W${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','','','']]);  // 23 cols A-W
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:T${existing.row}`, [['','','','','','','','','','','','','','','','','','','','']]);  // 20 cols A-T
     }
     // Write to Sold tab
     const soldRow = [
@@ -4281,12 +4321,10 @@ async function saveItem() {
       document.getElementById('fc-sale-price').value,
       document.getElementById('fc-date-sold').value,
       document.getElementById('fc-notes').value,
-      existing?.inventoryId || generateInventoryId(),
-      existing?.groupId || '',
     ];
     const soldEntry = state.soldData[key];
     if (soldEntry && soldEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:J${soldEntry.row}`, [soldRow]);
+      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:H${soldEntry.row}`, [soldRow]);
     } else {
       await sheetsAppend(state.personalSheetId, 'Sold!A:A', [soldRow]);
     }
@@ -4295,7 +4333,7 @@ async function saveItem() {
     // Remove from My Collection if present
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:W${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','','','']]);  // 23 cols A-W
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:T${existing.row}`, [['','','','','','','','','','','','','','','','','','','','']]);  // 20 cols A-T
     }
     // Write/update Want List tab
     const wantRow = [
@@ -4304,12 +4342,10 @@ async function saveItem() {
       document.getElementById('fc-want-priority').value,
       document.getElementById('fc-want-price').value,
       document.getElementById('fc-want-notes').value,
-      generateInventoryId(),
-      '',
     ];
     const wantEntry = state.wantData[key];
     if (wantEntry && wantEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:G${wantEntry.row}`, [wantRow]);
+      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:E${wantEntry.row}`, [wantRow]);
     } else {
       await sheetsAppend(state.personalSheetId, 'Want List!A:A', [wantRow]);
     }
@@ -4364,7 +4400,7 @@ function buildReport() {
       const pd = state.personalData[`${i.itemNum}|${i.variation}`];
       return `<tr>
         <td><span class="item-num">${i.itemNum}</span></td>
-        <td><span class="tag">${i.itemType || '—'}</span></td>
+        <td><span class="tag">${displayItemType(i, pd) || '—'}</span></td>
         <td>${i.roadName || '—'}</td>
         <td>${i.variation || '—'}</td>
         <td>${pd.copy || '1'}</td>
@@ -6241,8 +6277,8 @@ function renderWizardStep() {
         ${!_isEph && item ? `
           <div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">
             <div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.8rem">No. ${item.itemNum}${item.variation ? ' — Var ' + item.variation : ''}</div>
-            <div style="font-weight:600;margin-top:0.2rem">${item.roadName || item.itemType || ''}</div>
-            <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">${item.yearProd || ''} · ${item.itemType || ''}</div>
+            <div style="font-weight:600;margin-top:0.2rem">${item.roadName || (wizard.data.boxOnly ? 'Box' : item.itemType) || ''}</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">${item.yearProd || ''} · ${wizard.data.boxOnly ? 'Box' : (item.itemType || '')}</div>
           </div>` : !_isEph ? `
           <div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">
             <div style="font-family:var(--font-mono);color:var(--accent2)">Item ${wizard.data.itemNum || '?'}${wizard.data.variation ? ' Var ' + wizard.data.variation : ''}</div>
@@ -6311,7 +6347,7 @@ async function ensureUserDefinedSheet(id, label) {
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: label } } }] }),
       });
       await sheetsUpdate(state.personalSheetId, `${label}!A1:A1`, [[label]]);
-      await sheetsUpdate(state.personalSheetId, `${label}!A2:M2`, [EPHEMERA_HEADERS]);
+      await sheetsUpdate(state.personalSheetId, `${label}!A2:J2`, [EPHEMERA_HEADERS]);
     }
     // Initialize in state
     if (!state.ephemeraData[id]) state.ephemeraData[id] = {};
@@ -6983,46 +7019,14 @@ async function saveInstructionSheet() {
     } catch(e) { console.warn('IS photo folder:', e); }
   }
 
-  // Generate IDs — if linked to a collection item, share its groupId
-  const _isInvId = generateInventoryId();
-  let _isGrpId = '';
-  if (linkedItem) {
-    const _linkedPd = Object.values(state.personalData).find(pd => pd.itemNum === linkedItem);
-    if (_linkedPd && _linkedPd.groupId) {
-      _isGrpId = _linkedPd.groupId;
-    } else if (_linkedPd) {
-      // Create a new group and update the linked item too
-      _isGrpId = generateGroupId();
-      if (_linkedPd.row) {
-        sheetsUpdate(state.personalSheetId, `My Collection!V${_linkedPd.row}`, [[_isGrpId]]).catch(e => console.warn('IS group backfill:', e));
-        _linkedPd.groupId = _isGrpId;
-      }
-    }
-  }
-
-  const row = [
-    sheetNum, '', d.is_condition||'', '', '', '', '', '', '',
-    photoLink, '', d.is_notes||'',
-    new Date().toISOString().slice(0,10), '', linkedItem, '',
-    d.is_year||'', '', '', '',
-    _isInvId, _isGrpId, 'Instruction Sheet'
-  ];
+  const row = [sheetNum, linkedItem, d.is_year||'', d.is_condition||'', d.is_notes||'', photoLink];
   try {
-    await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
-    const newKey = `${sheetNum}||is_${Date.now()}`;
-    state.personalData[newKey] = {
-      row: 99999, itemNum: sheetNum, variation: '',
-      condition: d.is_condition||'', allOriginal: '',
-      priceItem: '', priceBox: '', priceComplete: '',
-      hasBox: '', boxCond: '',
-      photoItem: photoLink, photoBox: '',
-      notes: d.is_notes||'',
-      datePurchased: new Date().toISOString().slice(0,10),
-      userEstWorth: '', matchedTo: linkedItem, setId: '',
-      yearMade: d.is_year||'', isError: '', errorDesc: '',
-      quickEntry: false, inventoryId: _isInvId, groupId: _isGrpId,
-      itemType: 'Instruction Sheet',
-      status: 'Owned', owned: true,
+    await ensureEphemeraSheets(state.personalSheetId);
+    await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:A', [row]);
+    const newKey = Date.now();
+    state.isData[newKey] = {
+      row: newKey, sheetNum, linkedItem, year: d.is_year||'',
+      condition: d.is_condition||'', notes: d.is_notes||'', photoLink,
     };
     showToast('✓ Instruction Sheet ' + sheetNum + ' saved!');
     closeWizard();
@@ -7066,43 +7070,54 @@ async function saveCatalogItem() {
     } catch(e) { console.warn('Drive folder:', e); }
   }
 
-  const _catInvId = generateInventoryId();
   const row = [
-    itemNum, '',
-    d.cat_condition||'', '',
-    '', '', '', d.cat_hasMailer||'No', '',
-    photoFolderLink, '',
-    d.cat_notes||'',
-    d.cat_dateAcquired||'',
-    d.cat_estValue||'',
-    '', '',
-    d.cat_year||'',
-    '', '', '',
-    _catInvId, '',
-    'Catalog',
+    itemNum,
+    d.cat_type || '',
+    d.cat_year || '',
+    d.cat_hasMailer || 'No',
+    d.cat_condition || '',
+    d.cat_estValue || '',
+    d.cat_dateAcquired || '',
+    d.cat_notes || '',
+    photoFolderLink,
   ];
   try {
-    await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
-    const newKey = `${itemNum}||cat_${Date.now()}`;
-    state.personalData[newKey] = {
-      row: 99999, itemNum, variation: '',
-      condition: d.cat_condition||'', allOriginal: '',
-      priceItem: '', priceBox: '', priceComplete: '',
-      hasBox: d.cat_hasMailer||'No', boxCond: '',
-      photoItem: photoFolderLink, photoBox: '',
-      notes: d.cat_notes||'',
-      datePurchased: d.cat_dateAcquired||'',
-      userEstWorth: d.cat_estValue||'', matchedTo: '', setId: '',
-      yearMade: d.cat_year||'', isError: '', errorDesc: '',
-      quickEntry: false, inventoryId: _catInvId, groupId: '',
-      itemType: 'Catalog',
-      status: 'Owned', owned: true,
-    };
+    // Ensure Catalogs tab exists with proper headers before appending
+    await ensureEphemeraSheets(state.personalSheetId);
+    const appendResult = await sheetsAppend(state.personalSheetId, 'Catalogs!A:I', [row]);
+    // Reload catalog rows from sheet to get accurate row numbers
+    if (!state.ephemeraData.catalogs) state.ephemeraData.catalogs = {};
+    try {
+      const freshCat = await sheetsGet(state.personalSheetId, 'Catalogs!A3:I');
+      state.ephemeraData.catalogs = {};
+      (freshCat.values || []).forEach((r, idx) => {
+        if (!r[0] || r[0] === 'Item ID' || r[0] === 'Type' || r[0] === 'Catalogs') return;
+        const key = idx + 3;
+        const catType2 = r[1]||''; const year2 = r[2]||'';
+        const t = [year2, catType2, 'Catalog'].filter(Boolean).join(' ');
+        state.ephemeraData.catalogs[key] = {
+          row: key, itemNum: r[0]||'', title: t,
+          catType: catType2, year: year2, hasMailer: r[3]||'No',
+          condition: r[4]||'', estValue: r[5]||'', dateAcquired: r[6]||'',
+          notes: r[7]||'', photoLink: r[8]||'',
+        };
+      });
+    } catch(e) {
+      // Fallback: add optimistically
+      const newKey = Date.now();
+      state.ephemeraData.catalogs[newKey] = {
+        row: newKey, itemNum, title,
+        catType: d.cat_type || '', year: d.cat_year || '',
+        hasMailer: d.cat_hasMailer || 'No', condition: d.cat_condition || '',
+        estValue: d.cat_estValue || '', dateAcquired: d.cat_dateAcquired || '',
+        notes: d.cat_notes || '', photoLink: photoFolderLink,
+      };
+    }
     showToast('✓ ' + title + ' saved!');
     closeWizard();
-    buildDashboard();
-    populateFilters();
-    renderBrowse();
+    buildDashboard(); // refresh stats
+    populateFilters(); // refresh type dropdown to include new catalog type
+    renderBrowse();    // always refresh so it appears immediately
   } catch(e) {
     showToast('Error saving: ' + e.message);
   }
@@ -7111,55 +7126,65 @@ async function saveCatalogItem() {
 async function saveEphemeraItem() {
   const d = wizard.data;
   const tab = wizard.tab;
-  const typeMap = { paper:'Paper Item', mockups:'Mock-Up', other:'Other Lionel' };
+  const tabNames = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };
   const _userTab = (state.userDefinedTabs||[]).find(t => t.id === tab);
-  const itemTypeLabel = typeMap[tab] || (_userTab && _userTab.label) || 'Other';
+  const sheetName = tabNames[tab] || (_userTab && _userTab.label) || null;
+  if (!sheetName) { closeWizard(); return; }
 
   const ephItemNum = generateEphemeraItemNum(tab, d.eph_year || '', '');
-  const _ephInvId = generateInventoryId();
 
-  // Combine title + description into notes
-  const noteParts = [d.eph_title||'', d.eph_description||'', d.eph_notes||''].filter(Boolean);
-  const combinedNotes = noteParts.join(' | ');
-
-  const row = [
-    ephItemNum, '',  // Item Number, Variation
-    d.eph_condition||'', '',  // Condition, All Original
-    '', '', '', '', '',  // Prices, Has Box, Box Cond
-    '', '',  // Photo links (filled later)
-    combinedNotes,  // Notes
-    d.eph_dateAcquired||'',  // Date Purchased
-    d.eph_estValue||'',  // User Est Worth
-    (tab === 'mockups' ? (d.eph_itemNumRef||'') : ''), '',  // Matched, Set ID
-    d.eph_year||'',  // Year Made
-    '', '', '',  // Error fields, Quick Entry
-    _ephInvId, '',  // Inventory ID, Group ID
-    itemTypeLabel,  // Item Type
-  ];
+  let row;
+  if (tab === 'mockups') {
+    row = [
+      ephItemNum,
+      d.eph_title||'', d.eph_itemNumRef||'', d.eph_description||'',
+      d.eph_year||'', d.eph_manufacturer||'Lionel', d.eph_condition||'',
+      d.eph_productionStatus||'', d.eph_material||'', d.eph_dimensions||'',
+      d.eph_provenance||'', d.eph_lionelVerified||'', d.eph_estValue||'',
+      '', // photo link
+      d.eph_notes||'', d.eph_dateAcquired||'',
+    ];
+  } else {
+    row = [
+      ephItemNum,
+      d.eph_title||'', d.eph_description||'', d.eph_year||'',
+      d.eph_manufacturer||'Lionel', d.eph_condition||'',
+      d.eph_quantity||'1', d.eph_estValue||'',
+      '', // photo link
+      d.eph_notes||'', d.eph_dateAcquired||'',
+    ];
+  }
 
   try {
-    await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
-    const newKey = `${ephItemNum}||eph_${Date.now()}`;
-    state.personalData[newKey] = {
-      row: 99999, itemNum: ephItemNum, variation: '',
-      condition: d.eph_condition||'', allOriginal: '',
-      priceItem: '', priceBox: '', priceComplete: '',
-      hasBox: '', boxCond: '',
-      photoItem: '', photoBox: '',
-      notes: combinedNotes,
-      datePurchased: d.eph_dateAcquired||'',
-      userEstWorth: d.eph_estValue||'', matchedTo: (tab === 'mockups' ? (d.eph_itemNumRef||'') : ''),
-      setId: '', yearMade: d.eph_year||'',
-      isError: '', errorDesc: '', quickEntry: false,
-      inventoryId: _ephInvId, groupId: '',
-      itemType: itemTypeLabel,
-      status: 'Owned', owned: true,
-    };
-    showToast('\u2713 ' + (d.eph_title||'Item') + ' saved!');
+    await sheetsAppend(state.personalSheetId, sheetName + '!A:P', [row]);
+    // Add to local state
+    const bucket = state.ephemeraData[tab] || {};
+    const newKey = Date.now();
+    if (tab === 'mockups') {
+      bucket[newKey] = {
+        row: newKey, itemNum: ephItemNum, title: d.eph_title||'', itemNumRef: d.eph_itemNumRef||'',
+        description: d.eph_description||'', year: d.eph_year||'',
+        manufacturer: d.eph_manufacturer||'Lionel', condition: d.eph_condition||'',
+        productionStatus: d.eph_productionStatus||'', material: d.eph_material||'',
+        dimensions: d.eph_dimensions||'', provenance: d.eph_provenance||'',
+        lionelVerified: d.eph_lionelVerified||'', estValue: d.eph_estValue||'',
+        photoLink: '', notes: d.eph_notes||'', dateAcquired: d.eph_dateAcquired||'',
+      };
+    } else {
+      bucket[newKey] = {
+        row: newKey, itemNum: ephItemNum, title: d.eph_title||'', description: d.eph_description||'',
+        year: d.eph_year||'', manufacturer: d.eph_manufacturer||'Lionel',
+        condition: d.eph_condition||'', quantity: d.eph_quantity||'1',
+        estValue: d.eph_estValue||'', photoLink: '', notes: d.eph_notes||'',
+        dateAcquired: d.eph_dateAcquired||'',
+      };
+    }
+    state.ephemeraData[tab] = bucket;
+    showToast('✓ ' + (d.eph_title||'Item') + ' saved!');
     closeWizard();
-    buildDashboard();
-    populateFilters();
-    renderBrowse();
+    // Refresh ephemera page if visible
+    // Ephemera integrated into My Collection — refresh browse if active
+    if (state.filters.owned) renderBrowse();
   } catch(e) {
     showToast('Error saving: ' + e.message);
   }
@@ -7223,7 +7248,6 @@ async function saveWizardItem() {
   const photos    = [anyItemLink];
   const boxPhotos = [anyBoxLink];
 
-  let _grpId = '';  // hoisted so IS save can access it
   try {
     if (tab === 'collection') {
       // Find existing by row-keyed lookup (key includes row number now)
@@ -7251,9 +7275,6 @@ async function saveWizardItem() {
         if (boxKey) existing = state.personalData[boxKey];
         }
       let row;
-      const _paired = d.tenderMatch && d.tenderMatch !== 'none';
-      const _isGrouped = _paired || d.setMatch === 'set-now';
-      _grpId = _isGrouped ? generateGroupId() : '';
       if (d.boxOnly) {
         const ex = existing || {};
         const itemExists = !!existing;
@@ -7279,18 +7300,9 @@ async function saveWizardItem() {
           ( d.notes || ex.notes || '' ).trim(),
           d.purchaseDate || ex.datePurchased || '',
           d.userEstWorth || ex.userEstWorth || '',
-          ex.matchedTo || '',  // Matched Tender/Engine
-          ex.setId || '',      // Set ID
-          ex.yearMade || '',   // Year Made
-          ex.isError || '',    // Is Error
-          ex.errorDesc || '',  // Error Description
-          ex.quickEntry ? 'Yes' : '',  // Quick Entry
-          ex.inventoryId || generateInventoryId(),  // Inventory ID
-          ex.groupId || '',    // Group ID
-          ex.itemType || (wizard.matchedItem && wizard.matchedItem.itemType) || '',  // Item Type
         ];
       } else {
-        const _invId = generateInventoryId();
+        const _paired = d.tenderMatch && d.tenderMatch !== 'none';
         const enginePrice = _paired
           ? (d.priceItem ? (parseFloat(d.priceItem)/2).toFixed(2) : '')
           : (d.priceItem || '');
@@ -7320,9 +7332,6 @@ async function saveWizardItem() {
         d.isError === 'Yes' ? 'Yes' : 'No',  // Is Error (col R)
         d.isError === 'Yes' ? (d.errorDesc || '') : '',  // Error Description (col S)
         '',  // Quick Entry (col T) — blank = normal full entry
-        _invId,   // Inventory ID (col U)
-        _grpId,   // Group ID (col V)
-        (wizard.matchedItem && wizard.matchedItem.itemType) || d.itemType || '',  // Item Type (col W)
         ];
       }
       // ── SET UNIT SAVE: if diesel set, save unit2 (and unit3) rows with shared Set ID ──
@@ -7350,12 +7359,6 @@ async function saveWizardItem() {
       '',           // $0 worth — worth is on unit 1
       itemNum,      // matchedTo = suffixed A unit
       setId,
-      d.yearMade || '',  // Year Made
-      '', '',       // Is Error, Error Description
-      '',           // Quick Entry
-      generateInventoryId(),  // Inventory ID
-      _grpId,       // Group ID — shared with unit 1
-      'Diesel Locomotive',  // Item Type
     ];
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u2Row]);
 
@@ -7375,12 +7378,6 @@ async function saveWizardItem() {
         '',           // $0 worth — worth is on unit 1
         u2Num,        // matchedTo = B unit
         setId,
-        d.yearMade || '',  // Year Made
-        '', '',       // Is Error, Error Description
-        '',           // Quick Entry
-        generateInventoryId(),  // Inventory ID
-        _grpId,       // Group ID — shared with unit 1
-        'Diesel Locomotive',  // Item Type
       ];
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u3Row]);
       // Update u2Row matchedTo to also reference u3Num
@@ -7427,13 +7424,6 @@ async function saveWizardItem() {
       d.datePurchased || '',
       '',          // $0 worth — worth is on the engine row
       itemNum,     // matchedTo = engine number
-      '',          // Set ID
-      d.yearMade || '',  // Year Made
-      '', '',      // Is Error, Error Description
-      '',          // Quick Entry
-      generateInventoryId(),  // Inventory ID
-      _grpId,      // Group ID — shared with engine
-      'Steam Locomotive',  // Item Type — tender
     ];
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [tRow]);
     // Update engine row matchedTo to point to tender
@@ -7505,13 +7495,11 @@ async function saveWizardItem() {
         d.salePrice || '',
         d.dateSold || '',
         ( d.notes || '' ).trim(),
-        collectionEntry?.inventoryId || generateInventoryId(),
-        collectionEntry?.groupId || '',
       ];
       const soldKey = `${itemNum}|${soldVariation}`;
       const existingSold = state.soldData[soldKey];
       if (existingSold?.row) {
-        await sheetsUpdate(state.personalSheetId, `Sold!A${existingSold.row}:J${existingSold.row}`, [row]);
+        await sheetsUpdate(state.personalSheetId, `Sold!A${existingSold.row}:H${existingSold.row}`, [row]);
       } else {
         await sheetsAppend(state.personalSheetId, 'Sold!A:A', [row]);
       }
@@ -7530,22 +7518,18 @@ async function saveWizardItem() {
         d.priority || 'Medium',
         d.expectedPrice || '',
         ( d.notes || '' ).trim(),
-        generateInventoryId(),
-        '',
       ];
       const existing = state.wantData[key];
       if (existing?.row) {
-        await sheetsUpdate(state.personalSheetId, `Want List!A${existing.row}:G${existing.row}`, [row]);
+        await sheetsUpdate(state.personalSheetId, `Want List!A${existing.row}:E${existing.row}`, [row]);
       } else {
         await sheetsAppend(state.personalSheetId, 'Want List!A:A', [row]);
       }
     }
 
     // ── Save instruction sheet if user said they have one ──
-    console.log('[Save] IS check: hasIS=', d.hasIS, 'tab=', tab);
     if (d.hasIS === 'Yes' && tab === 'collection') {
       try {
-        console.log('[Save] Saving instruction sheet...');
         const isSheetNum = (d.is_sheetNum || '').trim() || itemNum + '-IS';
         const isPhotoObj = d.photosIS || {};
         let isPhotoLink = '';
@@ -7563,48 +7547,14 @@ async function saveWizardItem() {
             await driveUploadPhoto(fileObj.file, fname, isFolderId).catch(e => console.warn(e));
           }
         }
-        const _isInvId2 = generateInventoryId();
-        // If no group yet (standalone item), create one to link engine + IS
-        let _isGrpId2 = _grpId || '';
-        if (!_isGrpId2) {
-          _isGrpId2 = generateGroupId();
-          // Backfill group to the main item we just saved
-          const _mainPd = Object.values(state.personalData).find(pd => pd.itemNum === itemNum);
-          if (_mainPd && _mainPd.row && _mainPd.row < 99999) {
-            sheetsUpdate(state.personalSheetId, `My Collection!V${_mainPd.row}`, [[_isGrpId2]]).catch(e => console.warn(e));
-            _mainPd.groupId = _isGrpId2;
-          }
-        }
-        const isRow = [
-          isSheetNum, '', d.is_condition||'', '', '', '', '', '', '',
-          isPhotoLink, '', '',
-          new Date().toISOString().slice(0,10), '', itemNum, '',
-          '', '', '', '',
-          _isInvId2, _isGrpId2, 'Instruction Sheet'
-        ];
-        await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [isRow]);
-        const newISKey = `${isSheetNum}||is_${Date.now()}`;
-        state.personalData[newISKey] = {
-          row: 99999, itemNum: isSheetNum, variation: '',
-          condition: d.is_condition||'', allOriginal: '',
-          priceItem: '', priceBox: '', priceComplete: '',
-          hasBox: '', boxCond: '',
-          photoItem: isPhotoLink, photoBox: '',
-          notes: '',
-          datePurchased: new Date().toISOString().slice(0,10),
-          userEstWorth: '', matchedTo: itemNum, setId: '',
-          yearMade: '', isError: '', errorDesc: '',
-          quickEntry: false, inventoryId: _isInvId2, groupId: _isGrpId2,
-          itemType: 'Instruction Sheet',
-          status: 'Owned', owned: true,
+        const isRow = [isSheetNum, itemNum, '', d.is_condition || '', '', isPhotoLink];
+        await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:A', [isRow]);
+        const newISKey = Date.now();
+        state.isData[newISKey] = {
+          row: newISKey, sheetNum: isSheetNum, linkedItem: itemNum,
+          year: '', condition: d.is_condition || '', notes: '', photoLink: isPhotoLink,
         };
-      } catch(e) {
-        console.error('IS save error:', e);
-        showToast('⚠️ Instruction sheet save failed: ' + e.message);
-      }
-      showToast('✓ Instruction sheet ' + isSheetNum + ' saved!');
-    } else {
-      console.log('[Save] IS skipped: hasIS=', d.hasIS, 'tab=', tab);
+      } catch(e) { console.warn('IS save error:', e); }
     }
 
     closeWizard();
@@ -7691,8 +7641,6 @@ async function quickEntryAdd() {
   // Build rows to save
   const setId = (d._qeTender && d._qeTender !== 'none') || (d._qeSetPartner && d._qeSetPartner !== 'none')
     ? genSetId(itemNum) : '';
-  const _qeGrouped = setId || (d._qeTender && d._qeTender !== 'none') || (d._qeSetPartner && d._qeSetPartner !== 'none');
-  const _qeGrpId = _qeGrouped ? generateGroupId() : '';
 
   const rows = [];
   rows.push({ itemNum, variation, matchedTo: d._qeTender && d._qeTender !== 'none' ? d._qeTender : (d._qeSetPartner && d._qeSetPartner !== 'none' ? d._qeSetPartner : ''), setId, notes: '' });
@@ -7708,10 +7656,7 @@ async function quickEntryAdd() {
     if (_nextBtn) _nextBtn.disabled = true;
 
     for (const r of rows) {
-      const _rInvId = generateInventoryId();
-      const _qeMaster = state.masterData.find(m => m.itemNum === r.itemNum);
-      const _qeType = (_qeMaster && _qeMaster.itemType) || '';
-      const row = [r.itemNum, r.variation,'','','','','','','','','', r.notes,'','',r.matchedTo,r.setId,'','','','Yes', _rInvId, _qeGrpId, _qeType];
+      const row = [r.itemNum, r.variation,'','','','','','','','','', r.notes,'','',r.matchedTo,r.setId,'','','','Yes'];
       console.log('[QE] Saving', r.itemNum);
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
       const key = r.itemNum + '|' + r.variation + '|' + Date.now();
@@ -7723,8 +7668,6 @@ async function quickEntryAdd() {
         notes: r.notes, datePurchased: '', userEstWorth: '',
         matchedTo: r.matchedTo, setId: r.setId,
         yearMade: '', isError: '', errorDesc: '', quickEntry: true,
-        inventoryId: _rInvId, groupId: _qeGrpId,
-        itemType: _qeType,
       };
     }
 
