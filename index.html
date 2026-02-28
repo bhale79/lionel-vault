@@ -1489,7 +1489,7 @@ function isF3AlcoUnit(itemNum) {
   return state.masterData.some(m =>
     normalizeItemNum(m.itemNum) === num &&
     m.itemType === 'Diesel Locomotive' &&
-    (m.description || '').match(/F-3|F3|Alco FA|FA No\.|FA-/)
+    (m.description || '').match(/F-3|F3|Alco FA|FA No\.|FA-|ALCO A-A|Alco A-A|ALCO AA|Alco AA|A-A set|AA set/i)
   );
 }
 function genSetId(baseNum) {
@@ -2402,7 +2402,7 @@ async function loadAllData() {
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '8';
+  const _CACHE_VER = '9';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -7542,8 +7542,10 @@ async function saveWizardItem() {
     }
 
     // ── Save instruction sheet if user said they have one ──
+    console.log('[Save] IS check: hasIS=', d.hasIS, 'tab=', tab);
     if (d.hasIS === 'Yes' && tab === 'collection') {
       try {
+        console.log('[Save] Saving instruction sheet...');
         const isSheetNum = (d.is_sheetNum || '').trim() || itemNum + '-IS';
         const isPhotoObj = d.photosIS || {};
         let isPhotoLink = '';
@@ -7596,7 +7598,13 @@ async function saveWizardItem() {
           itemType: 'Instruction Sheet',
           status: 'Owned', owned: true,
         };
-      } catch(e) { console.warn('IS save error:', e); }
+      } catch(e) {
+        console.error('IS save error:', e);
+        showToast('⚠️ Instruction sheet save failed: ' + e.message);
+      }
+      showToast('✓ Instruction sheet ' + isSheetNum + ' saved!');
+    } else {
+      console.log('[Save] IS skipped: hasIS=', d.hasIS, 'tab=', tab);
     }
 
     closeWizard();
