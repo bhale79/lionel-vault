@@ -1010,6 +1010,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
                 <th>Var.</th>
                 <th>Var. Descr.</th>
                 <th>Year</th>
+                <th>Rarity</th>
                 <th>Owned</th>
                 <th>Cond.</th>
                 <th>Market Value</th>
@@ -1207,7 +1208,10 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <div class="info-field"><label>Road Name</label><div class="info-val" id="mi-road"></div></div>
           <div class="info-field"><label>Variation</label><div class="info-val" id="mi-var"></div></div>
           <div class="info-field"><label>Est. Market Value</label><div class="info-val market-val" id="mi-market"></div></div>
+          <div class="info-field"><label>Rarity</label><div class="info-val" id="mi-rarity"></div></div>
           <div class="info-field"><label>COTT Reference</label><div class="info-val" id="mi-ref"></div></div>
+          <div class="info-field" id="mi-invid-wrap" style="display:none"><label>Inventory ID</label><div class="info-val" id="mi-invid" style="font-family:var(--font-mono);font-size:0.82rem"></div></div>
+          <div class="info-field" id="mi-grpid-wrap" style="display:none"><label>Group ID</label><div class="info-val" id="mi-grpid" style="font-family:var(--font-mono);font-size:0.82rem;color:#a855f7"></div></div>
         </div>
         <div id="mi-desc-wrap" style="margin-top:0.75rem">
           <div class="desc-block" id="mi-desc"></div>
@@ -1414,7 +1418,7 @@ const PERSONAL_HEADERS = [
   'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
   'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes',
   'Date Purchased','User Est. Worth','Matched Tender/Engine','Set ID','Year Made',
-  'Is Error','Error Description','Quick Entry'
+  'Is Error','Error Description','Quick Entry','Inventory ID','Group ID'
 ];
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
@@ -1507,6 +1511,35 @@ function findOwnedMatch(itemNum) {
     if (owned) return { itemNum: num, pd: owned };
   }
   return null;
+}
+
+// ── INVENTORY ID & GROUP ID ─────────────────────────────────────
+function getNextInventoryNum() {
+  let max = 0;
+  Object.values(state.personalData).forEach(pd => {
+    const m = (pd.inventoryId || '').match(/^INV-(\d+)$/);
+    if (m) max = Math.max(max, parseInt(m[1]));
+  });
+  return max + 1;
+}
+
+function generateInventoryId() {
+  const num = getNextInventoryNum();
+  return 'INV-' + String(num).padStart(4, '0');
+}
+
+function getNextGroupNum() {
+  let max = 0;
+  Object.values(state.personalData).forEach(pd => {
+    const m = (pd.groupId || '').match(/^GRP-(\d+)$/);
+    if (m) max = Math.max(max, parseInt(m[1]));
+  });
+  return max + 1;
+}
+
+function generateGroupId() {
+  const num = getNextGroupNum();
+  return 'GRP-' + String(num).padStart(4, '0');
 }
 
 // ── STATE ───────────────────────────────────────────────────────
@@ -1748,10 +1781,10 @@ async function initPersonalSheet(sheetId) {
   if (rows.length === 0 || !rows[0] || rows[0].length === 0) {
     // Brand new sheet — write title row 1 and headers row 2
     await sheetsUpdate(sheetId, 'My Collection!A1:A1', [['My Collection']]);
-    await sheetsUpdate(sheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:V2', [PERSONAL_HEADERS]);
   } else if (rows.length === 1 || !rows[1] || rows[1].length < 13) {
     // Has title but missing/old headers — rewrite row 2
-    await sheetsUpdate(sheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:V2', [PERSONAL_HEADERS]);
   }
   // Get existing sheet tab names
   const metaRes = await fetch(
@@ -1788,14 +1821,14 @@ let _ensureEphemDone = false;
 async function ensurePersonalHeaders(sheetId) {
   if (!sheetId) return;
   try {
-    // Fetch current row 2 headers (A2:T2)
-    const res = await sheetsGet(sheetId, 'My Collection!A2:T2');
+    // Fetch current row 2 headers (A2:V2)
+    const res = await sheetsGet(sheetId, 'My Collection!A2:V2');
     const current = (res.values && res.values[0]) || [];
 
     // Check each expected header — write the full row if anything is missing or wrong
     const needsUpdate = PERSONAL_HEADERS.some((h, i) => current[i] !== h);
     if (needsUpdate) {
-      await sheetsUpdate(sheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
+      await sheetsUpdate(sheetId, 'My Collection!A2:V2', [PERSONAL_HEADERS]);
       console.log('[Headers] My Collection headers repaired');
     }
 
@@ -2325,7 +2358,7 @@ async function createPersonalSheet() {
 
   // 3. Write headers and create all tabs
   await sheetsUpdate(state.personalSheetId, 'My Collection!A1:A1', [['My Collection']]);
-  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
+  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:V2', [PERSONAL_HEADERS]);
   await initPersonalSheet(state.personalSheetId);
 
   // 4. Move the sheet file into the vault folder
@@ -2364,7 +2397,7 @@ async function loadAllData() {
   } catch(e) {
     showToast('Load error: ' + e.message);
     const tb = document.getElementById('browse-tbody');
-    if (tb) tb.innerHTML = '<tr><td colspan="9" style="padding:2rem;color:var(--red);text-align:center">Error loading data. Please refresh.<br><small>' + e.message + '</small></td></tr>';
+    if (tb) tb.innerHTML = '<tr><td colspan="10" style="padding:2rem;color:var(--red);text-align:center">Error loading data. Please refresh.<br><small>' + e.message + '</small></td></tr>';
   }
 }
 
@@ -2491,7 +2524,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // Fetch all tabs in parallel
   const [collRes, soldRes, wantRes,
          catRes, paperRes, mockRes, otherRes, isRes] = await Promise.all([
-    sheetsGet(sheetId, 'My Collection!A3:T').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'My Collection!A3:V').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Sold!A3:H').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Want List!A3:E').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Catalogs!A3:I').catch(() => ({values:[]})),
@@ -2518,6 +2551,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       setId: r[15]||'', yearMade: r[16]||'',
       isError: r[17]||'', errorDesc: r[18]||'',
       quickEntry: r[19] === 'Yes',
+      inventoryId: r[20]||'', groupId: r[21]||'',
     };
   });
 
@@ -2661,7 +2695,7 @@ function buildApp() {
 
 function showLoading() {
   const tb = document.getElementById('browse-tbody');
-  if (tb) tb.innerHTML = '<tr><td colspan="9"><div class="loading" style="padding:3rem;flex-direction:column;gap:0.75rem"><div class="spinner" style="width:36px;height:36px;border-width:3px"></div><div style="font-size:0.9rem;color:var(--text-dim)">Loading My Collection App…</div><div style="font-size:0.75rem;color:var(--text-dim);opacity:0.7">Fetching master inventory</div></div></td></tr>';
+  if (tb) tb.innerHTML = '<tr><td colspan="10"><div class="loading" style="padding:3rem;flex-direction:column;gap:0.75rem"><div class="spinner" style="width:36px;height:36px;border-width:3px"></div><div style="font-size:0.9rem;color:var(--text-dim)">Loading My Collection App…</div><div style="font-size:0.75rem;color:var(--text-dim);opacity:0.7">Fetching master inventory</div></div></td></tr>';
 }
 
 // ── DASHBOARD ───────────────────────────────────────────────────
@@ -3231,7 +3265,7 @@ function renderBrowse() {
   let _ephRowsHtml = '';
   if (_ephemeraRows.length) {
     _ephRowsHtml = _ephemeraRows.map(r => {
-      if (r._divider) return `<tr><td colspan="9" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
+      if (r._divider) return `<tr><td colspan="10" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
       const it = r.item;
       const cond = it.condition ? parseInt(it.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
@@ -3297,7 +3331,7 @@ function renderBrowse() {
         <div class="browse-card-left">
           <div class="browse-card-num">${item.itemNum}${item.variation ? ' <span style="font-size:0.75rem;color:var(--text-dim)">${item.variation}</span>' : ''}</div>
           <div class="browse-card-name">${item.roadName || item.itemType || '—'}</div>
-          <div class="browse-card-sub">${[item.itemType, item.yearProd].filter(Boolean).join(' · ')}${pd?.matchedTo ? ' · <span style="color:var(--accent2)">' + (isTender(item.itemNum)?'🚂':'🚃') + ' ' + pd.matchedTo + '</span>' : ''}${pd?.setId ? ' · <span style="color:#a855f7;font-size:0.7rem">🔗 ' + pd.setId.split('-').slice(0,2).join('-') + '</span>' : ''}</div>
+          <div class="browse-card-sub">${[item.itemType, item.yearProd].filter(Boolean).join(' · ')}${item.rarity && item.rarity !== 'NRS' ? ' · <span style="font-weight:600;color:' + (parseInt(item.rarity)>=8?'#e74c3c':parseInt(item.rarity)>=6?'#e67e22':parseInt(item.rarity)>=4?'#f1c40f':'#27ae60') + '"title="' + (item.rarityLabel||'') + '">R' + item.rarity + '</span>' : ''}${pd?.matchedTo ? ' · <span style="color:var(--accent2)">' + (isTender(item.itemNum)?'🚂':'🚃') + ' ' + pd.matchedTo + '</span>' : ''}${pd?.groupId ? ' · <span style="color:#a855f7;font-size:0.65rem">🔗 ' + pd.groupId + '</span>' : ''}${pd?.inventoryId ? ' · <span style="font-size:0.65rem;color:var(--text-dim)">' + pd.inventoryId + '</span>' : ''}</div>
         </div>
         <div class="browse-card-right">
           <span class="owned-badge ${badgeClass}">${badgeText}</span>
@@ -3323,6 +3357,7 @@ function renderBrowse() {
         <td>${item.variation || '<span class="text-dim">—</span>'}</td>
         <td>${vdCell}</td>
         <td class="text-dim">${item.yearProd || '—'}</td>
+        <td>${item.rarity ? (item.rarity === 'NRS' ? '<span class="text-dim" title="Not Regularly Sold">NRS</span>' : '<span style="font-size:0.78rem;font-weight:600;color:' + (parseInt(item.rarity)>=8?'#e74c3c':parseInt(item.rarity)>=6?'#e67e22':parseInt(item.rarity)>=4?'#f1c40f':'#27ae60') + '" title="' + (item.rarityLabel||'') + '">' + item.rarity + '</span>') : '<span class="text-dim">—</span>'}</td>
         <td><span class="owned-badge ${badgeClass}">${badgeText}</span></td>
         <td>${cond ? `<span class="condition-pip ${condClass}"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
         <td class="market-val">${item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '<span class="text-dim">—</span>'}</td>
@@ -3332,7 +3367,7 @@ function renderBrowse() {
 
   const emptyHtml = isMobile
     ? '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔍</div><p>No items match your filters</p></div>'
-    : '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div></td></tr>';
+    : '<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div></td></tr>';
 
   if (isMobile) {
     let _ephCardsHtml = '';
@@ -4140,6 +4175,29 @@ function openItem(idx) {
   document.getElementById('mi-road').textContent = item.roadName || '—';
   document.getElementById('mi-var').textContent = item.variation || '(no variation)';
   document.getElementById('mi-market').textContent = item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '—';
+  // Rarity display
+  const _rarityEl = document.getElementById('mi-rarity');
+  if (item.rarity && item.rarity !== 'NRS') {
+    const _rNum = parseInt(item.rarity) || 0;
+    const _rColor = _rNum >= 8 ? '#e74c3c' : _rNum >= 6 ? '#e67e22' : _rNum >= 4 ? '#f1c40f' : '#27ae60';
+    _rarityEl.innerHTML = `<span style="color:${_rColor};font-weight:600">${item.rarity}/10</span> — ${item.rarityLabel || ''}`;
+  } else if (item.rarity === 'NRS') {
+    _rarityEl.innerHTML = '<span style="color:var(--text-dim)">NRS (Not Regularly Sold)</span>';
+  } else {
+    _rarityEl.textContent = '—';
+  }
+  // Inventory ID & Group ID (from personal data)
+  const _pd = pd || {};
+  const _invWrap = document.getElementById('mi-invid-wrap');
+  const _grpWrap = document.getElementById('mi-grpid-wrap');
+  if (_pd.inventoryId) {
+    document.getElementById('mi-invid').textContent = _pd.inventoryId;
+    _invWrap.style.display = '';
+  } else { _invWrap.style.display = 'none'; }
+  if (_pd.groupId) {
+    document.getElementById('mi-grpid').textContent = _pd.groupId;
+    _grpWrap.style.display = '';
+  } else { _grpWrap.style.display = 'none'; }
   document.getElementById('mi-ref').innerHTML = item.refLink ? `<a href="${item.refLink}" target="_blank">View on COTT ↗</a>` : '—';
   document.getElementById('mi-desc').textContent = item.description || 'No description available.';
   const vd = document.getElementById('mi-varDesc-wrap');
@@ -4269,10 +4327,12 @@ async function saveItem() {
       _ex.matchedTo || '', _ex.setId || '', _ex.yearMade || '',
       _ex.isError || '', _ex.errorDesc || '',
       _ex.quickEntry ? 'Yes' : '',  // preserve Quick Entry flag
+      _ex.inventoryId || generateInventoryId(),  // Inventory ID — preserve existing or generate new
+      _ex.groupId || '',  // Group ID — preserve existing
     ];
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:T${existing.row}`, [ownedRow]);
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:V${existing.row}`, [ownedRow]);
     } else {
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [ownedRow]);
     }
@@ -4291,7 +4351,7 @@ async function saveItem() {
     // Remove from My Collection
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:T${existing.row}`, [['','','','','','','','','','','','','','','','','','','','']]);  // 20 cols A-T
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:V${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','','']]);  // 22 cols A-V
     }
     // Write to Sold tab
     const soldRow = [
@@ -4312,7 +4372,7 @@ async function saveItem() {
     // Remove from My Collection if present
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:T${existing.row}`, [['','','','','','','','','','','','','','','','','','','','']]);  // 20 cols A-T
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:V${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','','']]);  // 22 cols A-V
     }
     // Write/update Want List tab
     const wantRow = [
@@ -7254,6 +7314,9 @@ async function saveWizardItem() {
         if (boxKey) existing = state.personalData[boxKey];
         }
       let row;
+      const _paired = d.tenderMatch && d.tenderMatch !== 'none';
+      const _isGrouped = _paired || d.setMatch === 'set-now';
+      const _grpId = _isGrouped ? generateGroupId() : '';
       if (d.boxOnly) {
         const ex = existing || {};
         const itemExists = !!existing;
@@ -7279,9 +7342,17 @@ async function saveWizardItem() {
           ( d.notes || ex.notes || '' ).trim(),
           d.purchaseDate || ex.datePurchased || '',
           d.userEstWorth || ex.userEstWorth || '',
+          ex.matchedTo || '',  // Matched Tender/Engine
+          ex.setId || '',      // Set ID
+          ex.yearMade || '',   // Year Made
+          ex.isError || '',    // Is Error
+          ex.errorDesc || '',  // Error Description
+          ex.quickEntry ? 'Yes' : '',  // Quick Entry
+          ex.inventoryId || generateInventoryId(),  // Inventory ID
+          ex.groupId || '',    // Group ID
         ];
       } else {
-        const _paired = d.tenderMatch && d.tenderMatch !== 'none';
+        const _invId = generateInventoryId();
         const enginePrice = _paired
           ? (d.priceItem ? (parseFloat(d.priceItem)/2).toFixed(2) : '')
           : (d.priceItem || '');
@@ -7311,6 +7382,8 @@ async function saveWizardItem() {
         d.isError === 'Yes' ? 'Yes' : 'No',  // Is Error (col R)
         d.isError === 'Yes' ? (d.errorDesc || '') : '',  // Error Description (col S)
         '',  // Quick Entry (col T) — blank = normal full entry
+        _invId,   // Inventory ID (col U)
+        _grpId,   // Group ID (col V)
         ];
       }
       // ── SET UNIT SAVE: if diesel set, save unit2 (and unit3) rows with shared Set ID ──
@@ -7338,6 +7411,11 @@ async function saveWizardItem() {
       '',           // $0 worth — worth is on unit 1
       itemNum,      // matchedTo = suffixed A unit
       setId,
+      d.yearMade || '',  // Year Made
+      '', '',       // Is Error, Error Description
+      '',           // Quick Entry
+      generateInventoryId(),  // Inventory ID
+      _grpId,       // Group ID — shared with unit 1
     ];
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u2Row]);
 
@@ -7357,6 +7435,11 @@ async function saveWizardItem() {
         '',           // $0 worth — worth is on unit 1
         u2Num,        // matchedTo = B unit
         setId,
+        d.yearMade || '',  // Year Made
+        '', '',       // Is Error, Error Description
+        '',           // Quick Entry
+        generateInventoryId(),  // Inventory ID
+        _grpId,       // Group ID — shared with unit 1
       ];
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u3Row]);
       // Update u2Row matchedTo to also reference u3Num
@@ -7403,6 +7486,12 @@ async function saveWizardItem() {
       d.datePurchased || '',
       '',          // $0 worth — worth is on the engine row
       itemNum,     // matchedTo = engine number
+      '',          // Set ID
+      d.yearMade || '',  // Year Made
+      '', '',      // Is Error, Error Description
+      '',          // Quick Entry
+      generateInventoryId(),  // Inventory ID
+      _grpId,      // Group ID — shared with engine
     ];
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [tRow]);
     // Update engine row matchedTo to point to tender
@@ -7620,6 +7709,8 @@ async function quickEntryAdd() {
   // Build rows to save
   const setId = (d._qeTender && d._qeTender !== 'none') || (d._qeSetPartner && d._qeSetPartner !== 'none')
     ? genSetId(itemNum) : '';
+  const _qeGrouped = setId || (d._qeTender && d._qeTender !== 'none') || (d._qeSetPartner && d._qeSetPartner !== 'none');
+  const _qeGrpId = _qeGrouped ? generateGroupId() : '';
 
   const rows = [];
   rows.push({ itemNum, variation, matchedTo: d._qeTender && d._qeTender !== 'none' ? d._qeTender : (d._qeSetPartner && d._qeSetPartner !== 'none' ? d._qeSetPartner : ''), setId, notes: '' });
@@ -7635,7 +7726,8 @@ async function quickEntryAdd() {
     if (_nextBtn) _nextBtn.disabled = true;
 
     for (const r of rows) {
-      const row = [r.itemNum, r.variation,'','','','','','','','','', r.notes,'','',r.matchedTo,r.setId,'','','','Yes'];
+      const _rInvId = generateInventoryId();
+      const row = [r.itemNum, r.variation,'','','','','','','','','', r.notes,'','',r.matchedTo,r.setId,'','','','Yes', _rInvId, _qeGrpId];
       console.log('[QE] Saving', r.itemNum);
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
       const key = r.itemNum + '|' + r.variation + '|' + Date.now();
@@ -7647,6 +7739,7 @@ async function quickEntryAdd() {
         notes: r.notes, datePurchased: '', userEstWorth: '',
         matchedTo: r.matchedTo, setId: r.setId,
         yearMade: '', isError: '', errorDesc: '', quickEntry: true,
+        inventoryId: _rInvId, groupId: _qeGrpId,
       };
     }
 
