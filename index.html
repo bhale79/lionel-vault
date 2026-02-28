@@ -927,7 +927,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <div class="stat-card" style="--card-accent: var(--gold,#c9922a)">
             <div class="stat-label">Collection Value</div>
             <div class="stat-value" id="stat-value">—</div>
-            <div class="stat-sub">per user</div>
+            <div class="stat-sub">total paid</div>
           </div>
           <div class="stat-card" style="--card-accent: #8b5cf6">
             <div class="stat-label">Est. Market Value</div>
@@ -1514,32 +1514,34 @@ function findOwnedMatch(itemNum) {
 }
 
 // ── INVENTORY ID & GROUP ID ─────────────────────────────────────
-function getNextInventoryNum() {
-  let max = 0;
+let _invCounter = 0;  // running counter to prevent duplicates within a save session
+let _grpCounter = 0;
+
+function _syncInventoryCounter() {
+  // Ensure counter is at least as high as what's already in the data
   Object.values(state.personalData).forEach(pd => {
     const m = (pd.inventoryId || '').match(/^INV-(\d+)$/);
-    if (m) max = Math.max(max, parseInt(m[1]));
+    if (m) _invCounter = Math.max(_invCounter, parseInt(m[1]));
   });
-  return max + 1;
 }
 
 function generateInventoryId() {
-  const num = getNextInventoryNum();
-  return 'INV-' + String(num).padStart(4, '0');
+  _syncInventoryCounter();
+  _invCounter++;
+  return 'INV-' + String(_invCounter).padStart(4, '0');
 }
 
-function getNextGroupNum() {
-  let max = 0;
+function _syncGroupCounter() {
   Object.values(state.personalData).forEach(pd => {
     const m = (pd.groupId || '').match(/^GRP-(\d+)$/);
-    if (m) max = Math.max(max, parseInt(m[1]));
+    if (m) _grpCounter = Math.max(_grpCounter, parseInt(m[1]));
   });
-  return max + 1;
 }
 
 function generateGroupId() {
-  const num = getNextGroupNum();
-  return 'GRP-' + String(num).padStart(4, '0');
+  _syncGroupCounter();
+  _grpCounter++;
+  return 'GRP-' + String(_grpCounter).padStart(4, '0');
 }
 
 // ── STATE ───────────────────────────────────────────────────────
