@@ -545,6 +545,7 @@ HTML — Trailing Modals & Widgets     8291 – 8417
   .owned-badge.yes  { background: rgba(58,158,104,0.15); color: #4dc880; border: 1px solid rgba(58,158,104,0.3); font-family: var(--font-head); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
   .owned-badge.no   { background: var(--surface2); color: var(--text-dim); font-family: var(--font-head); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
   .owned-badge.want { background: rgba(212,168,67,0.15); color: #e8c060; border: 1px solid rgba(212,168,67,0.3); font-family: var(--font-head); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
+  .owned-badge.forsale { background: rgba(230,126,34,0.15); color: #e67e22; border: 1px solid rgba(230,126,34,0.3); font-family: var(--font-head); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
   .condition-pip {
     display: inline-block; width: 8px; height: 8px; border-radius: 50%;
     margin-right: 0.25rem;
@@ -1121,6 +1122,11 @@ HTML — Trailing Modals & Widgets     8291 – 8417
           Want List
           <span class="nav-badge" id="nav-wanted2" style="background:var(--accent2);color:#000">—</span>
         </button>
+        <button class="nav-item" onclick="showPage('forsale', this); buildForSalePage();">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><path d="M6 8h.01M9 8h6"/></svg>
+          For Sale
+          <span class="nav-badge" id="nav-forsale" style="background:#e67e22">—</span>
+        </button>
         <button class="nav-item" onclick="showPage('sold', this)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           Sold Items
@@ -1346,6 +1352,55 @@ document.addEventListener('touchmove', function(){}, {passive: true});
         </div>
       </div>
 
+      <!-- ── For Sale ── -->
+      <div class="page" id="page-forsale">
+        <div class="page-title" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+          <span>Items For Sale</span>
+          <button class="btn" onclick="showMarkForSaleDialog()" style="display:flex;align-items:center;gap:0.4rem;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.12);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            List an Item
+          </button>
+        </div>
+        <!-- For Sale Summary -->
+        <div id="forsale-summary" style="display:flex;gap:1.25rem;background:var(--surface);border:1px solid rgba(230,126,34,0.35);border-radius:12px;padding:0.75rem 1.25rem;align-items:center;margin-bottom:0.85rem">
+          <div style="text-align:center">
+            <div style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px">Listed</div>
+            <div id="forsale-stat-count" style="font-family:var(--font-head);font-size:1.6rem;color:#e67e22;line-height:1">—</div>
+          </div>
+          <div style="width:1px;height:36px;background:var(--border)"></div>
+          <div style="text-align:center">
+            <div style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px">Total Asking</div>
+            <div id="forsale-stat-total" style="font-family:var(--font-head);font-size:1.6rem;color:#e67e22;line-height:1">—</div>
+          </div>
+        </div>
+        <!-- Search -->
+        <div style="margin-bottom:0.75rem">
+          <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.35rem 0.65rem;flex:1;max-width:320px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input id="forsale-search" type="text" placeholder="Search item #, road, type…" oninput="onPageSearch(this.value,'forsale')" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:100%">
+          </div>
+        </div>
+        <!-- Cards view (mobile) -->
+        <div id="forsale-cards" style="display:none;flex-direction:column;gap:0.6rem"></div>
+        <!-- Table view (desktop) -->
+        <div class="table-wrap" id="forsale-table-wrap">
+          <table class="item-table">
+            <thead>
+              <tr>
+                <th>Item #</th>
+                <th>Type</th>
+                <th>Road / Name</th>
+                <th>Asking Price</th>
+                <th>Where Listed</th>
+                <th>Date Listed</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="forsale-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- ── Want List ── -->
       <div class="page" id="page-want">
         <div class="page-title">Want List</div>
@@ -1433,9 +1488,9 @@ document.addEventListener('touchmove', function(){}, {passive: true});
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
         Want List
       </button>
-      <button class="mobile-nav-item" id="mnav-photos" onclick="showPage('photos', this); buildPhotosPage();">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-        Pictures
+      <button class="mobile-nav-item" id="mnav-forsale" onclick="showPage('forsale', this); buildForSalePage();">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><path d="M6 8h.01M9 8h6"/></svg>
+        For Sale
       </button>
       <button class="mobile-nav-item" id="mnav-sold" onclick="showPage('sold', this)">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -1688,6 +1743,7 @@ const CONFIG = {
   MASTER_TAB_FALLBACK: 'Sheet1',
   PERSONAL_TAB: 'My Collection',
   SOLD_TAB:     'Sold',
+  FOR_SALE_TAB: 'For Sale',
   WANT_TAB:     'Want List',
   CATALOG_TAB:  'Catalogs',
   PAPER_TAB:    'Paper Items',
@@ -1758,6 +1814,12 @@ const SC = {
   PRICE_ITEM: 4, SALE_PRICE: 5, DATE_SOLD: 6, NOTES: 7,
 };
 
+// For Sale columns (A=0 through G=6)
+const FSC = {
+  ITEM_NUM: 0, VARIATION: 1, ASKING_PRICE: 2, WHERE_LISTED: 3,
+  NOTES: 4, DATE_LISTED: 5, ORIG_PRICE: 6,
+};
+
 // Want List columns (A=0 through E=4)
 const WC = {
   ITEM_NUM: 0, VARIATION: 1, PRIORITY: 2, EXPECTED_PRICE: 3, NOTES: 4,
@@ -1784,6 +1846,10 @@ const PERSONAL_HEADERS = [
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
   'Sale Price','Date Sold','Notes'
+];
+const FOR_SALE_HEADERS = [
+  'Item Number','Variation','Asking Price','Where Listed','Notes',
+  'Date Listed','Original Price Paid'
 ];
 const WANT_HEADERS = [
   'Item Number','Variation','Priority','Expected Price','Notes'
@@ -1892,6 +1958,8 @@ function conditionClass(cond) {
 function ownerBadge(itemNum, variation, pd) {
   const isOwned = pd?.owned || false;
   const isWanted = !!state.wantData[`${itemNum}|${variation}`];
+  const isForSale = !!state.forSaleData[`${itemNum}|${variation}`];
+  if (isForSale) return { class: 'forsale', text: '🏷 For Sale' };
   return {
     class: isOwned ? 'yes' : isWanted ? 'want' : 'no',
     text:  isOwned ? '✓ Owned' : isWanted ? '★ Want' : '—',
@@ -1932,6 +2000,7 @@ let state = {
   masterData: [],      // all rows from master sheet
   personalData: {},    // keyed by "itemNum|variation" -> personal row (owned items)
   soldData: {},        // keyed by "itemNum|variation" -> sold row
+  forSaleData: {},     // keyed by "itemNum|variation" -> for sale listing
   wantData: {},        // keyed by "itemNum|variation" -> want list row
   filteredData: [],
   currentPage: 1,
@@ -2176,6 +2245,7 @@ async function initPersonalSheet(sheetId) {
   // Build list of tabs to create
   const toCreate = [];
   if (!existingTabs.includes('Sold'))      toCreate.push({ addSheet: { properties: { title: 'Sold' } } });
+  if (!existingTabs.includes('For Sale'))  toCreate.push({ addSheet: { properties: { title: 'For Sale' } } });
   if (!existingTabs.includes('Want List')) toCreate.push({ addSheet: { properties: { title: 'Want List' } } });
 
   if (toCreate.length > 0) {
@@ -2189,6 +2259,8 @@ async function initPersonalSheet(sheetId) {
   // Write headers to all tabs
   await sheetsUpdate(sheetId, 'Sold!A1:A1',      [['Sold']]);
   await sheetsUpdate(sheetId, 'Sold!A2:H2',      [SOLD_HEADERS]);
+  await sheetsUpdate(sheetId, 'For Sale!A1:A1',  [['For Sale']]);
+  await sheetsUpdate(sheetId, 'For Sale!A2:G2',  [FOR_SALE_HEADERS]);
   await sheetsUpdate(sheetId, 'Want List!A1:A1', [['Want List']]);
   await sheetsUpdate(sheetId, 'Want List!A2:E2', [WANT_HEADERS]);
 
@@ -2858,6 +2930,7 @@ async function loadPersonalData() {
       const _pd = JSON.parse(_pcache);
       state.personalData  = _pd.personalData  || {};
       state.soldData      = _pd.soldData      || {};
+      state.forSaleData   = _pd.forSaleData   || {};
       state.wantData      = _pd.wantData      || {};
       state.isData        = _pd.isData        || {};
       state.ephemeraData  = _pd.ephemeraData  || { catalogs:{}, paper:{}, mockups:{}, other:{} };
@@ -2882,6 +2955,7 @@ function _cachePersonalData() {
     const _snap = {
       personalData: state.personalData,
       soldData: state.soldData,
+      forSaleData: state.forSaleData,
       wantData: state.wantData,
       isData: state.isData,
       ephemeraData: state.ephemeraData,
@@ -2898,13 +2972,15 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   const newSold     = {};
   const newWant     = {};
   const newIsData   = {};
+  const newForSale  = {};
   const newEphemera = { catalogs:{}, paper:{}, mockups:{}, other:{} };
 
   // Fetch all tabs in parallel
-  const [collRes, soldRes, wantRes,
+  const [collRes, soldRes, forSaleRes, wantRes,
          catRes, paperRes, mockRes, otherRes, isRes] = await Promise.all([
     sheetsGet(sheetId, 'My Collection!A3:U').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Sold!A3:H').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'For Sale!A3:G').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Want List!A3:E').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Catalogs!A3:I').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Paper Items!A3:J').catch(() => ({values:[]})),
@@ -2952,6 +3028,18 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     newWant[key] = {
       row: idx+3, itemNum: r[WC.ITEM_NUM]||'', variation: r[WC.VARIATION]||'',
       priority: r[WC.PRIORITY]||'Medium', expectedPrice: r[WC.EXPECTED_PRICE]||'', notes: r[WC.NOTES]||'',
+    };
+  });
+
+  // For Sale
+  (forSaleRes.values || []).forEach((r, idx) => {
+    if (!r[FSC.ITEM_NUM] || r[FSC.ITEM_NUM] === 'Item Number') return;
+    const key = `${r[FSC.ITEM_NUM]}|${r[FSC.VARIATION]||''}`;
+    newForSale[key] = {
+      row: idx+3, itemNum: r[FSC.ITEM_NUM]||'', variation: r[FSC.VARIATION]||'',
+      askingPrice: r[FSC.ASKING_PRICE]||'', whereListed: r[FSC.WHERE_LISTED]||'',
+      notes: r[FSC.NOTES]||'', dateListed: r[FSC.DATE_LISTED]||'',
+      origPrice: r[FSC.ORIG_PRICE]||'',
     };
   });
 
@@ -3048,6 +3136,9 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   if (forceOverwrite || Object.keys(newSold).length > 0 || Object.keys(state.soldData).length === 0) {
     state.soldData = newSold;
   }
+  if (forceOverwrite || Object.keys(newForSale).length > 0 || Object.keys(state.forSaleData).length === 0) {
+    state.forSaleData = newForSale;
+  }
   if (forceOverwrite || Object.keys(newWant).length > 0 || Object.keys(state.wantData).length === 0) {
     state.wantData = newWant;
   }
@@ -3062,6 +3153,7 @@ function buildApp() {
   buildDashboard();
   buildBrowse();
   buildSoldPage();
+  buildForSalePage();
   buildWantPage();
   // Wire up the Google Sheet link in the sidebar
   const sheetLink = document.getElementById('nav-sheet-link');
@@ -3090,12 +3182,14 @@ async function forceRefreshData() {
     // Wipe state completely so merge logic can't keep stale optimistic items
     state.personalData = {};
     state.soldData = {};
+    state.forSaleData = {};
     state.wantData = {};
     await _loadPersonalFromSheets(state.personalSheetId, true);
     _cachePersonalData();
     resetFilters();
     buildDashboard();
     buildSoldPage();
+    buildForSalePage();
     buildWantPage();
     renderBrowse();
     buildQuickEntryList && buildQuickEntryList();
@@ -3516,6 +3610,9 @@ function onPageSearch(val, page) {
   } else if (page === 'want') {
     state._wantSearch = q;
     buildWantPage();
+  } else if (page === 'forsale') {
+    state._forSaleSearch = q;
+    buildForSalePage();
   }
 }
 
@@ -3899,6 +3996,11 @@ function showOwnedItemMenu(idx, pdKey) {
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Record a Sale',
     '#2ecc71', 'rgba(46,204,113,0.1)',
     function() { overlay.remove(); sellFromCollection(idx, pdKey); }
+  ));
+  box.appendChild(mkBtn(
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M6 8h.01M9 8h6"/></svg> List For Sale',
+    '#e67e22', 'rgba(230,126,34,0.1)',
+    function() { overlay.remove(); showMarkForSaleDialog(item.itemNum, item.variation); }
   ));
   box.appendChild(mkBtn(
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Update Info',
@@ -4763,6 +4865,7 @@ async function saveItem() {
   closeModal();
   buildDashboard();
   buildSoldPage();
+  buildForSalePage();
   renderBrowse();
   showToast('✓ Item updated!');
 
@@ -5237,6 +5340,298 @@ function buildSoldPage() {
   document.getElementById('nav-sold').textContent = soldEntries.length;
 }
 
+// ── FOR SALE PAGE ────────────────────────────────────────────────
+function buildForSalePage() {
+  const _fq = (state._forSaleSearch || '').toLowerCase();
+  const entries = Object.entries(state.forSaleData).filter(([k, fs]) => {
+    if (!_fq) return true;
+    const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
+    return (fs.itemNum||'').toLowerCase().includes(_fq)
+      || (master.roadName||'').toLowerCase().includes(_fq)
+      || (master.itemType||'').toLowerCase().includes(_fq)
+      || (fs.whereListed||'').toLowerCase().includes(_fq);
+  });
+  const items = entries.map(([k, fs]) => fs);
+
+  // Summary stats
+  const totalAsking = items.reduce((sum, fs) => sum + (parseFloat(fs.askingPrice) || 0), 0);
+  const countEl = document.getElementById('forsale-stat-count');
+  const totalEl = document.getElementById('forsale-stat-total');
+  if (countEl) countEl.textContent = items.length.toLocaleString();
+  if (totalEl) totalEl.textContent = totalAsking > 0 ? '$' + Math.round(totalAsking).toLocaleString() : '$0';
+
+  const isMobile = window.innerWidth <= 640;
+  const cardsEl = document.getElementById('forsale-cards');
+  const tableWrap = document.getElementById('forsale-table-wrap');
+  const tbody = document.getElementById('forsale-tbody');
+
+  if (isMobile) {
+    if (cardsEl) cardsEl.style.display = 'flex';
+    if (tableWrap) tableWrap.style.display = 'none';
+    if (cardsEl) cardsEl.innerHTML = items.length ? items.map(fs => {
+      const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1;min-width:0">
+            <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${fs.itemNum}</span>
+            ${fs.variation ? `<span style="font-size:0.78rem;color:var(--text-dim);margin-left:0.4rem">${fs.variation}</span>` : ''}
+            ${master.roadName ? `<div style="font-size:0.85rem;color:var(--text);margin-top:0.1rem">${master.roadName}</div>` : ''}
+            <div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.15rem">${[fs.whereListed, fs.dateListed].filter(Boolean).join(' · ')}</div>
+            ${fs.notes ? `<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.3rem;font-style:italic">${fs.notes}</div>` : ''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:0.75rem">
+            ${fs.askingPrice ? `<div style="font-family:var(--font-mono);color:#e67e22;font-size:1.1rem;font-weight:600">$${parseFloat(fs.askingPrice).toLocaleString()}</div>` : '<div style="color:var(--text-dim);font-size:0.8rem">No price</div>'}
+          </div>
+        </div>
+        <div style="display:flex;gap:0.5rem;margin-top:0.65rem">
+          <button onclick="markSoldFromForSale('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}')" style="flex:1;padding:0.5rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-head);font-size:0.78rem;font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:0.04em">Sold!</button>
+          <button onclick="removeFromSale('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}')" style="flex:1;padding:0.5rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-head);font-size:0.78rem;cursor:pointer;text-transform:uppercase;letter-spacing:0.04em">Remove</button>
+        </div>
+      </div>`;
+    }).join('') : '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🏷️</div><p>No items listed for sale</p></div>';
+  } else {
+    if (cardsEl) cardsEl.style.display = 'none';
+    if (tableWrap) tableWrap.style.display = '';
+    if (tbody) tbody.innerHTML = items.length ? items.map(fs => {
+      const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
+      return `<tr>
+        <td><span class="item-num">${fs.itemNum}</span></td>
+        <td><span class="tag">${master.itemType || '—'}</span></td>
+        <td>${master.roadName || '—'}${fs.notes ? `<div style="font-size:0.75rem;color:var(--text-dim);font-style:italic;margin-top:0.15rem">${fs.notes}</div>` : ''}</td>
+        <td class="market-val">${fs.askingPrice ? '$' + parseFloat(fs.askingPrice).toLocaleString() : '—'}</td>
+        <td>${fs.whereListed || '—'}</td>
+        <td class="text-dim">${fs.dateListed || '—'}</td>
+        <td>
+          <div style="display:flex;gap:0.35rem">
+            <button onclick="markSoldFromForSale('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}')" style="padding:0.3rem 0.6rem;border-radius:6px;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-size:0.75rem;font-weight:600;cursor:pointer">Sold!</button>
+            <button onclick="removeFromSale('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}')" style="padding:0.3rem 0.6rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:0.75rem;cursor:pointer">Remove</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">🏷️</div><p>No items listed for sale</p></div></td></tr>';
+  }
+
+  const badge = document.getElementById('nav-forsale');
+  if (badge) badge.textContent = items.length;
+}
+
+// ── MARK FOR SALE DIALOG ─────────────────────────────────────────
+function showMarkForSaleDialog(prefillItemNum, prefillVariation) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay open';
+  overlay.style.zIndex = '250';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  // Build list of owned items for quick-pick
+  const ownedItems = Object.values(state.personalData).filter(pd => pd.owned);
+
+  const box = document.createElement('div');
+  box.className = 'modal';
+  box.style.maxWidth = '480px';
+  box.innerHTML = `
+    <div class="modal-header" style="border-bottom-color:rgba(230,126,34,0.3)">
+      <div>
+        <div class="modal-title" style="color:#e67e22">List Item For Sale</div>
+        <div class="modal-subtitle">Enter details for the listing</div>
+      </div>
+      <button class="btn-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label>Item Number</label>
+        <input type="text" id="fs-item-num" placeholder="e.g. 726, 2046, 6464-1" value="${prefillItemNum || ''}" list="fs-owned-list">
+        <datalist id="fs-owned-list">
+          ${ownedItems.map(pd => `<option value="${pd.itemNum}${pd.variation ? ' — ' + pd.variation : ''}">`).join('')}
+        </datalist>
+      </div>
+      <div class="form-field">
+        <label>Variation</label>
+        <input type="text" id="fs-variation" value="${prefillVariation || ''}" placeholder="Leave blank if none">
+      </div>
+      <div class="form-field">
+        <label>Asking Price ($)</label>
+        <input type="number" id="fs-asking-price" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div class="form-field">
+        <label>Where Listed</label>
+        <select id="fs-where-listed" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:0.65rem 0.85rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem">
+          <option value="">Select…</option>
+          <option value="eBay">eBay</option>
+          <option value="Train Show">Train Show</option>
+          <option value="Facebook Marketplace">Facebook Marketplace</option>
+          <option value="Craigslist">Craigslist</option>
+          <option value="TCA Meet">TCA Meet</option>
+          <option value="Local Shop">Local Shop</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-field full">
+        <label>Notes / Description for Buyers</label>
+        <textarea id="fs-notes" placeholder="Condition details, includes, shipping info…" style="resize:vertical;min-height:70px"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer" style="border-top-color:rgba(230,126,34,0.3)">
+      <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+      <button class="btn" id="fs-save-btn" style="background:#e67e22;color:#fff" onclick="saveForSaleListing()">List For Sale</button>
+    </div>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  // Auto-fill variation if item number was prefilled
+  if (prefillItemNum) {
+    const pd = Object.values(state.personalData).find(p => p.itemNum === prefillItemNum && p.variation === (prefillVariation||''));
+    if (pd) {
+      document.getElementById('fs-asking-price').value = pd.userEstWorth || pd.priceItem || '';
+    }
+  }
+}
+
+async function saveForSaleListing() {
+  const rawItemNum = document.getElementById('fs-item-num').value.trim();
+  // Handle datalist format "726 — variation"
+  const parts = rawItemNum.split(' — ');
+  const itemNum = (parts[0] || '').trim();
+  const variation = document.getElementById('fs-variation').value.trim() || (parts[1] || '').trim();
+  const askingPrice = document.getElementById('fs-asking-price').value.trim();
+  const whereListed = document.getElementById('fs-where-listed').value;
+  const notes = document.getElementById('fs-notes').value.trim();
+  const dateListed = new Date().toISOString().split('T')[0];
+
+  if (!itemNum) { showToast('Please enter an item number'); return; }
+
+  // Get original price paid from collection
+  const pd = Object.values(state.personalData).find(p => p.itemNum === itemNum && p.variation === variation);
+  const origPrice = pd ? (pd.priceItem || '') : '';
+
+  const row = [itemNum, variation, askingPrice, whereListed, notes, dateListed, origPrice];
+
+  const btn = document.getElementById('fs-save-btn');
+  if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
+
+  try {
+    // Check if already listed
+    const key = `${itemNum}|${variation}`;
+    const existing = state.forSaleData[key];
+    if (existing && existing.row) {
+      await sheetsUpdate(state.personalSheetId, `For Sale!A${existing.row}:G${existing.row}`, [row]);
+    } else {
+      await sheetsAppend(state.personalSheetId, 'For Sale!A:A', [row]);
+    }
+
+    // Update local state
+    state.forSaleData[key] = {
+      row: existing ? existing.row : Date.now(),
+      itemNum, variation, askingPrice, whereListed, notes, dateListed, origPrice,
+    };
+
+    document.querySelector('.modal-overlay[style*="250"]')?.remove();
+    showToast('🏷️ ' + itemNum + ' listed for sale!');
+    buildForSalePage();
+    _cachePersonalData();
+  } catch(e) {
+    if (btn) { btn.textContent = 'List For Sale'; btn.disabled = false; }
+    showToast('❌ Save failed: ' + e.message, 6000, true);
+  }
+}
+
+async function markSoldFromForSale(itemNum, variation) {
+  // Prompt for sale price
+  const fs = state.forSaleData[`${itemNum}|${variation}`];
+  if (!fs) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay open';
+  overlay.style.zIndex = '260';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  const box = document.createElement('div');
+  box.className = 'modal';
+  box.style.maxWidth = '380px';
+  box.innerHTML = `
+    <div class="modal-header" style="border-bottom-color:rgba(46,204,113,0.3)">
+      <div>
+        <div class="modal-title" style="color:#2ecc71">Mark as Sold</div>
+        <div class="modal-subtitle">${itemNum}${variation ? ' — ' + variation : ''}</div>
+      </div>
+      <button class="btn-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label>Sale Price ($)</label>
+        <input type="number" id="fs-sale-price" placeholder="0.00" min="0" step="0.01" value="${fs.askingPrice || ''}">
+      </div>
+      <div class="form-field">
+        <label>Date Sold</label>
+        <input type="date" id="fs-date-sold" value="${new Date().toISOString().split('T')[0]}">
+      </div>
+    </div>
+    <div class="modal-footer" style="border-top-color:rgba(46,204,113,0.3)">
+      <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+      <button class="btn" id="fs-sold-btn" style="background:#2ecc71;color:#fff" onclick="_confirmSoldFromForSale('${itemNum}','${(variation||'').replace(/'/g,"\\'")}')">Confirm Sale</button>
+    </div>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
+async function _confirmSoldFromForSale(itemNum, variation) {
+  const salePrice = document.getElementById('fs-sale-price').value.trim();
+  const dateSold = document.getElementById('fs-date-sold').value;
+  const key = `${itemNum}|${variation}`;
+  const fs = state.forSaleData[key];
+  const pd = Object.values(state.personalData).find(p => p.itemNum === itemNum && p.variation === variation);
+
+  const btn = document.getElementById('fs-sold-btn');
+  if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
+
+  try {
+    // 1. Write to Sold tab
+    const soldRow = [itemNum, variation, '1', pd?.condition || '', fs?.origPrice || pd?.priceItem || '', salePrice, dateSold, fs?.notes || ''];
+    const existingSold = state.soldData[key];
+    if (existingSold && existingSold.row) {
+      await sheetsUpdate(state.personalSheetId, `Sold!A${existingSold.row}:H${existingSold.row}`, [soldRow]);
+    } else {
+      await sheetsAppend(state.personalSheetId, 'Sold!A:A', [soldRow]);
+    }
+
+    // 2. Clear from For Sale tab
+    if (fs && fs.row && typeof fs.row === 'number' && fs.row < 100000) {
+      await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:G${fs.row}`, [['','','','','','','']]);
+    }
+
+    // 3. Update local state
+    state.soldData[key] = { row: existingSold?.row || Date.now(), itemNum, variation, copy:'1', condition: pd?.condition||'', priceItem: fs?.origPrice||pd?.priceItem||'', salePrice, dateSold, notes: fs?.notes||'' };
+    delete state.forSaleData[key];
+
+    document.querySelector('.modal-overlay[style*="260"]')?.remove();
+    showToast('✓ ' + itemNum + ' marked as sold for $' + (salePrice || '0'));
+    buildForSalePage();
+    buildSoldPage();
+    _cachePersonalData();
+  } catch(e) {
+    if (btn) { btn.textContent = 'Confirm Sale'; btn.disabled = false; }
+    showToast('❌ Save failed: ' + e.message, 6000, true);
+  }
+}
+
+async function removeFromSale(itemNum, variation) {
+  if (!confirm('Remove ' + itemNum + ' from For Sale list?')) return;
+  const key = `${itemNum}|${variation}`;
+  const fs = state.forSaleData[key];
+  try {
+    if (fs && fs.row && typeof fs.row === 'number' && fs.row < 100000) {
+      await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:G${fs.row}`, [['','','','','','','']]);
+    }
+    delete state.forSaleData[key];
+    showToast('Removed ' + itemNum + ' from sale list');
+    buildForSalePage();
+    _cachePersonalData();
+  } catch(e) {
+    showToast('❌ Remove failed: ' + e.message, 6000, true);
+  }
+}
+
 function clearPageSearch(name) {
   const map = { browse: 'browse-search', sold: 'sold-search', want: 'want-search' };
   const el = document.getElementById(map[name]);
@@ -5252,6 +5647,7 @@ function showPage(name, clickedEl) {
   if (name === 'browse') renderBrowse();
   if (name === 'reports') buildReport();
   if (name === 'sold') buildSoldPage();
+  if (name === 'forsale') buildForSalePage();
   if (name === 'want') buildWantPage();
   document.getElementById('main-content').scrollTop = 0;
 }
@@ -5620,8 +6016,10 @@ function getSteps(tab) {
       { id: 'itemNum',      title: 'What is the Lionel item number?',      type: 'text',        placeholder: 'e.g. 726, 2046, 6464-1' },
       { id: 'pickSoldItem', title: 'Which item are you selling?',          type: 'pickSoldItem',
         skipIf: (d) => {
-          const matches = Object.keys(state.personalData).filter(k => k.split('|')[0] === (d.itemNum||'').trim());
-          return matches.length === 0; // not in collection — skip picker
+          const itemNum = (d.itemNum||'').trim();
+          const collMatches = Object.keys(state.personalData).filter(k => k.split('|')[0] === itemNum);
+          const fsMatches = Object.keys(state.forSaleData).filter(k => k.split('|')[0] === itemNum);
+          return collMatches.length === 0 && fsMatches.length === 0; // skip if not in collection OR for sale
         }
       },
       { id: 'condition',    title: 'What condition was the item?',         type: 'slider',      min:1, max:10,
@@ -6634,14 +7032,40 @@ function renderWizardStep() {
     const itemNum = (wizard.data.itemNum || '').trim();
     const matchKeys = Object.keys(state.personalData).filter(k => {
       const pd = state.personalData[k];
-      // Show all owned rows for this item number
-      // Include rows with real item info (condition not N/A or empty)
       return k.split('|')[0] === itemNum && pd.owned;
     });
+    // For Sale items for this number
+    const fsKeys = Object.keys(state.forSaleData).filter(k => k.split('|')[0] === itemNum);
       const selected = wizard.data.selectedSoldKey || '';
     body.innerHTML = `
       <div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.5rem">
-        ${matchKeys.length === 0 ? '<div style="color:var(--text-dim);font-size:0.85rem">No owned items found for this number.</div>' : ''}
+        ${matchKeys.length === 0 && fsKeys.length === 0 ? '<div style="color:var(--text-dim);font-size:0.85rem">No owned or listed items found for this number.</div>' : ''}
+        ${fsKeys.length > 0 ? `<div style="font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;color:#e67e22;font-weight:600;margin-bottom:0.15rem;margin-top:0.25rem">🏷 Listed For Sale</div>` : ''}
+        ${fsKeys.map(k => {
+          const fs = state.forSaleData[k];
+          const isSelected = selected === 'fs:' + k;
+          return `<button onclick="wizardPickSoldItem('fs:${k}')" style="
+            display:flex;align-items:flex-start;gap:0.75rem;padding:0.85rem 1rem;
+            border-radius:10px;text-align:left;width:100%;cursor:pointer;
+            font-family:var(--font-body);transition:all 0.15s;
+            border:2px solid ${isSelected ? '#e67e22' : 'var(--border)'};
+            background:${isSelected ? 'rgba(230,126,34,0.12)' : 'var(--surface2)'};
+          ">
+            <div style="flex:1">
+              <div style="font-family:var(--font-mono);color:#e67e22;font-size:0.9rem;font-weight:600">
+                ${fs.itemNum}${fs.variation ? ' — Var ' + fs.variation : ''}
+                <span style="font-size:0.72rem;background:rgba(230,126,34,0.2);color:#e67e22;padding:0.1rem 0.4rem;border-radius:4px;margin-left:0.4rem">FOR SALE</span>
+              </div>
+              <div style="font-size:0.8rem;color:var(--text-mid);margin-top:0.3rem;display:flex;gap:1rem;flex-wrap:wrap">
+                ${fs.askingPrice ? `<span>Asking: <strong style="color:#e67e22">$${parseFloat(fs.askingPrice).toLocaleString()}</strong></span>` : ''}
+                ${fs.whereListed ? `<span>${fs.whereListed}</span>` : ''}
+                ${fs.dateListed ? `<span>Listed: ${fs.dateListed}</span>` : ''}
+              </div>
+            </div>
+            ${isSelected ? '<span style="color:#e67e22;font-size:1.1rem;align-self:center">✓</span>' : ''}
+          </button>`;
+        }).join('')}
+        ${matchKeys.length > 0 ? `<div style="font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);font-weight:600;margin-bottom:0.15rem;margin-top:0.25rem">From My Collection</div>` : ''}
         ${matchKeys.map(k => {
           const pd = state.personalData[k];
           const isSelected = selected === k;
@@ -6953,11 +7377,28 @@ function toggleAttachToBox(itemNum) {
 function wizardPickSoldItem(key) {
   wizard.data.selectedSoldKey = key;
   if (key !== '__new__') {
-    const pd = state.personalData[key];
-    if (pd) {
-      // Pre-fill condition and original price from collection data
-      if (pd.condition && pd.condition !== 'N/A') wizard.data.condition = parseInt(pd.condition);
-      if (pd.priceItem && pd.priceItem !== 'N/A') wizard.data.priceItem = pd.priceItem;
+    if (key.startsWith('fs:')) {
+      // For Sale item selected
+      const fsKey = key.slice(3);
+      const fs = state.forSaleData[fsKey];
+      if (fs) {
+        wizard.data.forSaleKey = fsKey; // track for cleanup on save
+        if (fs.askingPrice) wizard.data.salePrice = fs.askingPrice; // pre-fill sale price from asking
+        if (fs.origPrice) wizard.data.priceItem = fs.origPrice;
+        // Also check collection for condition data
+        const pd = Object.values(state.personalData).find(p => p.itemNum === fs.itemNum && p.variation === fs.variation);
+        if (pd) {
+          if (pd.condition && pd.condition !== 'N/A') wizard.data.condition = parseInt(pd.condition);
+          if (!fs.origPrice && pd.priceItem && pd.priceItem !== 'N/A') wizard.data.priceItem = pd.priceItem;
+        }
+      }
+    } else {
+      // Collection item selected
+      const pd = state.personalData[key];
+      if (pd) {
+        if (pd.condition && pd.condition !== 'N/A') wizard.data.condition = parseInt(pd.condition);
+        if (pd.priceItem && pd.priceItem !== 'N/A') wizard.data.priceItem = pd.priceItem;
+      }
     }
   }
   setTimeout(() => wizardNext(), 150);
@@ -7974,6 +8415,17 @@ async function saveWizardItem() {
       if (collectionEntry?.itemNum) {
         try { await driveMoveToSold(collectionEntry.itemNum); } catch(e) { console.warn('Drive move failed:', e); }
       }
+      // Clean up For Sale listing if this item was listed
+      const _fsCleanKey = d.forSaleKey || `${itemNum}|${soldVariation}`;
+      const _fsEntry = state.forSaleData[_fsCleanKey];
+      if (_fsEntry) {
+        try {
+          if (_fsEntry.row && typeof _fsEntry.row === 'number' && _fsEntry.row < 100000) {
+            await sheetsUpdate(state.personalSheetId, `For Sale!A${_fsEntry.row}:G${_fsEntry.row}`, [['','','','','','','']]);
+          }
+          delete state.forSaleData[_fsCleanKey];
+        } catch(e) { console.warn('For Sale cleanup failed:', e); }
+      }
 
     } else if (tab === 'want') {
       const row = [
@@ -8061,6 +8513,7 @@ async function saveWizardItem() {
     resetFilters();
     buildDashboard();
     buildSoldPage();
+    buildForSalePage();
     renderBrowse();
     showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
 
@@ -8075,6 +8528,7 @@ async function saveWizardItem() {
         resetFilters();
         buildDashboard();
         buildSoldPage();
+        buildForSalePage();
         renderBrowse();
       } catch(e) { console.warn('Background sync after save:', e); }
     }, _syncDelay);
