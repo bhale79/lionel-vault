@@ -1,83 +1,4 @@
 <!DOCTYPE html>
-<!--
-╔══════════════════════════════════════════════════════════════════════╗
-║  MY COLLECTION APP — Postwar Trains 1945–1969                      ║
-║  Single-file HTML/CSS/JS app · Google Sheets backend               ║
-║  Last updated: 2026-02-28                                          ║
-╚══════════════════════════════════════════════════════════════════════╝
-
-GOALS (15 total — sync with GOALS.md in project)
-───────────────────────────────────────────────────
-Target user: Older male collectors, not tech-savvy, needs big fonts & simple flows.
-Mobile = primary input device. Desktop = browsing & reports.
-
-✅ DONE: #1 Wizard simplified (18→12 steps), #3 For Sale section,
-         #4 Font/tap audit, #10 Location toggle, #14 Branding cleanup
-• MEDIUM: #5 Step-by-step tutorials, #6 Insurance report (PDF),
-          #9 Help menu + animated guide, #11 About App page
-• NEEDS NETWORK: #15 Re-verify COTT variation data
-───────────────────────────────────────────────────
-
-CODE MAP (9,467 lines)
-─────────────────────────────────────────────────
-SECTION                              LINES (approx)
-───────────────────────────────────── ──────────────
-HTML <head> & <style>                 292 – 1000
-  CSS variables & theme                25 –   45
-  Component styles                     46 –  730
-
-HTML <body> — Layout & Pages         1002 – 1729
-  Auth / sign-in screen
-  First-time setup screen
-  Main app shell (header + sidebar)
-  Dashboard page
-  Quick Entry List page
-  Browse page
-  Sold page
-  For Sale page
-  Want List page
-  Reports & Ephemera pages
-  Mobile bottom nav
-  Item Detail Modal
-  Sold Modal
-  Add Item Wizard (HTML shell)
-
-SCRIPT BLOCK 1 (main app logic)      1730 – 5665
-  ┌─ CONFIG & CONSTANTS              1734 – 1840
-  ├─ STATE & AUTH                     1840 – 2020
-  ├─ ONBOARDING & SETUP              2020 – 2180
-  ├─ SHEET INITIALIZATION            2180 – 2320
-  ├─ PHOTO VIEW DEFINITIONS          2320 – 2410
-  ├─ GOOGLE DRIVE INTEGRATION        2410 – 2700
-  ├─ GOOGLE SHEETS API               2700 – 2860
-  ├─ DATA LOADING (incl. For Sale)   2860 – 3150
-  ├─ APP BUILDING & DASHBOARD        3150 – 3320
-  ├─ BROWSE — FILTERS & RENDERING    3320 – 3620
-  ├─ ITEM INTERACTION MENUS          3620 – 4050
-  ├─ ITEM PANEL (detail editor)      4050 – 4460
-  ├─ BROWSE ROW CLICK / ITEM MODAL   4460 – 4750
-  ├─ SAVE TO SHEETS                  4750 – 4880
-  ├─ REPORTS                         4880 – 4980
-  ├─ EPHEMERA PAGE                   4980 – 5110
-  ├─ WANT LIST PAGE                  5110 – 5270
-  ├─ SOLD PAGE                       5270 – 5340
-  ├─ FOR SALE PAGE + ACTIONS         5340 – 5640
-  └─ PAGE NAVIGATION                 5640 – 5665
-
-SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
-  ┌─ WIZARD STEP DEFINITIONS         5685 – 6000
-  ├─ WIZARD RENDERING                6036 – 7370
-  │   (includes pricingCombined, notesPlus renderers)
-  ├─ WIZARD INTERACTION              7370 – 7770
-  ├─ WIZARD NAVIGATION               7770 – 7860
-  ├─ WIZARD SAVE LOGIC               7860 – 8610
-  ├─ QUICK ENTRY (startQuickEntry)   8613 – 8810
-  ├─ TOAST NOTIFICATIONS             8810 – 8840
-  ├─ IDENTIFY ITEM (Gemini/Lens)     8840 – 8950
-  └─ PHOTOS PAGE                     8950 – 9340
-
-──────────────────────────────────────────────────────
--->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -238,12 +159,12 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
     overflow-y: auto;
   }
   .nav-section { padding: 1.25rem 0.75rem 0.5rem; }
-  .nav-label { font-family: var(--font-head); font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase;
+  .nav-label { font-family: var(--font-head); font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase;
     color: var(--text-dim); padding: 0 0.5rem; margin-bottom: 0.4rem; }
   .nav-item {
     display: flex; align-items: center; gap: 0.65rem;
-    padding: 0.65rem 0.75rem; border-radius: 7px; cursor: pointer;
-    color: var(--text-mid); font-size: 0.9rem; font-weight: 400;
+    padding: 0.55rem 0.75rem; border-radius: 7px; cursor: pointer;
+    color: var(--text-mid); font-size: 0.875rem; font-weight: 400;
     transition: all 0.15s; border: none; background: none; width: 100%; text-align: left;
   }
   .nav-item:hover { background: var(--surface2); color: var(--text); }
@@ -251,7 +172,7 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
   .nav-item svg { flex-shrink: 0; opacity: 0.8; }
   .nav-badge {
     margin-left: auto; background: var(--accent); color: white;
-    border-radius: 10px; padding: 0.1rem 0.45rem; font-size: 0.75rem; font-weight: 600;
+    border-radius: 10px; padding: 0.1rem 0.45rem; font-size: 0.7rem; font-weight: 600;
   }
   .nav-badge.green { background: var(--green); }
 
@@ -282,12 +203,12 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
     content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
     background: var(--accent-color, var(--accent));
   }
-  .stat-label { font-family: var(--font-head); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 0.4rem; }
+  .stat-label { font-family: var(--font-head); font-size: 0.6rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 0.4rem; }
   .stat-value { font-family: var(--font-head); font-size: 2.2rem; font-weight: 700; letter-spacing: 0.02em;
     line-height: 1; color: var(--text); }
   .stat-sub { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.3rem; }
 
-  .section-title { font-family: var(--font-head); font-size: 0.75rem; font-weight: 600;
+  .section-title { font-family: var(--font-head); font-size: 0.68rem; font-weight: 600;
     letter-spacing: 0.18em; text-transform: uppercase;
     color: var(--text-dim); margin-bottom: 0.75rem; padding-bottom: 0.5rem;
     border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.45rem;
@@ -320,13 +241,13 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
   }
   .filter-select {
     background: var(--surface); border: 1px solid var(--border); border-radius: 7px;
-    padding: 0.55rem 0.85rem; color: var(--text); font-family: var(--font-body); font-size: 0.9rem;
+    padding: 0.45rem 0.75rem; color: var(--text); font-family: var(--font-body); font-size: 0.85rem;
     outline: none; cursor: pointer; transition: border-color 0.15s;
   }
   .filter-select:focus { border-color: var(--accent); }
   .filter-toggle {
-    padding: 0.55rem 0.85rem; border-radius: 7px; border: 1px solid var(--border);
-    background: var(--surface); color: var(--text-mid); font-size: 0.9rem;
+    padding: 0.45rem 0.75rem; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-mid); font-size: 0.85rem;
     font-family: var(--font-body); cursor: pointer; transition: all 0.15s;
   }
   .filter-toggle.on { background: rgba(232,64,28,0.15); border-color: var(--accent); color: var(--accent); }
@@ -336,7 +257,7 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
   .item-table { width: 100%; border-collapse: collapse; }
   .item-table th {
     background: var(--surface); padding: 0.55rem 0.85rem; text-align: left;
-    font-family: var(--font-head); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
+    font-family: var(--font-head); font-size: 0.6rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
     color: var(--text-dim); border-bottom: 2px solid var(--border);
   }
   .item-table td {
@@ -352,10 +273,9 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
     display: inline-flex; align-items: center; gap: 0.3rem;
     padding: 0.2rem 0.55rem; border-radius: 12px; font-size: 0.72rem; font-weight: 500;
   }
-  .owned-badge.yes  { background: rgba(58,158,104,0.15); color: #4dc880; border: 1px solid rgba(58,158,104,0.3); font-family: var(--font-head); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
-  .owned-badge.no   { background: var(--surface2); color: var(--text-dim); font-family: var(--font-head); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
-  .owned-badge.want { background: rgba(212,168,67,0.15); color: #e8c060; border: 1px solid rgba(212,168,67,0.3); font-family: var(--font-head); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
-  .owned-badge.forsale { background: rgba(230,126,34,0.15); color: #e67e22; border: 1px solid rgba(230,126,34,0.3); font-family: var(--font-head); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
+  .owned-badge.yes  { background: rgba(58,158,104,0.15); color: #4dc880; border: 1px solid rgba(58,158,104,0.3); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
+  .owned-badge.no   { background: var(--surface2); color: var(--text-dim); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
+  .owned-badge.want { background: rgba(212,168,67,0.15); color: #e8c060; border: 1px solid rgba(212,168,67,0.3); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
   .condition-pip {
     display: inline-block; width: 8px; height: 8px; border-radius: 50%;
     margin-right: 0.25rem;
@@ -372,9 +292,9 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
   }
   .pagination-btns { display: flex; gap: 0.35rem; }
   .page-btn {
-    width: 36px; height: 36px; border-radius: 6px; border: 1px solid var(--border);
+    width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--border);
     background: var(--surface); color: var(--text-mid); cursor: pointer;
-    font-size: 0.82rem; font-family: var(--font-body); transition: all 0.15s;
+    font-size: 0.8rem; font-family: var(--font-body); transition: all 0.15s;
     display: flex; align-items: center; justify-content: center;
   }
   .page-btn:hover { border-color: var(--accent); color: var(--accent); }
@@ -445,13 +365,13 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
     position: sticky; top: 0; background: var(--surface); z-index: 1;
   }
   .modal-item-num { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent2); margin-bottom: 0.25rem; }
-  .modal-title { font-size: 1.2rem; font-weight: 600; }
+  .modal-title { font-size: 1.1rem; font-weight: 600; }
   .modal-subtitle { font-size: 0.82rem; color: var(--text-dim); margin-top: 0.2rem; }
   .btn-close {
-    width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border);
+    width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border);
     background: var(--surface2); color: var(--text-dim); cursor: pointer;
     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    font-size: 1.1rem; transition: all 0.15s;
+    font-size: 1rem; transition: all 0.15s;
   }
   .btn-close:hover { border-color: var(--accent); color: var(--accent); }
 
@@ -460,7 +380,7 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
   .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
   @media (max-width: 480px) { .info-grid { grid-template-columns: 1fr; } }
   .info-field { }
-  .info-field label { font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase;
+  .info-field label { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
     color: var(--text-dim); display: block; margin-bottom: 0.25rem; }
   .info-field .info-val { font-size: 0.875rem; color: var(--text); }
   .info-field a { color: var(--accent2); text-decoration: none; font-size: 0.8rem; }
@@ -471,18 +391,18 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
 
   /* Form fields */
   .form-section-title {
-    font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase;
+    font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
     color: var(--accent); font-weight: 600; padding-bottom: 0.5rem;
     border-bottom: 1px solid rgba(232,64,28,0.2);
   }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
   @media (max-width: 480px) { .form-grid { grid-template-columns: 1fr; } }
-  .form-field label { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase;
+  .form-field label { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
     color: var(--text-dim); display: block; margin-bottom: 0.3rem; }
   .form-field input, .form-field select, .form-field textarea {
     width: 100%; background: var(--bg); border: 1px solid var(--border);
-    border-radius: 7px; padding: 0.65rem 0.85rem; color: var(--text);
-    font-family: var(--font-body); font-size: 0.9rem; outline: none;
+    border-radius: 7px; padding: 0.55rem 0.75rem; color: var(--text);
+    font-family: var(--font-body); font-size: 0.875rem; outline: none;
     transition: border-color 0.15s;
   }
   .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: var(--accent); }
@@ -493,17 +413,17 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
   .toggle-row { display: flex; align-items: center; gap: 0.75rem; }
   .toggle-label { font-size: 0.875rem; }
   .toggle {
-    position: relative; width: 48px; height: 28px;
-    background: var(--border); border-radius: 14px; cursor: pointer;
+    position: relative; width: 40px; height: 22px;
+    background: var(--border); border-radius: 11px; cursor: pointer;
     transition: background 0.2s; flex-shrink: 0;
   }
   .toggle.on { background: var(--green); }
   .toggle::after {
     content: ''; position: absolute; top: 3px; left: 3px;
-    width: 22px; height: 22px; border-radius: 50%; background: white;
+    width: 16px; height: 16px; border-radius: 50%; background: white;
     transition: transform 0.2s;
   }
-  .toggle.on::after { transform: translateX(20px); }
+  .toggle.on::after { transform: translateX(18px); }
 
   /* Condition slider */
   .condition-display { display: flex; align-items: center; gap: 0.75rem; }
@@ -519,8 +439,8 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
     padding: 1rem 1.5rem; border-top: 1px solid var(--border);
     position: sticky; bottom: 0; background: var(--surface);
   }
-  .btn { padding: 0.6rem 1.25rem; border-radius: 6px; font-family: var(--font-head);
-    font-size: 0.85rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
+  .btn { padding: 0.55rem 1.15rem; border-radius: 6px; font-family: var(--font-head);
+    font-size: 0.82rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
     cursor: pointer; transition: all 0.15s; border: none; touch-action: manipulation; }
   .btn-primary { background: var(--accent); color: white; }
   .btn-primary:hover { background: #d63518; }
@@ -539,7 +459,7 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
 
   .report-table { width: 100%; border-collapse: collapse; }
   .report-table th {
-    text-align: left; padding: 0.6rem 1rem; font-size: 0.75rem;
+    text-align: left; padding: 0.6rem 1rem; font-size: 0.7rem;
     letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim);
     background: var(--surface2); border-bottom: 1px solid var(--border);
   }
@@ -585,7 +505,7 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
   }
   .setup-step p { color: var(--text-mid); font-size: 0.85rem; margin: 0; }
   .input-group { margin-top: 1.25rem; }
-  .input-group label { display: block; font-size: 0.78rem; letter-spacing: 0.08em;
+  .input-group label { display: block; font-size: 0.72rem; letter-spacing: 0.08em;
     text-transform: uppercase; color: var(--text-dim); margin-bottom: 0.4rem; }
   .input-group input {
     width: 100%; background: var(--bg); border: 1px solid var(--border);
@@ -602,8 +522,8 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
   .mobile-nav-items { display: flex; justify-content: space-around; }
   .mobile-nav-item {
     display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
-    padding: 0.5rem 0.75rem; color: var(--text-dim); cursor: pointer;
-    font-size: 0.7rem; border: none; background: none; font-family: var(--font-head); letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 0.4rem 0.75rem; color: var(--text-dim); cursor: pointer;
+    font-size: 0.62rem; border: none; background: none; font-family: var(--font-head); letter-spacing: 0.06em; text-transform: uppercase;
     transition: color 0.15s; border-radius: 8px;
   }
   .mobile-nav-item.active { color: var(--accent); }
@@ -636,7 +556,7 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
     .browse-card-left { flex: 1; min-width: 0; }
     .browse-card-num { font-family: var(--font-head); font-size: 1.1rem; color: var(--accent); }
     .browse-card-name { font-size: 0.85rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .browse-card-sub { font-size: 0.78rem; color: var(--text-dim); margin-top: 0.15rem; }
+    .browse-card-sub { font-size: 0.72rem; color: var(--text-dim); margin-top: 0.15rem; }
     .browse-card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; flex-shrink: 0; }
 
     /* Filters bar on mobile */
@@ -657,8 +577,8 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
     #photo-grid { grid-template-columns: repeat(4, 1fr) !important; gap: 0.4rem !important; }
 
     /* Buttons — bigger tap targets */
-    .btn { min-height: 48px; }
-    .page-btn { min-width: 44px; min-height: 44px; }
+    .btn { min-height: 44px; }
+    .page-btn { min-width: 40px; min-height: 40px; }
 
     /* Modal full screen */
     .modal-inner { width: 100% !important; max-width: 100% !important;
@@ -688,21 +608,21 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
   /* ── Utility ───────────────────────────────────────────────── */
   .tag {
     display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px;
-    font-family: var(--font-head); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 500; background: var(--surface2); color: var(--text-dim);
+    font-family: var(--font-head); font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 500; background: var(--surface2); color: var(--text-dim);
   }
   .market-val { font-family: var(--font-mono); color: var(--accent2); }
   .dash-row-hover:hover { background: var(--surface2); }
   .eph-tab {
-    padding: 0.5rem 1rem; border-radius: 20px; border: 1.5px solid var(--border);
+    padding: 0.4rem 0.9rem; border-radius: 20px; border: 1.5px solid var(--border);
     background: var(--surface2); color: var(--text-dim); cursor: pointer;
-    font-family: var(--font-body); font-size: 0.85rem; transition: all 0.15s;
+    font-family: var(--font-body); font-size: 0.82rem; transition: all 0.15s;
   }
   .eph-tab.active { border-color: #e67e22; color: #e67e22; background: rgba(230,126,34,0.12); }
-  .eph-row { display:flex;align-items:center;gap:0.75rem;padding:0.65rem 0;border-bottom:1px solid var(--border);cursor:pointer; }
+  .eph-row { display:flex;align-items:center;gap:0.75rem;padding:0.55rem 0;border-bottom:1px solid var(--border);cursor:pointer; }
   .eph-row:hover { background: var(--surface2); }
   .eph-title { font-size:0.9rem;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
-  .eph-year  { font-size:0.8rem;color:var(--text-dim);flex-shrink:0 }
-  .eph-val   { font-size:0.82rem;color:var(--accent2);font-family:var(--font-mono);flex-shrink:0 }
+  .eph-year  { font-size:0.75rem;color:var(--text-dim);flex-shrink:0 }
+  .eph-val   { font-size:0.78rem;color:var(--accent2);font-family:var(--font-mono);flex-shrink:0 }
   .text-dim { color: var(--text-dim); }
   .text-accent { color: var(--accent); }
   .mt-sm { margin-top: 0.5rem; }
@@ -815,9 +735,9 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
 <div id="auth-screen">
   <div class="auth-logo" style="line-height:1.1">
     <div style="font-family:var(--font-head);font-size:2.4rem;font-weight:700;color:var(--cream);letter-spacing:0.07em;text-transform:uppercase">My <span style="color:var(--accent)">Collection</span> App</div>
-    <div style="font-size:0.72rem;letter-spacing:0.22em;color:var(--text-dim);margin-top:7px;text-transform:uppercase;font-family:var(--font-head);font-weight:400">Postwar Train Collector&rsquo;s Inventory</div>
+    <div style="font-size:0.62rem;letter-spacing:0.22em;color:var(--text-dim);margin-top:7px;text-transform:uppercase;font-family:var(--font-head);font-weight:400">Postwar Lionel Collector&rsquo;s Inventory</div>
   </div>
-  <div class="auth-sub">Postwar Train Collector's Inventory</div>
+  <div class="auth-sub">Postwar Lionel Collector's Inventory</div>
   <div style="display:flex;flex-direction:column;gap:0.6rem;margin:1.25rem 0;max-width:340px;text-align:left">
     <div style="display:flex;align-items:flex-start;gap:0.75rem;background:rgba(200,16,46,0.06);border-radius:10px;padding:0.75rem 1rem">
       <span style="font-size:1.3rem;flex-shrink:0">📋</span>
@@ -882,7 +802,7 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
   <header class="header">
     <div class="header-logo">
       <div style="font-family:var(--font-head);font-size:1.4rem;font-weight:700;color:var(--cream);letter-spacing:0.06em;text-transform:uppercase;line-height:1">My <span style="color:var(--accent)">Collection</span> App</div>
-      <div style="font-size:0.68rem;letter-spacing:0.2em;color:var(--text-dim);margin-top:4px;text-transform:uppercase;font-family:var(--font-head);font-weight:400">Postwar Lionel &nbsp;·&nbsp; 1945–1969</div>
+      <div style="font-size:0.58rem;letter-spacing:0.2em;color:var(--text-dim);margin-top:4px;text-transform:uppercase;font-family:var(--font-head);font-weight:400">Postwar Lionel &nbsp;·&nbsp; 1945–1969</div>
     </div>
 
     <div class="header-right">
@@ -900,7 +820,7 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
     <nav class="sidebar">
       <div class="sidebar-logo-wrap">
         <div style="font-family:var(--font-head);font-size:1.3rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--cream);line-height:1">My <span style="color:var(--accent)">Collection</span> App</div>
-        <div style="font-family:var(--font-head);font-size:0.65rem;font-weight:400;letter-spacing:0.22em;text-transform:uppercase;color:var(--text-dim);margin-top:5px">Postwar &nbsp;·&nbsp; 1945–1969</div>
+        <div style="font-family:var(--font-head);font-size:0.55rem;font-weight:400;letter-spacing:0.22em;text-transform:uppercase;color:var(--text-dim);margin-top:5px">Postwar &nbsp;·&nbsp; 1945–1969</div>
       </div>
       <div class="nav-section">
         <div class="nav-label">Overview</div>
@@ -931,11 +851,6 @@ SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
           Want List
           <span class="nav-badge" id="nav-wanted2" style="background:var(--accent2);color:#000">—</span>
-        </button>
-        <button class="nav-item" onclick="showPage('forsale', this); buildForSalePage();">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><path d="M6 8h.01M9 8h6"/></svg>
-          For Sale
-          <span class="nav-badge" id="nav-forsale" style="background:#e67e22">—</span>
         </button>
         <button class="nav-item" onclick="showPage('sold', this)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -1044,9 +959,9 @@ document.addEventListener('touchmove', function(){}, {passive: true});
             <div class="page-title" style="margin-bottom:0.15rem">⚡ Quick Entry List</div>
             <div style="font-size:0.82rem;color:var(--text-dim)">Items you logged quickly — tap any one to fill in the details.</div>
           </div>
-          <button onclick="startQuickEntry()" class="btn" style="display:flex;align-items:center;gap:0.4rem;border:1.5px solid #27ae60;color:#27ae60;background:rgba(39,174,96,0.1);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem">
+          <button onclick="startWizardFor('collection')" class="btn" style="display:flex;align-items:center;gap:0.4rem;border:1.5px solid #27ae60;color:#27ae60;background:rgba(39,174,96,0.1);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-            ⚡ Quick Add
+            Add Item
           </button>
         </div>
         <div id="qe-list-container">
@@ -1124,12 +1039,12 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
             <div id="sold-summary-box" style="display:flex;gap:1.25rem;background:var(--surface);border:1px solid rgba(46,204,113,0.35);border-radius:12px;padding:0.75rem 1.25rem;align-items:center">
               <div style="text-align:center">
-                <div style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px">Items Sold</div>
+                <div style="font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px">Items Sold</div>
                 <div id="sold-stat-count" style="font-family:var(--font-head);font-size:1.6rem;color:#2ecc71;line-height:1">—</div>
               </div>
               <div style="width:1px;height:36px;background:var(--border)"></div>
               <div style="text-align:center">
-                <div style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px">Total Sold For</div>
+                <div style="font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px">Total Sold For</div>
                 <div id="sold-stat-total" style="font-family:var(--font-head);font-size:1.6rem;color:#2ecc71;line-height:1">—</div>
               </div>
             </div>
@@ -1158,55 +1073,6 @@ document.addEventListener('touchmove', function(){}, {passive: true});
               </tr>
             </thead>
             <tbody id="sold-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- ── For Sale ── -->
-      <div class="page" id="page-forsale">
-        <div class="page-title" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
-          <span>Items For Sale</span>
-          <button class="btn" onclick="showMarkForSaleDialog()" style="display:flex;align-items:center;gap:0.4rem;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.12);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-            List an Item
-          </button>
-        </div>
-        <!-- For Sale Summary -->
-        <div id="forsale-summary" style="display:flex;gap:1.25rem;background:var(--surface);border:1px solid rgba(230,126,34,0.35);border-radius:12px;padding:0.75rem 1.25rem;align-items:center;margin-bottom:0.85rem">
-          <div style="text-align:center">
-            <div style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px">Listed</div>
-            <div id="forsale-stat-count" style="font-family:var(--font-head);font-size:1.6rem;color:#e67e22;line-height:1">—</div>
-          </div>
-          <div style="width:1px;height:36px;background:var(--border)"></div>
-          <div style="text-align:center">
-            <div style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px">Total Asking</div>
-            <div id="forsale-stat-total" style="font-family:var(--font-head);font-size:1.6rem;color:#e67e22;line-height:1">—</div>
-          </div>
-        </div>
-        <!-- Search -->
-        <div style="margin-bottom:0.75rem">
-          <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.35rem 0.65rem;flex:1;max-width:320px">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <input id="forsale-search" type="text" placeholder="Search item #, road, type…" oninput="onPageSearch(this.value,'forsale')" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:100%">
-          </div>
-        </div>
-        <!-- Cards view (mobile) -->
-        <div id="forsale-cards" style="display:none;flex-direction:column;gap:0.6rem"></div>
-        <!-- Table view (desktop) -->
-        <div class="table-wrap" id="forsale-table-wrap">
-          <table class="item-table">
-            <thead>
-              <tr>
-                <th>Item #</th>
-                <th>Type</th>
-                <th>Road / Name</th>
-                <th>Asking Price</th>
-                <th>Where Listed</th>
-                <th>Date Listed</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="forsale-tbody"></tbody>
           </table>
         </div>
       </div>
@@ -1298,9 +1164,9 @@ document.addEventListener('touchmove', function(){}, {passive: true});
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
         Want List
       </button>
-      <button class="mobile-nav-item" id="mnav-forsale" onclick="showPage('forsale', this); buildForSalePage();">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><path d="M6 8h.01M9 8h6"/></svg>
-        For Sale
+      <button class="mobile-nav-item" id="mnav-photos" onclick="showPage('photos', this); buildPhotosPage();">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Pictures
       </button>
       <button class="mobile-nav-item" id="mnav-sold" onclick="showPage('sold', this)">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -1465,10 +1331,6 @@ document.addEventListener('touchmove', function(){}, {passive: true});
             <label>Notes</label>
             <textarea id="fc-notes" placeholder="Any personal notes about this item…"></textarea>
           </div>
-          <div class="form-field full" style="margin-top:0.5rem">
-            <label>Location</label>
-            <input type="text" id="fc-location" placeholder="Where is this item stored? e.g. Display Case 3">
-          </div>
         </div>
       </div>
     </div>
@@ -1538,128 +1400,25 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 
 <!-- ══ SCRIPTS ══════════════════════════════════════════════════ -->
 <script>
-// ╔══════════════════════════════════════════════════════════════════╗
-// ║  CONFIGURATION — All hardcoded values in one place              ║
-// ╚══════════════════════════════════════════════════════════════════╝
-const CONFIG = {
-  // ── Google API ──────────────────────────────────────────────────
-  MASTER_SHEET_ID: '1M1i0hKHkN6WETaZnhIQvL4RzxQvDoddCk6bGJKRatW4',
-  CLIENT_ID: '161569968813-vrhet7p68vkthkunare60nqr34li5uuh.apps.googleusercontent.com',
-  SCOPES: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
-  API_KEY: '',
-
-  // ── Sheet Tab Names ─────────────────────────────────────────────
-  MASTER_TAB:   'Master Inventory',
-  MASTER_TAB_FALLBACK: 'Sheet1',
-  PERSONAL_TAB: 'My Collection',
-  SOLD_TAB:     'Sold',
-  FOR_SALE_TAB: 'For Sale',
-  WANT_TAB:     'Want List',
-  CATALOG_TAB:  'Catalogs',
-  PAPER_TAB:    'Paper Items',
-  MOCKUP_TAB:   'Mock-Ups',
-  OTHER_TAB:    'Other Lionel',
-  IS_TAB:       'Instruction Sheets',
-  PERSONAL_SHEET_NAME: 'My Collection Vault',
-
-  // ── Google Drive Folder Names ───────────────────────────────────
-  VAULT_FOLDER:  'My Collection Vault',
-  PHOTOS_FOLDER: 'Photos',
-  SOLD_PHOTOS_FOLDER: 'Sold Items',
-  CONFIG_FILE:   'collection-vault-config.json',
-
-  // ── Cache ───────────────────────────────────────────────────────
-  CACHE_VERSION: '2',
-  CACHE_TTL_MS:  5 * 60 * 1000,  // 5 minutes
-
-  // ── localStorage Keys ───────────────────────────────────────────
-  LS: {
-    USER:            'lv_user',
-    TOKEN:           'lv_token',
-    MASTER_ID:       'lv_master_id',
-    PERSONAL_ID:     'lv_personal_id',
-    VAULT_ID:        'lv_vault_id',
-    PHOTOS_ID:       'lv_photos_id',
-    SOLD_PHOTOS_ID:  'lv_sold_photos_id',
-    CATALOGS_ID:     'lv_catalogs_id',
-    IS_ID:           'lv_is_id',
-    GEMINI_KEY:      'lv_gemini_key',
-    ONBOARDED:       'lv_onboarded',
-    USER_TABS:       'lv_user_tabs',
-    CACHE_VER:       'lv_cache_ver',
-    MASTER_CACHE:    'lv_master_cache',
-    MASTER_CACHE_TS: 'lv_master_cache_ts',
-    PERSONAL_CACHE:    'lv_personal_cache',
-    PERSONAL_CACHE_TS: 'lv_personal_cache_ts',
-    SOLD_SUMMARY:    'soldSummaryHidden',
-    LOCATION_ENABLED: 'lv_location_enabled',
-  },
-};
-
-// ╔══════════════════════════════════════════════════════════════════╗
-// ║  COLUMN INDEX MAPS — Named references to sheet columns          ║
-// ╚══════════════════════════════════════════════════════════════════╝
-// Master Inventory columns (A=0 through P=15)
-const MC = {
-  ITEM_NUM: 0, ITEM_TYPE: 1, SUB_TYPE: 2, ROAD_NAME: 3,
-  DESCRIPTION: 4, YEAR_PROD: 5, VARIATION: 6, VAR_DESC: 7,
-  RARITY: 8, RARITY_LABEL: 9, REF_LINK: 10, NOTES: 11,
-  EBAY_AVG: 12, EBAY_SAMPLE: 13, EBAY_UPDATED: 14, MARKET_VAL: 15,
-};
-
-// Personal Collection columns (A=0 through T=19)
-const PC = {
-  ITEM_NUM: 0, VARIATION: 1, CONDITION: 2, ALL_ORIGINAL: 3,
-  PRICE_ITEM: 4, PRICE_BOX: 5, PRICE_COMPLETE: 6,
-  HAS_BOX: 7, BOX_COND: 8,
-  PHOTO_ITEM: 9, PHOTO_BOX: 10,
-  NOTES: 11, DATE_PURCHASED: 12,
-  USER_EST_WORTH: 13, MATCHED_TO: 14, SET_ID: 15, YEAR_MADE: 16,
-  IS_ERROR: 17, ERROR_DESC: 18, QUICK_ENTRY: 19, LOCATION: 20,
-};
-
-// Sold columns (A=0 through H=7)
-const SC = {
-  ITEM_NUM: 0, VARIATION: 1, COPY: 2, CONDITION: 3,
-  PRICE_ITEM: 4, SALE_PRICE: 5, DATE_SOLD: 6, NOTES: 7,
-};
-
-// For Sale columns (A=0 through G=6)
-const FSC = {
-  ITEM_NUM: 0, VARIATION: 1, ASKING_PRICE: 2, WHERE_LISTED: 3,
-  NOTES: 4, DATE_LISTED: 5, ORIG_PRICE: 6,
-};
-
-// Want List columns (A=0 through E=4)
-const WC = {
-  ITEM_NUM: 0, VARIATION: 1, PRIORITY: 2, EXPECTED_PRICE: 3, NOTES: 4,
-};
-
-// Instruction Sheet columns (A=0 through F=5)
-const ISC = {
-  SHEET_NUM: 0, LINKED_ITEM: 1, YEAR: 2, CONDITION: 3, NOTES: 4, PHOTO: 5,
-};
-
-// Backward-compatible aliases
-const CLIENT_ID = CONFIG.CLIENT_ID;
-const SCOPES = CONFIG.SCOPES;
-const API_KEY = CONFIG.API_KEY;
-let GEMINI_KEY = localStorage.getItem(CONFIG.LS.GEMINI_KEY) || '';
-const PERSONAL_SHEET_NAME = CONFIG.PERSONAL_SHEET_NAME;
+// ── CONFIG ─────────────────────────────────────────────────────
+// Replace with your actual Google OAuth Client ID after setup
+const CLIENT_ID = '161569968813-vrhet7p68vkthkunare60nqr34li5uuh.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+const API_KEY = ''; // Set your Google Cloud API key in settings if needed
+// Gemini Vision API key — get a free key at https://aistudio.google.com/app/apikey
+// Paste your key here to enable photo-based item identification
+let GEMINI_KEY = localStorage.getItem('lv_gemini_key') || '';
+const PERSONAL_SHEET_NAME = 'Lionel Vault — My Collection'; // Sheet tab name — kept stable for existing users
 const PERSONAL_HEADERS = [
   'Item Number','Variation','Condition (1-10)','All Original',
   'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
   'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes',
   'Date Purchased','User Est. Worth','Matched Tender/Engine','Set ID','Year Made',
-  'Is Error','Error Description','Quick Entry','Location'
+  'Is Error','Error Description','Quick Entry'
 ];
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
   'Sale Price','Date Sold','Notes'
-];
-const FOR_SALE_HEADERS = [
-  'Item Number','Variation','Asking Price','Where Listed','Notes',
-  'Date Listed','Original Price Paid'
 ];
 const WANT_HEADERS = [
   'Item Number','Variation','Priority','Expected Price','Notes'
@@ -1734,55 +1493,6 @@ function genSetId(baseNum) {
 }
 
 function isTender(itemNum) { return !!TENDER_TO_LOCOS[itemNum?.toString().trim().toUpperCase()] || !!TENDER_TO_LOCOS[itemNum?.toString().trim()]; }
-
-// Check if a personal data entry is a box-only row (has box but no item info)
-function isBoxOnlyEntry(pd) {
-  if (!pd) return false;
-  const noCondition = !pd.condition || pd.condition === 'N/A';
-  const noItemPrice = !pd.priceItem || pd.priceItem === 'N/A';
-  return pd.hasBox === 'Yes' && noCondition && noItemPrice;
-}
-
-// Returns the display type — "Box" for box-only entries, otherwise the original itemType
-function displayItemType(item, pd) {
-  if (isBoxOnlyEntry(pd)) return 'Box';
-  return item?.itemType || '';
-}
-
-// Returns the best display name for an item (roadName preferred, falls back to type)
-function displayItemName(item, pd) {
-  return item?.roadName || displayItemType(item, pd) || '—';
-}
-
-// Returns condition CSS class for pip coloring
-function conditionClass(cond) {
-  if (!cond) return '';
-  const n = parseInt(cond);
-  if (n >= 9) return 'cond-9';
-  if (n >= 7) return 'cond-7';
-  if (n >= 5) return 'cond-5';
-  return n ? 'cond-low' : '';
-}
-
-// Returns {class, text} for owned/wanted badge
-function ownerBadge(itemNum, variation, pd) {
-  const isOwned = pd?.owned || false;
-  const isWanted = !!state.wantData[`${itemNum}|${variation}`];
-  const isForSale = !!state.forSaleData[`${itemNum}|${variation}`];
-  if (isForSale) return { class: 'forsale', text: '🏷 For Sale' };
-  return {
-    class: isOwned ? 'yes' : isWanted ? 'want' : 'no',
-    text:  isOwned ? '✓ Owned' : isWanted ? '★ Want' : '—',
-  };
-}
-
-// Formats a numeric value as currency, or returns fallback
-function displayPrice(val, fallback) {
-  if (!val) return fallback || '—';
-  const n = parseFloat(val);
-  return isNaN(n) ? (fallback || '—') : '$' + n.toLocaleString();
-}
-
 function isLocomotive(itemNum) { return !!LOCO_TO_TENDERS[itemNum?.toString().trim()]; }
 function getMatchingTenders(itemNum) { return LOCO_TO_TENDERS[itemNum?.toString().trim()] || []; }
 function getMatchingLocos(tenderNum) { return TENDER_TO_LOCOS[tenderNum?.toString().trim()] || []; }
@@ -1810,7 +1520,6 @@ let state = {
   masterData: [],      // all rows from master sheet
   personalData: {},    // keyed by "itemNum|variation" -> personal row (owned items)
   soldData: {},        // keyed by "itemNum|variation" -> sold row
-  forSaleData: {},     // keyed by "itemNum|variation" -> for sale listing
   wantData: {},        // keyed by "itemNum|variation" -> want list row
   filteredData: [],
   currentPage: 1,
@@ -1829,11 +1538,11 @@ function initGoogle() {
     callback: onTokenReceived,
   });
 
-  // Check for existing session — master ID from CONFIG, just need saved user
-  const savedUser = localStorage.getItem(CONFIG.LS.USER);
-  const savedPersonalId = localStorage.getItem(CONFIG.LS.PERSONAL_ID);
-  state.masterSheetId = CONFIG.MASTER_SHEET_ID;
-  localStorage.setItem(CONFIG.LS.MASTER_ID, state.masterSheetId);
+  // Check for existing session — master ID is hardcoded, just need saved user
+  const savedUser = localStorage.getItem('lv_user');
+  const savedPersonalId = localStorage.getItem('lv_personal_id');
+  state.masterSheetId = '1cLmCcI4Ekao2gn-TntAGjhsPrIYe39-cX6rV1WAyDCM';
+  localStorage.setItem('lv_master_id', state.masterSheetId);
 
   if (savedUser) {
     state.user = JSON.parse(savedUser);
@@ -1907,9 +1616,9 @@ function onTokenReceived(resp) {
     updateUserUI();
   }
 
-  // Master sheet from CONFIG
-  state.masterSheetId = CONFIG.MASTER_SHEET_ID;
-  localStorage.setItem(CONFIG.LS.MASTER_ID, state.masterSheetId);
+  // Master sheet is hardcoded
+  state.masterSheetId = '1cLmCcI4Ekao2gn-TntAGjhsPrIYe39-cX6rV1WAyDCM';
+  localStorage.setItem('lv_master_id', state.masterSheetId);
 
   // Always sync from Drive config to ensure correct sheet ID across devices
   driveReadConfig().then(config => {
@@ -1962,7 +1671,7 @@ function showOnboarding() {
   ov.innerHTML = '<div style="background:var(--surface);border-radius:18px;max-width:380px;width:100%;padding:2rem;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5)">'
     + '<div style="font-size:3rem;margin-bottom:0.75rem">🚂</div>'
     + '<div style="font-family:var(--font-head);font-size:1.5rem;font-weight:700;margin-bottom:0.5rem;color:var(--text)">Welcome to <span style=\"color:var(--accent)\">My Collection App</span></div>'
-    + '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.7;margin-bottom:1.5rem">Your personal postwar train collection manager. Here\'s how it works:</div>'
+    + '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.7;margin-bottom:1.5rem">Your personal postwar Lionel collection manager. Here\'s how it works:</div>'
     + '<div style="display:flex;flex-direction:column;gap:0.75rem;text-align:left;margin-bottom:1.5rem">'
     + '<div style="display:flex;gap:0.75rem;align-items:flex-start"><div style="background:var(--accent);color:white;border-radius:50%;width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem">1</div><div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:var(--text)">Browse the Master Catalog</strong><br>Over 2,000 postwar items pre-loaded — engines, cars, accessories and more.</div></div>'
     + '<div style="display:flex;gap:0.75rem;align-items:flex-start"><div style="background:var(--accent);color:white;border-radius:50%;width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem">2</div><div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:var(--text)">Add items you own</strong><br>Tap Add Item, enter the number, and answer a few simple questions.</div></div>'
@@ -2039,10 +1748,10 @@ async function initPersonalSheet(sheetId) {
   if (rows.length === 0 || !rows[0] || rows[0].length === 0) {
     // Brand new sheet — write title row 1 and headers row 2
     await sheetsUpdate(sheetId, 'My Collection!A1:A1', [['My Collection']]);
-    await sheetsUpdate(sheetId, 'My Collection!A2:U2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
   } else if (rows.length === 1 || !rows[1] || rows[1].length < 13) {
     // Has title but missing/old headers — rewrite row 2
-    await sheetsUpdate(sheetId, 'My Collection!A2:U2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
   }
   // Get existing sheet tab names
   const metaRes = await fetch(
@@ -2055,7 +1764,6 @@ async function initPersonalSheet(sheetId) {
   // Build list of tabs to create
   const toCreate = [];
   if (!existingTabs.includes('Sold'))      toCreate.push({ addSheet: { properties: { title: 'Sold' } } });
-  if (!existingTabs.includes('For Sale'))  toCreate.push({ addSheet: { properties: { title: 'For Sale' } } });
   if (!existingTabs.includes('Want List')) toCreate.push({ addSheet: { properties: { title: 'Want List' } } });
 
   if (toCreate.length > 0) {
@@ -2069,8 +1777,6 @@ async function initPersonalSheet(sheetId) {
   // Write headers to all tabs
   await sheetsUpdate(sheetId, 'Sold!A1:A1',      [['Sold']]);
   await sheetsUpdate(sheetId, 'Sold!A2:H2',      [SOLD_HEADERS]);
-  await sheetsUpdate(sheetId, 'For Sale!A1:A1',  [['For Sale']]);
-  await sheetsUpdate(sheetId, 'For Sale!A2:G2',  [FOR_SALE_HEADERS]);
   await sheetsUpdate(sheetId, 'Want List!A1:A1', [['Want List']]);
   await sheetsUpdate(sheetId, 'Want List!A2:E2', [WANT_HEADERS]);
 
@@ -2083,13 +1789,13 @@ async function ensurePersonalHeaders(sheetId) {
   if (!sheetId) return;
   try {
     // Fetch current row 2 headers (A2:T2)
-    const res = await sheetsGet(sheetId, 'My Collection!A2:U2');
+    const res = await sheetsGet(sheetId, 'My Collection!A2:T2');
     const current = (res.values && res.values[0]) || [];
 
     // Check each expected header — write the full row if anything is missing or wrong
     const needsUpdate = PERSONAL_HEADERS.some((h, i) => current[i] !== h);
     if (needsUpdate) {
-      await sheetsUpdate(sheetId, 'My Collection!A2:U2', [PERSONAL_HEADERS]);
+      await sheetsUpdate(sheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
       console.log('[Headers] My Collection headers repaired');
     }
 
@@ -2151,6 +1857,18 @@ async function ensureEphemeraSheets(sheetId) {
   }
   await sheetsUpdate(sheetId, 'Instruction Sheets!A1:A1', [['Instruction Sheets']]);
   await sheetsUpdate(sheetId, 'Instruction Sheets!A2:F2', [IS_HEADERS]);
+  // Ensure user-defined tabs also exist in the sheet
+  const _udMissing = (state.userDefinedTabs||[]).filter(t => !existingTabs.includes(t.label));
+  if (_udMissing.length > 0) {
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method:'POST', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+      body: JSON.stringify({ requests: _udMissing.map(t => ({ addSheet:{ properties:{ title: t.label } } })) }),
+    }).catch(() => {});
+    for (const t of _udMissing) {
+      await sheetsUpdate(sheetId, `${t.label}!A1:A1`, [[t.label]]).catch(() => {});
+      await sheetsUpdate(sheetId, `${t.label}!A2:J2`, [EPHEMERA_HEADERS]).catch(() => {});
+    }
+  }
 }
 
 
@@ -2268,7 +1986,7 @@ async function driveSetupVault() {
   // Find or create root vault folder
   const rootRes = await driveRequest('GET', '/files/root?fields=id');
   const rootId = rootRes.id;
-  driveCache.vaultId = await driveFindOrCreateFolder('My Collection Vault', rootId);
+  driveCache.vaultId = await driveFindOrCreateFolder('Lionel Vault - My Collection', rootId);
   localStorage.setItem('lv_vault_id', driveCache.vaultId);
 
   // Find or create both photo subfolders (always, so nothing is missing)
@@ -2396,7 +2114,7 @@ async function driveMoveToSold(itemNum) {
 // Stores personalSheetId in a small JSON file in Drive root
 // so any device can find the right sheet after signing in
 
-const CONFIG_FILENAME = 'collection-vault-config.json';
+const CONFIG_FILENAME = 'lionel-vault-config.json';
 
 async function driveReadConfig() {
   try {
@@ -2456,7 +2174,7 @@ async function driveMoveSheetToVault(sheetId) {
 }
 
 // ── SHEETS API ──────────────────────────────────────────────────
-async function sheetsGet(spreadsheetId, range) {
+async function sheetsGet(spreadsheetId, range, _retries = 3) {
   // Use API key for master sheet (public), OAuth token for personal sheet
   const isMaster = spreadsheetId === state.masterSheetId;
   const useApiKey = isMaster && API_KEY && API_KEY !== 'YOUR_API_KEY';
@@ -2467,6 +2185,16 @@ async function sheetsGet(spreadsheetId, range) {
     ? {}
     : { Authorization: `Bearer ${accessToken}` };
   const res = await fetch(url, { headers });
+  // Retry on transient server errors (503, 429) with exponential backoff
+  if ((res.status === 503 || res.status === 429) && _retries > 0) {
+    const delay = (4 - _retries) * 1500 + Math.random() * 500; // 1.5s, 3s, 4.5s + jitter
+    await new Promise(r => setTimeout(r, delay));
+    return sheetsGet(spreadsheetId, range, _retries - 1);
+  }
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(`Sheets API ${res.status}: ${errBody?.error?.message || res.statusText} (range: ${range})`);
+  }
   return res.json();
 }
 
@@ -2619,7 +2347,7 @@ async function createPersonalSheet() {
 
   // 3. Write headers and create all tabs
   await sheetsUpdate(state.personalSheetId, 'My Collection!A1:A1', [['My Collection']]);
-  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:U2', [PERSONAL_HEADERS]);
+  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
   await initPersonalSheet(state.personalSheetId);
 
   // 4. Move the sheet file into the vault folder
@@ -2706,22 +2434,22 @@ async function loadMasterData() {
 
 function parseMasterRows(rows) {
   state.masterData = rows.map(r => ({
-    itemNum:     r[MC.ITEM_NUM]     || '',
-    itemType:    r[MC.ITEM_TYPE]    || '',
-    subType:     r[MC.SUB_TYPE]     || '',
-    roadName:    r[MC.ROAD_NAME]    || '',
-    description: r[MC.DESCRIPTION]  || '',
-    yearProd:    r[MC.YEAR_PROD]    || '',
-    variation:   r[MC.VARIATION]    || '',
-    varDesc:     r[MC.VAR_DESC]     || '',
-    rarity:      r[MC.RARITY]       || '',
-    rarityLabel: r[MC.RARITY_LABEL] || '',
-    refLink:     r[MC.REF_LINK]     || '',
-    notes:       r[MC.NOTES]        || '',
-    ebayAvg:     r[MC.EBAY_AVG]     || '',
-    ebaySample:  r[MC.EBAY_SAMPLE]  || '',
-    ebayUpdated: r[MC.EBAY_UPDATED] || '',
-    marketVal:   r[MC.MARKET_VAL]   || '',
+    itemNum:     r[0]  || '',
+    itemType:    r[1]  || '',
+    subType:     r[2]  || '',
+    roadName:    r[3]  || '',
+    description: r[4]  || '',
+    yearProd:    r[5]  || '',
+    variation:   r[6]  || '',
+    varDesc:     r[7]  || '',
+    rarity:      r[8]  || '',
+    rarityLabel: r[9]  || '',
+    refLink:     r[10] || '',
+    notes:       r[11] || '',
+    ebayAvg:     r[12] || '',
+    ebaySample:  r[13] || '',
+    ebayUpdated: r[14] || '',
+    marketVal:   r[15] || '',
   }));
 }
 
@@ -2740,21 +2468,22 @@ async function loadPersonalData() {
       const _pd = JSON.parse(_pcache);
       state.personalData  = _pd.personalData  || {};
       state.soldData      = _pd.soldData      || {};
-      state.forSaleData   = _pd.forSaleData   || {};
       state.wantData      = _pd.wantData      || {};
       state.isData        = _pd.isData        || {};
       state.ephemeraData  = _pd.ephemeraData  || { catalogs:{}, paper:{}, mockups:{}, other:{} };
-      // Refresh in background
-      _loadPersonalFromSheets(state.personalSheetId).then(() => {
-        _cachePersonalData();
-        buildDashboard();
-        renderBrowse();
-      }).catch(() => {});
+      // Refresh in background — ensure tabs exist first
+      ensureEphemeraSheets(state.personalSheetId).catch(() => {}).then(() =>
+        _loadPersonalFromSheets(state.personalSheetId).then(() => {
+          _cachePersonalData();
+          buildDashboard();
+          renderBrowse();
+        })
+      ).catch(() => {});
       return;
     } catch(e) {}
   }
 
-  ensureEphemeraSheets(state.personalSheetId).catch(() => {});
+  await ensureEphemeraSheets(state.personalSheetId).catch(() => {});
   ensurePersonalHeaders(state.personalSheetId).catch(() => {});
   await _loadPersonalFromSheets(state.personalSheetId);
   _cachePersonalData();
@@ -2765,7 +2494,6 @@ function _cachePersonalData() {
     const _snap = {
       personalData: state.personalData,
       soldData: state.soldData,
-      forSaleData: state.forSaleData,
       wantData: state.wantData,
       isData: state.isData,
       ephemeraData: state.ephemeraData,
@@ -2782,15 +2510,13 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   const newSold     = {};
   const newWant     = {};
   const newIsData   = {};
-  const newForSale  = {};
   const newEphemera = { catalogs:{}, paper:{}, mockups:{}, other:{} };
 
   // Fetch all tabs in parallel
-  const [collRes, soldRes, forSaleRes, wantRes,
+  const [collRes, soldRes, wantRes,
          catRes, paperRes, mockRes, otherRes, isRes] = await Promise.all([
-    sheetsGet(sheetId, 'My Collection!A3:U').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'My Collection!A3:T').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Sold!A3:H').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'For Sale!A3:G').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Want List!A3:E').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Catalogs!A3:I').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Paper Items!A3:J').catch(() => ({values:[]})),
@@ -2801,66 +2527,53 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
 
   // My Collection
   (collRes.values || []).forEach((r, idx) => {
-    if (!r[PC.ITEM_NUM] || r[PC.ITEM_NUM] === 'Item Number') return;
+    if (!r[0] || r[0] === 'Item Number') return;
     const rowNum = idx + 3;
-    const key = `${r[PC.ITEM_NUM]}|${r[PC.VARIATION] || ''}|${rowNum}`;
+    const key = `${r[0]}|${r[1] || ''}|${rowNum}`;
     newPersonal[key] = {
-      row: rowNum, itemNum: r[PC.ITEM_NUM]||'', variation: r[PC.VARIATION]||'',
+      row: rowNum, itemNum: r[0]||'', variation: r[1]||'',
       status: 'Owned', owned: true,
-      condition: r[PC.CONDITION]||'', allOriginal: r[PC.ALL_ORIGINAL]||'',
-      priceItem: r[PC.PRICE_ITEM]||'', priceBox: r[PC.PRICE_BOX]||'', priceComplete: r[PC.PRICE_COMPLETE]||'',
-      hasBox: r[PC.HAS_BOX]||'', boxCond: r[PC.BOX_COND]||'',
-      photoItem: r[PC.PHOTO_ITEM]||'', photoBox: r[PC.PHOTO_BOX]||'',
-      notes: r[PC.NOTES]||'', datePurchased: r[PC.DATE_PURCHASED]||'',
-      userEstWorth: r[PC.USER_EST_WORTH]||'', matchedTo: r[PC.MATCHED_TO]||'',
-      setId: r[PC.SET_ID]||'', yearMade: r[PC.YEAR_MADE]||'',
-      isError: r[PC.IS_ERROR]||'', errorDesc: r[PC.ERROR_DESC]||'',
-      quickEntry: r[PC.QUICK_ENTRY] === 'Yes',
-      location: r[PC.LOCATION]||'',
+      condition: r[2]||'', allOriginal: r[3]||'',
+      priceItem: r[4]||'', priceBox: r[5]||'', priceComplete: r[6]||'',
+      hasBox: r[7]||'', boxCond: r[8]||'',
+      photoItem: r[9]||'', photoBox: r[10]||'',
+      notes: r[11]||'', datePurchased: r[12]||'',
+      userEstWorth: r[13]||'', matchedTo: r[14]||'',
+      setId: r[15]||'', yearMade: r[16]||'',
+      isError: r[17]||'', errorDesc: r[18]||'',
+      quickEntry: r[19] === 'Yes',
     };
   });
 
   // Sold
   (soldRes.values || []).forEach((r, idx) => {
-    if (!r[SC.ITEM_NUM] || r[SC.ITEM_NUM] === 'Item Number') return;
-    const key = `${r[SC.ITEM_NUM]}|${r[SC.VARIATION]||''}`;
+    if (!r[0] || r[0] === 'Item Number') return;
+    const key = `${r[0]}|${r[1]||''}`;
     newSold[key] = {
-      row: idx+3, itemNum: r[SC.ITEM_NUM]||'', variation: r[SC.VARIATION]||'',
-      copy: r[SC.COPY]||'1', condition: r[SC.CONDITION]||'', priceItem: r[SC.PRICE_ITEM]||'',
-      salePrice: r[SC.SALE_PRICE]||'', dateSold: r[SC.DATE_SOLD]||'', notes: r[SC.NOTES]||'',
+      row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
+      copy: r[2]||'1', condition: r[3]||'', priceItem: r[4]||'',
+      salePrice: r[5]||'', dateSold: r[6]||'', notes: r[7]||'',
     };
   });
 
   // Want List
   (wantRes.values || []).forEach((r, idx) => {
-    if (!r[WC.ITEM_NUM] || r[WC.ITEM_NUM] === 'Item Number') return;
-    const key = `${r[WC.ITEM_NUM]}|${r[WC.VARIATION]||''}`;
+    if (!r[0] || r[0] === 'Item Number') return;
+    const key = `${r[0]}|${r[1]||''}`;
     newWant[key] = {
-      row: idx+3, itemNum: r[WC.ITEM_NUM]||'', variation: r[WC.VARIATION]||'',
-      priority: r[WC.PRIORITY]||'Medium', expectedPrice: r[WC.EXPECTED_PRICE]||'', notes: r[WC.NOTES]||'',
-    };
-  });
-
-  // For Sale
-  (forSaleRes.values || []).forEach((r, idx) => {
-    if (!r[FSC.ITEM_NUM] || r[FSC.ITEM_NUM] === 'Item Number') return;
-    const key = `${r[FSC.ITEM_NUM]}|${r[FSC.VARIATION]||''}`;
-    newForSale[key] = {
-      row: idx+3, itemNum: r[FSC.ITEM_NUM]||'', variation: r[FSC.VARIATION]||'',
-      askingPrice: r[FSC.ASKING_PRICE]||'', whereListed: r[FSC.WHERE_LISTED]||'',
-      notes: r[FSC.NOTES]||'', dateListed: r[FSC.DATE_LISTED]||'',
-      origPrice: r[FSC.ORIG_PRICE]||'',
+      row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
+      priority: r[2]||'Medium', expectedPrice: r[3]||'', notes: r[4]||'',
     };
   });
 
   // Instruction Sheets
   const _isRows = (isRes && isRes.values) || [];
   _isRows.forEach((r, idx) => {
-    if (!r[ISC.SHEET_NUM] || r[ISC.SHEET_NUM] === 'Sheet #' || r[ISC.SHEET_NUM] === 'Instruction Sheets') return;
+    if (!r[0] || r[0] === 'Sheet #' || r[0] === 'Instruction Sheets') return;
     const key = idx + 3;
     newIsData[key] = {
-      row: key, sheetNum: r[ISC.SHEET_NUM]||'', linkedItem: r[ISC.LINKED_ITEM]||'', year: r[ISC.YEAR]||'',
-      condition: r[ISC.CONDITION]||'', notes: r[ISC.NOTES]||'', photoLink: r[ISC.PHOTO]||'',
+      row: key, sheetNum: r[0]||'', linkedItem: r[1]||'', year: r[2]||'',
+      condition: r[3]||'', notes: r[4]||'', photoLink: r[5]||'',
     };
   });
 
@@ -2946,9 +2659,6 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   if (forceOverwrite || Object.keys(newSold).length > 0 || Object.keys(state.soldData).length === 0) {
     state.soldData = newSold;
   }
-  if (forceOverwrite || Object.keys(newForSale).length > 0 || Object.keys(state.forSaleData).length === 0) {
-    state.forSaleData = newForSale;
-  }
   if (forceOverwrite || Object.keys(newWant).length > 0 || Object.keys(state.wantData).length === 0) {
     state.wantData = newWant;
   }
@@ -2963,7 +2673,6 @@ function buildApp() {
   buildDashboard();
   buildBrowse();
   buildSoldPage();
-  buildForSalePage();
   buildWantPage();
   // Wire up the Google Sheet link in the sidebar
   const sheetLink = document.getElementById('nav-sheet-link');
@@ -2992,14 +2701,12 @@ async function forceRefreshData() {
     // Wipe state completely so merge logic can't keep stale optimistic items
     state.personalData = {};
     state.soldData = {};
-    state.forSaleData = {};
     state.wantData = {};
     await _loadPersonalFromSheets(state.personalSheetId, true);
     _cachePersonalData();
     resetFilters();
     buildDashboard();
     buildSoldPage();
-    buildForSalePage();
     buildWantPage();
     renderBrowse();
     buildQuickEntryList && buildQuickEntryList();
@@ -3187,8 +2894,6 @@ function populateFilters() {
   const sep = document.createElement('option');
   sep.disabled = true; sep.textContent = '── My Collection ──';
   typeEl.appendChild(sep);
-  // Box-only filter
-  const oBox = document.createElement('option'); oBox.value = 'Box'; oBox.textContent = '📦 Boxes Only'; typeEl.appendChild(oBox);
   // Catalog with subtypes
   const oCat = document.createElement('option'); oCat.value = 'Catalog'; oCat.textContent = '📒 Catalogs (all)'; typeEl.appendChild(oCat);
   catSubTypes.forEach(ct => {
@@ -3420,9 +3125,6 @@ function onPageSearch(val, page) {
   } else if (page === 'want') {
     state._wantSearch = q;
     buildWantPage();
-  } else if (page === 'forsale') {
-    state._forSaleSearch = q;
-    buildForSalePage();
   }
 }
 
@@ -3462,10 +3164,6 @@ function renderBrowse() {
     }
     // If type filter is an ephemera category, hide train rows
     if (type) {
-      // Special 'Box' filter — show only box-only entries
-      if (type === 'Box') {
-        if (!isBoxOnlyEntry(pd)) return false;
-      } else {
       const _ephTypeKeys = ['Catalog','Paper Item','Mock-Up','Other Lionel',
         ...(state.userDefinedTabs||[]).map(t=>t.label)];
       // Check for catalog subtype match too (e.g. "Advance")
@@ -3474,7 +3172,6 @@ function renderBrowse() {
         || Object.values(state.ephemeraData.catalogs||{}).some(it=>(it.catType||'').toLowerCase()===type.toLowerCase());
       if (_isEphFilter) return false; // hide all train rows when filtering to ephemera
       if (item.itemType !== type) return false;
-      }
     }
     if (road && item.roadName !== road) return false;
     if (search) {
@@ -3561,7 +3258,7 @@ function renderBrowse() {
       if (r._divider) return `<tr><td colspan="9" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
       const it = r.item;
       const cond = it.condition ? parseInt(it.condition) : null;
-      const condClass = conditionClass(cond);
+      const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
       if (r._is) {
         return `<tr onclick="openISDetail(${it.row})" style="cursor:pointer">
           <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:#16a085;font-weight:600">${it.sheetNum}</span></td>
@@ -3603,7 +3300,7 @@ function renderBrowse() {
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
     const cond = pd?.condition ? parseInt(pd.condition) : null;
-    const condClass = conditionClass(cond);
+    const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
     let globalIdx = state.masterData.indexOf(item);
     // For _personalOnly items not in masterData, use negative index via global array
     if (globalIdx < 0 && item._personalOnly) {
@@ -3623,8 +3320,8 @@ function renderBrowse() {
       return `<div class="browse-card" onclick="browseRowClick(event,${globalIdx})">
         <div class="browse-card-left">
           <div class="browse-card-num">${item.itemNum}${item.variation ? ' <span style="font-size:0.75rem;color:var(--text-dim)">${item.variation}</span>' : ''}</div>
-          <div class="browse-card-name">${item.roadName || displayItemType(item, pd) || '—'}</div>
-          <div class="browse-card-sub">${[displayItemType(item, pd), item.yearProd].filter(Boolean).join(' · ')}${pd?.matchedTo ? ' · <span style="color:var(--accent2)">' + (isTender(item.itemNum)?'🚂':'🚃') + ' ' + pd.matchedTo + '</span>' : ''}${pd?.setId ? ' · <span style="color:#a855f7;font-size:0.7rem">🔗 ' + pd.setId.split('-').slice(0,2).join('-') + '</span>' : ''}</div>
+          <div class="browse-card-name">${item.roadName || item.itemType || '—'}</div>
+          <div class="browse-card-sub">${[item.itemType, item.yearProd].filter(Boolean).join(' · ')}${pd?.matchedTo ? ' · <span style="color:var(--accent2)">' + (isTender(item.itemNum)?'🚂':'🚃') + ' ' + pd.matchedTo + '</span>' : ''}${pd?.setId ? ' · <span style="color:#a855f7;font-size:0.7rem">🔗 ' + pd.setId.split('-').slice(0,2).join('-') + '</span>' : ''}</div>
         </div>
         <div class="browse-card-right">
           <span class="owned-badge ${badgeClass}">${badgeText}</span>
@@ -3645,7 +3342,7 @@ function renderBrowse() {
           <span class="item-num">${item.itemNum}${_isErrCar ? '<sup style="color:var(--accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? ' <span style="font-size:0.6rem;background:#27ae60;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600">⚡</span>' : ''}</span>
           <span id="cam-${item.itemNum}-${item.variation||''}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')" title="Open photo folder">📷</span>
         </td>
-        <td><span class="tag">${displayItemType(item, pd) || '—'}</span></td>
+        <td><span class="tag">${item.itemType || '—'}</span></td>
         <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
         <td>${item.variation || '<span class="text-dim">—</span>'}</td>
         <td>${vdCell}</td>
@@ -3808,11 +3505,6 @@ function showOwnedItemMenu(idx, pdKey) {
     function() { overlay.remove(); sellFromCollection(idx, pdKey); }
   ));
   box.appendChild(mkBtn(
-    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M6 8h.01M9 8h6"/></svg> List For Sale',
-    '#e67e22', 'rgba(230,126,34,0.1)',
-    function() { overlay.remove(); showMarkForSaleDialog(item.itemNum, item.variation); }
-  ));
-  box.appendChild(mkBtn(
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Update Info',
     '#2980b9', 'rgba(224,64,40,0.08)',
     function() { overlay.remove(); updateCollectionItem(idx, pdKey); }
@@ -3882,7 +3574,7 @@ function showItemPanel(idx, pdKey, mode) {
   header.innerHTML = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.5rem">'
     + '<div>'
     + '<div style="font-family:var(--font-head);font-size:1rem;color:#2980b9">No. ' + item.itemNum + (item.variation ? ' <span style="color:var(--text-dim);font-size:0.75rem">Var. ' + item.variation + '</span>' : '') + '</div>'
-    + '<div style="font-size:0.82rem;color:var(--text-mid);margin-top:2px">' + (item.roadName || displayItemType(item, pd) || '') + (item.yearProd ? ' · ' + item.yearProd : '') + '</div>'
+    + '<div style="font-size:0.82rem;color:var(--text-mid);margin-top:2px">' + (item.roadName || item.itemType || '') + (item.yearProd ? ' · ' + item.yearProd : '') + '</div>'
     + '</div>'
     + '<button id="item-panel-close-btn" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;flex-shrink:0">✕</button>'
     + '</div>';
@@ -3911,7 +3603,6 @@ function showItemPanel(idx, pdKey, mode) {
     { label: 'Year Made',     key: 'yearMade',      val: pd.yearMade || '—',      type: 'number', min:1945, max:1969 },
     { label: 'Date Purchased',key: 'datePurchased', val: pd.datePurchased || '—', type: 'date' },
     { label: 'Notes',         key: 'notes',         val: pd.notes || '—',         type: 'text' },
-    { label: 'Location',      key: 'location',      val: pd.location || '—',      type: 'text' },
     ...(item.refLink ? [{ label: 'COTT Reference', key: null, val: item.refLink, type: 'link' }] : []),
     ...(item.errorDesc || pd.isError ? [{ label: 'Error', key: null, val: pd.errorDesc || '—', type: 'readonly' }] : []),
   ];
@@ -4204,12 +3895,9 @@ function showItemPanel(idx, pdKey, mode) {
         pd.notes || '', pd.datePurchased || '',
         pd.userEstWorth || '', pd.matchedTo || '',
         pd.setId || '', pd.yearMade || '',
-        pd.isError || '', pd.errorDesc || '',
-        pd.quickEntry ? 'Yes' : '',
-        pd.location || '',  // Location (col U)
       ];
       try {
-        await sheetsUpdate(state.personalSheetId, 'My Collection!A' + pd.row + ':U' + pd.row, [newRow]);
+        await sheetsUpdate(state.personalSheetId, 'My Collection!A' + pd.row + ':Q' + pd.row, [newRow]);
         state.personalData[pdKey] = Object.assign({}, pd, { priceComplete: calc > 0 ? calc.toFixed(2) : '' });
         overlay.remove();
         showToast('✓ Item updated!');
@@ -4443,10 +4131,10 @@ function openItem(idx) {
   const _errPd = findPD(item.itemNum, item.variation);
   const _errSuffix = _errPd && _errPd.isError ? ' ⚠ Error' : '';
   document.getElementById('modal-item-num').textContent = `No. ${item.itemNum}${item.variation ? ' — Variation ' + item.variation : ''}${_errSuffix}`;
-  document.getElementById('modal-title').textContent = item.roadName || displayItemType(item, pd) || item.description.substring(0, 60);
+  document.getElementById('modal-title').textContent = item.roadName || item.itemType || item.description.substring(0, 60);
   const modalMatchedTo = pd?.matchedTo || '';
   const modalIsTender = isTender(item.itemNum);
-  document.getElementById('modal-subtitle').textContent = `${displayItemType(item, pd)}${item.subType ? ' — ' + item.subType : ''}${item.yearProd ? ' · ' + item.yearProd : ''}`;
+  document.getElementById('modal-subtitle').textContent = `${item.itemType}${item.subType ? ' — ' + item.subType : ''}${item.yearProd ? ' · ' + item.yearProd : ''}`;
   // Set ID badge
   const setIdBadgeEl = document.getElementById('modal-set-badge');
   if (setIdBadgeEl) {
@@ -4471,7 +4159,7 @@ function openItem(idx) {
       matchedBadgeEl.style.display = 'none';
     }
   }
-  document.getElementById('mi-type').textContent = displayItemType(item, pd) || '—';
+  document.getElementById('mi-type').textContent = item.itemType || '—';
   document.getElementById('mi-year').textContent = item.yearProd || '—';
   document.getElementById('mi-road').textContent = item.roadName || '—';
   document.getElementById('mi-var').textContent = item.variation || '(no variation)';
@@ -4508,7 +4196,6 @@ function openItem(idx) {
   document.getElementById('fc-photo-item').value = pd.photoItem || '';
   document.getElementById('fc-photo-box').value = pd.photoBox || '';
   document.getElementById('fc-notes').value = pd.notes || '';
-  document.getElementById('fc-location').value = pd.location || '';
 
   // Show box-only prompt if row has box but no item info
   const isBoxOnly = pd.owned && pd.hasBox === 'Yes' && 
@@ -4606,11 +4293,10 @@ async function saveItem() {
       _ex.matchedTo || '', _ex.setId || '', _ex.yearMade || '',
       _ex.isError || '', _ex.errorDesc || '',
       _ex.quickEntry ? 'Yes' : '',  // preserve Quick Entry flag
-      document.getElementById('fc-location').value || '',  // Location (col U)
     ];
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:U${existing.row}`, [ownedRow]);
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:T${existing.row}`, [ownedRow]);
     } else {
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [ownedRow]);
     }
@@ -4629,7 +4315,7 @@ async function saveItem() {
     // Remove from My Collection
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:U${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','']]);  // 21 cols A-U
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:T${existing.row}`, [['','','','','','','','','','','','','','','','','','','','']]);  // 20 cols A-T
     }
     // Write to Sold tab
     const soldRow = [
@@ -4650,7 +4336,7 @@ async function saveItem() {
     // Remove from My Collection if present
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:U${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','']]);  // 21 cols A-U
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:T${existing.row}`, [['','','','','','','','','','','','','','','','','','','','']]);  // 20 cols A-T
     }
     // Write/update Want List tab
     const wantRow = [
@@ -4675,7 +4361,6 @@ async function saveItem() {
   closeModal();
   buildDashboard();
   buildSoldPage();
-  buildForSalePage();
   renderBrowse();
   showToast('✓ Item updated!');
 
@@ -4712,13 +4397,13 @@ function buildReport() {
       </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-dim)">All items owned! 🎉</td></tr>';
 
   } else if (type === 'collection') {
-    thead.innerHTML = '<tr><th>Item #</th><th>Type</th><th>Road Name</th><th>Variation</th><th>Copy #</th><th>Condition</th><th>Has Box</th><th>All Original</th><th>Item Price</th><th>Item+Box</th><th>Location</th></tr>';
+    thead.innerHTML = '<tr><th>Item #</th><th>Type</th><th>Road Name</th><th>Variation</th><th>Copy #</th><th>Condition</th><th>Has Box</th><th>All Original</th><th>Item Price</th><th>Item+Box</th></tr>';
     const owned = state.masterData.filter(i => state.personalData[`${i.itemNum}|${i.variation}`]?.owned);
     tbody.innerHTML = owned.map(i => {
       const pd = state.personalData[`${i.itemNum}|${i.variation}`];
       return `<tr>
         <td><span class="item-num">${i.itemNum}</span></td>
-        <td><span class="tag">${displayItemType(i, pd) || '—'}</span></td>
+        <td><span class="tag">${i.itemType || '—'}</span></td>
         <td>${i.roadName || '—'}</td>
         <td>${i.variation || '—'}</td>
         <td>${pd.copy || '1'}</td>
@@ -4727,9 +4412,8 @@ function buildReport() {
         <td>${pd.allOriginal || '—'}</td>
         <td class="market-val">${pd.priceItem ? '$'+parseFloat(pd.priceItem).toLocaleString() : '—'}</td>
         <td class="market-val">${pd.priceComplete ? '$'+parseFloat(pd.priceComplete).toLocaleString() : '—'}</td>
-        <td>${pd.location || '—'}</td>
       </tr>`;
-    }).join('') || '<tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--text-dim)">No owned items yet</td></tr>';
+    }).join('') || '<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--text-dim)">No owned items yet</td></tr>';
 
   } else if (type === 'value') {
     thead.innerHTML = '<tr><th>Category</th><th>Owned</th><th>Total in Master</th><th>% Complete</th><th>Est. Collection Value</th></tr>';
@@ -4782,7 +4466,7 @@ function exportReport() {
   const csv = headers + '\n' + rows;
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'collection-report.csv'; a.click();
+  const a = document.createElement('a'); a.href = url; a.download = 'lionel-report.csv'; a.click();
 }
 
 // ── NAVIGATION ──────────────────────────────────────────────────
@@ -5150,298 +4834,6 @@ function buildSoldPage() {
   document.getElementById('nav-sold').textContent = soldEntries.length;
 }
 
-// ── FOR SALE PAGE ────────────────────────────────────────────────
-function buildForSalePage() {
-  const _fq = (state._forSaleSearch || '').toLowerCase();
-  const entries = Object.entries(state.forSaleData).filter(([k, fs]) => {
-    if (!_fq) return true;
-    const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
-    return (fs.itemNum||'').toLowerCase().includes(_fq)
-      || (master.roadName||'').toLowerCase().includes(_fq)
-      || (master.itemType||'').toLowerCase().includes(_fq)
-      || (fs.whereListed||'').toLowerCase().includes(_fq);
-  });
-  const items = entries.map(([k, fs]) => fs);
-
-  // Summary stats
-  const totalAsking = items.reduce((sum, fs) => sum + (parseFloat(fs.askingPrice) || 0), 0);
-  const countEl = document.getElementById('forsale-stat-count');
-  const totalEl = document.getElementById('forsale-stat-total');
-  if (countEl) countEl.textContent = items.length.toLocaleString();
-  if (totalEl) totalEl.textContent = totalAsking > 0 ? '$' + Math.round(totalAsking).toLocaleString() : '$0';
-
-  const isMobile = window.innerWidth <= 640;
-  const cardsEl = document.getElementById('forsale-cards');
-  const tableWrap = document.getElementById('forsale-table-wrap');
-  const tbody = document.getElementById('forsale-tbody');
-
-  if (isMobile) {
-    if (cardsEl) cardsEl.style.display = 'flex';
-    if (tableWrap) tableWrap.style.display = 'none';
-    if (cardsEl) cardsEl.innerHTML = items.length ? items.map(fs => {
-      const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
-      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div style="flex:1;min-width:0">
-            <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${fs.itemNum}</span>
-            ${fs.variation ? `<span style="font-size:0.78rem;color:var(--text-dim);margin-left:0.4rem">${fs.variation}</span>` : ''}
-            ${master.roadName ? `<div style="font-size:0.85rem;color:var(--text);margin-top:0.1rem">${master.roadName}</div>` : ''}
-            <div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.15rem">${[fs.whereListed, fs.dateListed].filter(Boolean).join(' · ')}</div>
-            ${fs.notes ? `<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.3rem;font-style:italic">${fs.notes}</div>` : ''}
-          </div>
-          <div style="text-align:right;flex-shrink:0;margin-left:0.75rem">
-            ${fs.askingPrice ? `<div style="font-family:var(--font-mono);color:#e67e22;font-size:1.1rem;font-weight:600">$${parseFloat(fs.askingPrice).toLocaleString()}</div>` : '<div style="color:var(--text-dim);font-size:0.8rem">No price</div>'}
-          </div>
-        </div>
-        <div style="display:flex;gap:0.5rem;margin-top:0.65rem">
-          <button onclick="markSoldFromForSale('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}')" style="flex:1;padding:0.5rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-head);font-size:0.78rem;font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:0.04em">Sold!</button>
-          <button onclick="removeFromSale('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}')" style="flex:1;padding:0.5rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-head);font-size:0.78rem;cursor:pointer;text-transform:uppercase;letter-spacing:0.04em">Remove</button>
-        </div>
-      </div>`;
-    }).join('') : '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🏷️</div><p>No items listed for sale</p></div>';
-  } else {
-    if (cardsEl) cardsEl.style.display = 'none';
-    if (tableWrap) tableWrap.style.display = '';
-    if (tbody) tbody.innerHTML = items.length ? items.map(fs => {
-      const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
-      return `<tr>
-        <td><span class="item-num">${fs.itemNum}</span></td>
-        <td><span class="tag">${master.itemType || '—'}</span></td>
-        <td>${master.roadName || '—'}${fs.notes ? `<div style="font-size:0.75rem;color:var(--text-dim);font-style:italic;margin-top:0.15rem">${fs.notes}</div>` : ''}</td>
-        <td class="market-val">${fs.askingPrice ? '$' + parseFloat(fs.askingPrice).toLocaleString() : '—'}</td>
-        <td>${fs.whereListed || '—'}</td>
-        <td class="text-dim">${fs.dateListed || '—'}</td>
-        <td>
-          <div style="display:flex;gap:0.35rem">
-            <button onclick="markSoldFromForSale('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}')" style="padding:0.3rem 0.6rem;border-radius:6px;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-size:0.75rem;font-weight:600;cursor:pointer">Sold!</button>
-            <button onclick="removeFromSale('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}')" style="padding:0.3rem 0.6rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:0.75rem;cursor:pointer">Remove</button>
-          </div>
-        </td>
-      </tr>`;
-    }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">🏷️</div><p>No items listed for sale</p></div></td></tr>';
-  }
-
-  const badge = document.getElementById('nav-forsale');
-  if (badge) badge.textContent = items.length;
-}
-
-// ── MARK FOR SALE DIALOG ─────────────────────────────────────────
-function showMarkForSaleDialog(prefillItemNum, prefillVariation) {
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay open';
-  overlay.style.zIndex = '250';
-  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-
-  // Build list of owned items for quick-pick
-  const ownedItems = Object.values(state.personalData).filter(pd => pd.owned);
-
-  const box = document.createElement('div');
-  box.className = 'modal';
-  box.style.maxWidth = '480px';
-  box.innerHTML = `
-    <div class="modal-header" style="border-bottom-color:rgba(230,126,34,0.3)">
-      <div>
-        <div class="modal-title" style="color:#e67e22">List Item For Sale</div>
-        <div class="modal-subtitle">Enter details for the listing</div>
-      </div>
-      <button class="btn-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-field">
-        <label>Item Number</label>
-        <input type="text" id="fs-item-num" placeholder="e.g. 726, 2046, 6464-1" value="${prefillItemNum || ''}" list="fs-owned-list">
-        <datalist id="fs-owned-list">
-          ${ownedItems.map(pd => `<option value="${pd.itemNum}${pd.variation ? ' — ' + pd.variation : ''}">`).join('')}
-        </datalist>
-      </div>
-      <div class="form-field">
-        <label>Variation</label>
-        <input type="text" id="fs-variation" value="${prefillVariation || ''}" placeholder="Leave blank if none">
-      </div>
-      <div class="form-field">
-        <label>Asking Price ($)</label>
-        <input type="number" id="fs-asking-price" placeholder="0.00" min="0" step="0.01">
-      </div>
-      <div class="form-field">
-        <label>Where Listed</label>
-        <select id="fs-where-listed" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:0.65rem 0.85rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem">
-          <option value="">Select…</option>
-          <option value="eBay">eBay</option>
-          <option value="Train Show">Train Show</option>
-          <option value="Facebook Marketplace">Facebook Marketplace</option>
-          <option value="Craigslist">Craigslist</option>
-          <option value="TCA Meet">TCA Meet</option>
-          <option value="Local Shop">Local Shop</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
-      <div class="form-field full">
-        <label>Notes / Description for Buyers</label>
-        <textarea id="fs-notes" placeholder="Condition details, includes, shipping info…" style="resize:vertical;min-height:70px"></textarea>
-      </div>
-    </div>
-    <div class="modal-footer" style="border-top-color:rgba(230,126,34,0.3)">
-      <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
-      <button class="btn" id="fs-save-btn" style="background:#e67e22;color:#fff" onclick="saveForSaleListing()">List For Sale</button>
-    </div>
-  `;
-  overlay.appendChild(box);
-  document.body.appendChild(overlay);
-
-  // Auto-fill variation if item number was prefilled
-  if (prefillItemNum) {
-    const pd = Object.values(state.personalData).find(p => p.itemNum === prefillItemNum && p.variation === (prefillVariation||''));
-    if (pd) {
-      document.getElementById('fs-asking-price').value = pd.userEstWorth || pd.priceItem || '';
-    }
-  }
-}
-
-async function saveForSaleListing() {
-  const rawItemNum = document.getElementById('fs-item-num').value.trim();
-  // Handle datalist format "726 — variation"
-  const parts = rawItemNum.split(' — ');
-  const itemNum = (parts[0] || '').trim();
-  const variation = document.getElementById('fs-variation').value.trim() || (parts[1] || '').trim();
-  const askingPrice = document.getElementById('fs-asking-price').value.trim();
-  const whereListed = document.getElementById('fs-where-listed').value;
-  const notes = document.getElementById('fs-notes').value.trim();
-  const dateListed = new Date().toISOString().split('T')[0];
-
-  if (!itemNum) { showToast('Please enter an item number'); return; }
-
-  // Get original price paid from collection
-  const pd = Object.values(state.personalData).find(p => p.itemNum === itemNum && p.variation === variation);
-  const origPrice = pd ? (pd.priceItem || '') : '';
-
-  const row = [itemNum, variation, askingPrice, whereListed, notes, dateListed, origPrice];
-
-  const btn = document.getElementById('fs-save-btn');
-  if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
-
-  try {
-    // Check if already listed
-    const key = `${itemNum}|${variation}`;
-    const existing = state.forSaleData[key];
-    if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `For Sale!A${existing.row}:G${existing.row}`, [row]);
-    } else {
-      await sheetsAppend(state.personalSheetId, 'For Sale!A:A', [row]);
-    }
-
-    // Update local state
-    state.forSaleData[key] = {
-      row: existing ? existing.row : Date.now(),
-      itemNum, variation, askingPrice, whereListed, notes, dateListed, origPrice,
-    };
-
-    document.querySelector('.modal-overlay[style*="250"]')?.remove();
-    showToast('🏷️ ' + itemNum + ' listed for sale!');
-    buildForSalePage();
-    _cachePersonalData();
-  } catch(e) {
-    if (btn) { btn.textContent = 'List For Sale'; btn.disabled = false; }
-    showToast('❌ Save failed: ' + e.message, 6000, true);
-  }
-}
-
-async function markSoldFromForSale(itemNum, variation) {
-  // Prompt for sale price
-  const fs = state.forSaleData[`${itemNum}|${variation}`];
-  if (!fs) return;
-
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay open';
-  overlay.style.zIndex = '260';
-  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-
-  const box = document.createElement('div');
-  box.className = 'modal';
-  box.style.maxWidth = '380px';
-  box.innerHTML = `
-    <div class="modal-header" style="border-bottom-color:rgba(46,204,113,0.3)">
-      <div>
-        <div class="modal-title" style="color:#2ecc71">Mark as Sold</div>
-        <div class="modal-subtitle">${itemNum}${variation ? ' — ' + variation : ''}</div>
-      </div>
-      <button class="btn-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-field">
-        <label>Sale Price ($)</label>
-        <input type="number" id="fs-sale-price" placeholder="0.00" min="0" step="0.01" value="${fs.askingPrice || ''}">
-      </div>
-      <div class="form-field">
-        <label>Date Sold</label>
-        <input type="date" id="fs-date-sold" value="${new Date().toISOString().split('T')[0]}">
-      </div>
-    </div>
-    <div class="modal-footer" style="border-top-color:rgba(46,204,113,0.3)">
-      <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
-      <button class="btn" id="fs-sold-btn" style="background:#2ecc71;color:#fff" onclick="_confirmSoldFromForSale('${itemNum}','${(variation||'').replace(/'/g,"\\'")}')">Confirm Sale</button>
-    </div>
-  `;
-  overlay.appendChild(box);
-  document.body.appendChild(overlay);
-}
-
-async function _confirmSoldFromForSale(itemNum, variation) {
-  const salePrice = document.getElementById('fs-sale-price').value.trim();
-  const dateSold = document.getElementById('fs-date-sold').value;
-  const key = `${itemNum}|${variation}`;
-  const fs = state.forSaleData[key];
-  const pd = Object.values(state.personalData).find(p => p.itemNum === itemNum && p.variation === variation);
-
-  const btn = document.getElementById('fs-sold-btn');
-  if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
-
-  try {
-    // 1. Write to Sold tab
-    const soldRow = [itemNum, variation, '1', pd?.condition || '', fs?.origPrice || pd?.priceItem || '', salePrice, dateSold, fs?.notes || ''];
-    const existingSold = state.soldData[key];
-    if (existingSold && existingSold.row) {
-      await sheetsUpdate(state.personalSheetId, `Sold!A${existingSold.row}:H${existingSold.row}`, [soldRow]);
-    } else {
-      await sheetsAppend(state.personalSheetId, 'Sold!A:A', [soldRow]);
-    }
-
-    // 2. Clear from For Sale tab
-    if (fs && fs.row && typeof fs.row === 'number' && fs.row < 100000) {
-      await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:G${fs.row}`, [['','','','','','','']]);
-    }
-
-    // 3. Update local state
-    state.soldData[key] = { row: existingSold?.row || Date.now(), itemNum, variation, copy:'1', condition: pd?.condition||'', priceItem: fs?.origPrice||pd?.priceItem||'', salePrice, dateSold, notes: fs?.notes||'' };
-    delete state.forSaleData[key];
-
-    document.querySelector('.modal-overlay[style*="260"]')?.remove();
-    showToast('✓ ' + itemNum + ' marked as sold for $' + (salePrice || '0'));
-    buildForSalePage();
-    buildSoldPage();
-    _cachePersonalData();
-  } catch(e) {
-    if (btn) { btn.textContent = 'Confirm Sale'; btn.disabled = false; }
-    showToast('❌ Save failed: ' + e.message, 6000, true);
-  }
-}
-
-async function removeFromSale(itemNum, variation) {
-  if (!confirm('Remove ' + itemNum + ' from For Sale list?')) return;
-  const key = `${itemNum}|${variation}`;
-  const fs = state.forSaleData[key];
-  try {
-    if (fs && fs.row && typeof fs.row === 'number' && fs.row < 100000) {
-      await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:G${fs.row}`, [['','','','','','','']]);
-    }
-    delete state.forSaleData[key];
-    showToast('Removed ' + itemNum + ' from sale list');
-    buildForSalePage();
-    _cachePersonalData();
-  } catch(e) {
-    showToast('❌ Remove failed: ' + e.message, 6000, true);
-  }
-}
-
 function clearPageSearch(name) {
   const map = { browse: 'browse-search', sold: 'sold-search', want: 'want-search' };
   const el = document.getElementById(map[name]);
@@ -5457,7 +4849,6 @@ function showPage(name, clickedEl) {
   if (name === 'browse') renderBrowse();
   if (name === 'reports') buildReport();
   if (name === 'sold') buildSoldPage();
-  if (name === 'forsale') buildForSalePage();
   if (name === 'want') buildWantPage();
   document.getElementById('main-content').scrollTop = 0;
 }
@@ -5614,6 +5005,10 @@ function getSteps(tab) {
         skipIf: (d) => !!d.itemCategory },
       ...base,
 
+      // ── ENTRY MODE ──
+      { id: 'entryMode', title: (d) => 'How would you like to add this ' + getItemLabel(d) + '?',
+        type: 'entryMode' },
+
       // ── ITEM CONDITION ──
       { id: 'condition',       title: (d) => 'What condition is the ' + getItemLabel(d) + '?',
         type: 'slider', min:1, max:10 },
@@ -5746,19 +5141,49 @@ function getSteps(tab) {
         note: () => 'Unit 3 box photos.',
         skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' || d.unit3HasBox !== 'Yes' },
 
-      // ── PRICING (combined) ──
-      { id: 'pricing',       title: 'Pricing & Purchase Details', type: 'pricingCombined', optional: true,
-        note: (d) => isPaired(d) || d.setMatch === 'set-now' ? 'Full price/value goes to the first unit — other units will reference it in their notes.' : '' },
+      // ── INSTRUCTION SHEET — after all unit photos, before pricing ──
+      { id: 'hasIS',        title: (d) => 'Does it have an instruction sheet?',
+        type: 'choice2', choices: ['Yes','No'] },
+      { id: 'is_sheetNum',  title: 'What is the instruction sheet number?',
+        type: 'text', placeholder: 'e.g. 924-6, 1-1957, 726-13', optional: true,
+        skipIf: d => d.hasIS !== 'Yes' },
+      { id: 'is_condition', title: 'What condition is the instruction sheet?',
+        type: 'slider', min:1, max:10, skipIf: d => d.hasIS !== 'Yes' },
+      { id: 'photosIS',     title: 'Add photos of the instruction sheet',
+        type: 'drivePhotos', label: 'IS',
+        views: [
+          { key: 'IS-FRONT', label: 'Front Side', abbr: 'Front' },
+          { key: 'IS-BACK',  label: 'Back Side',  abbr: 'Back'  },
+        ],
+        optional: true, skipIf: d => d.hasIS !== 'Yes' },
 
-      // ── LOCATION ──
-      { id: 'location',        title: 'Where is this item stored?',
-        type: 'location', placeholder: 'e.g. Display Case 3, Garage Shelf B',
-        optional: true,
-        skipIf: () => localStorage.getItem(CONFIG.LS.LOCATION_ENABLED) === 'no' },
+      // ── PRICING ──
+      { id: 'pricePaid',     title: 'What did you pay?', type: 'pricePaid',
+        note: (d) => isPaired(d) || d.setMatch === 'set-now' ? 'Full price goes to the first unit — other units will reference it in their notes.' : '' },
+      { id: 'yearMade',      title: 'What year do you think this was made?',
+        type: 'yearMade', optional: true },
+      { id: 'datePurchased', title: 'When did you purchase?',
+        type: 'date', optional: true },
+      { id: 'userEstWorth',  title: 'What do you estimate it is worth?',
+        type: 'money', placeholder: '0.00', optional: true,
+        note: (d) => (isPaired(d) || d.setMatch === 'set-now') ? 'Full estimated value goes to the first unit.' : (d.hasBox === 'Yes' ? 'Include the value of both the item and the box.' : '') },
 
-      // ── NOTES (with optional Error + IS toggles) ──
+      // ── NOTES & ERROR ──
       { id: 'notes',           title: (d) => 'Any notes about this ' + (d.itemNum ? d.itemNum + ' ' : '') + getItemLabel(d) + '?',
-        type: 'notesPlus', optional: true },
+        type: 'textarea', optional: true },
+      { id: 'isError',         title: (d) => 'Is this ' + getItemLabel(d) + ' an error item?',
+        type: 'choice2', choices: ['No','Yes'],
+        note: () => 'Error items have factory mistakes like double-stamping, missing lettering or decoration, wrong color, etc.' },
+      { id: 'errorDesc',       title: 'Describe the error',
+        type: 'textarea', optional: true,
+        placeholder: 'e.g. Double-stamped road name, missing decoration on left side',
+        skipIf: d => d.isError !== 'Yes' },
+      { id: 'wantErrorPhotos', title: 'Add close-up photos of the error?',
+        type: 'choice2', choices: ['Yes','No'], skipIf: d => d.isError !== 'Yes' },
+      { id: 'photosError',     title: 'Add close-up photos of the error',
+        type: 'drivePhotos', label: 'Error', views: ERROR_VIEWS,
+        note: () => 'Close-ups of the error — e.g. double-stamp area, missing lettering. Filed in the same Drive folder.',
+        skipIf: d => d.isError !== 'Yes' || d.wantErrorPhotos !== 'Yes' },
 
       // ── TOGETHER PHOTOS — last question before saving ──
       { id: 'wantTogetherPhotos',
@@ -5786,10 +5211,8 @@ function getSteps(tab) {
       { id: 'itemNum',      title: 'What is the Lionel item number?',      type: 'text',        placeholder: 'e.g. 726, 2046, 6464-1' },
       { id: 'pickSoldItem', title: 'Which item are you selling?',          type: 'pickSoldItem',
         skipIf: (d) => {
-          const itemNum = (d.itemNum||'').trim();
-          const collMatches = Object.keys(state.personalData).filter(k => k.split('|')[0] === itemNum);
-          const fsMatches = Object.keys(state.forSaleData).filter(k => k.split('|')[0] === itemNum);
-          return collMatches.length === 0 && fsMatches.length === 0; // skip if not in collection OR for sale
+          const matches = Object.keys(state.personalData).filter(k => k.split('|')[0] === (d.itemNum||'').trim());
+          return matches.length === 0; // not in collection — skip picker
         }
       },
       { id: 'condition',    title: 'What condition was the item?',         type: 'slider',      min:1, max:10,
@@ -5979,8 +5402,8 @@ function renderWizardStep() {
             padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none"
             oninput="wizard.data.variation=this.value"
             onkeydown="if(event.key==='Enter')wizardNext()">
-          ${s.note && s.note(wizard.data) ? `<div style="font-size:0.85rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
-        <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
+          ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
         ${(() => {
           const singleItem = state.masterData.find(i => i.itemNum === itemNum);
           return singleItem && singleItem.refLink
@@ -6012,7 +5435,7 @@ function renderWizardStep() {
                 <span style="font-size:0.82rem;color:var(--text-mid);line-height:1.5">${v.varDesc || v.description || 'No description available'}</span>
               </button>`).join('')}
           </div>
-          <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.5rem">Selecting a variation will auto-advance</div>
+          <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Selecting a variation will auto-advance</div>
           ${(() => {
             const cottItem = variations.find(v => v.variation === val) || variations[0];
             return cottItem && cottItem.refLink
@@ -6035,7 +5458,7 @@ function renderWizardStep() {
           oninput="wizard.data['${s.id}']=this.value; if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='itemNum') updateItemSuggestions(this.value)"
           onkeydown="handleSuggestionKey(event)">
         <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>
-        ${s.optional ? '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
+        ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
         <div id="wiz-match" style="margin-top:0.75rem"></div>
         ${s.id === 'itemNum' ? `
         <button onclick="openIdentify('wizard')" style="
@@ -6161,44 +5584,8 @@ function renderWizardStep() {
             oninput="wizard.data.priceItem=this.value"
             onkeydown="if(event.key==='Enter')wizardNext()">
         </div>
-        ${s.note && s.note(wizard.data) ? `<div style="font-size:0.85rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
-        <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
-      </div>`;
-    setTimeout(() => { const i = document.getElementById('wiz-price-item'); if(i) i.focus(); }, 50);
-
-  } else if (s.type === 'pricingCombined') {
-    const priceVal = wizard.data.priceItem || '';
-    const estVal = wizard.data.userEstWorth || '';
-    const dateVal = wizard.data.datePurchased || '';
-    const noteHtml = s.note && s.note(wizard.data) ? `<div style="font-size:0.82rem;color:var(--accent2);margin-top:0.75rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px;line-height:1.4">${s.note(wizard.data)}</div>` : '';
-    body.innerHTML = `
-      <div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:1rem">
-        <div>
-          <div style="font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.35rem">Price Paid ($)</div>
-          <div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.65rem 0.85rem">
-            <span style="color:var(--text-dim);font-size:1.1rem">$</span>
-            <input type="number" id="wiz-price-item" value="${priceVal}" placeholder="0.00" min="0" step="0.01"
-              style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem"
-              oninput="wizard.data.priceItem=this.value">
-          </div>
-        </div>
-        <div>
-          <div style="font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.35rem">Estimated Worth ($)</div>
-          <div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.65rem 0.85rem">
-            <span style="color:var(--text-dim);font-size:1.1rem">$</span>
-            <input type="number" id="wiz-est-worth" value="${estVal}" placeholder="0.00" min="0" step="0.01"
-              style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem"
-              oninput="wizard.data.userEstWorth=this.value">
-          </div>
-        </div>
-        <div>
-          <div style="font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.35rem">Date Purchased</div>
-          <input type="date" id="wiz-date-purch" value="${dateVal}"
-            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.65rem 0.85rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none"
-            oninput="wizard.data.datePurchased=this.value">
-        </div>
-        ${noteHtml}
-        <div style="font-size:0.8rem;color:var(--text-dim)">All fields optional — press Next to skip</div>
+        ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
       </div>`;
     setTimeout(() => { const i = document.getElementById('wiz-price-item'); if(i) i.focus(); }, 50);
 
@@ -6216,7 +5603,7 @@ function renderWizardStep() {
             onkeydown="if(event.key==='Enter')wizardNext()">
         </div>
         ${moneyNoteHtml}
-        ${s.optional ? '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
+        ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
       </div>`;
     setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
 
@@ -6300,7 +5687,7 @@ function renderWizardStep() {
     yearWrap.appendChild(yearInp);
 
     var skiphint = document.createElement('div');
-    skiphint.style.cssText = 'font-size:0.8rem;color:var(--text-dim);margin-top:0.5rem';
+    skiphint.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem';
     skiphint.textContent = 'Optional — press Next to skip.';
     yearWrap.appendChild(skiphint);
 
@@ -6356,8 +5743,8 @@ function renderWizardStep() {
           style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
           padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none"
           oninput="wizard.data['${s.id}']=this.value">
-        ${s.note && s.note(wizard.data) ? `<div style="font-size:0.85rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
-        <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
+        ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
       </div>`;
 
   } else if (s.type === 'setMatch') {
@@ -6773,124 +6160,6 @@ function renderWizardStep() {
 
     body.appendChild(wrap);
 
-  } else if (s.type === 'location') {
-    const val = wizard.data[s.id] || '';
-    const enabled = localStorage.getItem(CONFIG.LS.LOCATION_ENABLED) !== 'no'; // default on
-    body.innerHTML = `
-      <div style="padding-top:0.75rem">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;
-          background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.75rem 1rem">
-          <div>
-            <div style="font-size:0.88rem;font-weight:600;color:var(--text)">Track item location</div>
-            <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.15rem">Show this step when adding items</div>
-          </div>
-          <label style="position:relative;width:48px;height:28px;flex-shrink:0;cursor:pointer">
-            <input type="checkbox" id="wiz-loc-toggle" ${enabled ? 'checked' : ''}
-              onchange="localStorage.setItem('${CONFIG.LS.LOCATION_ENABLED}', this.checked ? 'yes' : 'no');
-                document.getElementById('wiz-loc-input-wrap').style.display = this.checked ? 'block' : 'none'"
-              style="opacity:0;width:0;height:0;position:absolute">
-            <span style="position:absolute;inset:0;background:${enabled ? 'var(--accent)' : 'var(--border)'};
-              border-radius:14px;transition:background 0.2s"></span>
-            <span style="position:absolute;top:3px;left:${enabled ? '23px' : '3px'};width:22px;height:22px;
-              background:#fff;border-radius:50%;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></span>
-          </label>
-        </div>
-        <div id="wiz-loc-input-wrap" style="display:${enabled ? 'block' : 'none'}">
-          <input type="text" id="wiz-input" value="${val.replace(/"/g, '&quot;')}"
-            placeholder="${s.placeholder || 'e.g. Display Case 3, Garage Shelf B'}"
-            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
-            padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:0.95rem;outline:none"
-            oninput="wizard.data['${s.id}']=this.value">
-          <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
-        </div>
-      </div>`;
-    // Fix toggle knob position reactively
-    const _tog = document.getElementById('wiz-loc-toggle');
-    if (_tog) {
-      _tog.addEventListener('change', function() {
-        const knob = this.parentElement.querySelectorAll('span')[1];
-        const track = this.parentElement.querySelectorAll('span')[0];
-        if (knob) knob.style.left = this.checked ? '23px' : '3px';
-        if (track) track.style.background = this.checked ? 'var(--accent)' : 'var(--border)';
-      });
-    }
-    if (enabled) setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
-
-  } else if (s.type === 'notesPlus') {
-    const notesVal = wizard.data.notes || '';
-    const isErr = wizard.data.isError === 'Yes';
-    const errDesc = wizard.data.errorDesc || '';
-    const hasIS = wizard.data.hasIS === 'Yes';
-    const isSheetNum = wizard.data.is_sheetNum || '';
-    const isCond = wizard.data.is_condition || 7;
-
-    body.innerHTML = `
-      <div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.85rem">
-        <textarea id="wiz-notes-main" placeholder="e.g. Purchased at train show, minor rust on trucks, runs well"
-          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
-          padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;
-          outline:none;resize:vertical;min-height:80px"
-          oninput="wizard.data.notes=this.value">${notesVal}</textarea>
-
-        <!-- Error Item toggle -->
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden">
-          <button id="wiz-err-toggle" onclick="(function(){
-            var on = wizard.data.isError !== 'Yes';
-            wizard.data.isError = on ? 'Yes' : 'No';
-            document.getElementById('wiz-err-body').style.display = on ? 'block' : 'none';
-            document.getElementById('wiz-err-toggle').style.borderBottomColor = on ? 'var(--border)' : 'transparent';
-            var dot = document.getElementById('wiz-err-dot');
-            if(dot) dot.style.background = on ? '#e74c3c' : 'var(--border)';
-          })()" style="width:100%;display:flex;align-items:center;gap:0.65rem;padding:0.7rem 1rem;background:none;border:none;border-bottom:1px solid ${isErr ? 'var(--border)' : 'transparent'};cursor:pointer;text-align:left;font-family:var(--font-body)">
-            <span id="wiz-err-dot" style="width:10px;height:10px;border-radius:50%;background:${isErr ? '#e74c3c' : 'var(--border)'};flex-shrink:0"></span>
-            <span style="font-size:0.85rem;color:var(--text);font-weight:500">Error item?</span>
-            <span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">Factory mistakes, double-stamping, etc.</span>
-          </button>
-          <div id="wiz-err-body" style="display:${isErr ? 'block' : 'none'};padding:0.75rem 1rem">
-            <textarea id="wiz-err-desc" placeholder="Describe the error (e.g. double-stamped road name, missing decoration)"
-              style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;
-              padding:0.6rem 0.8rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;
-              outline:none;resize:vertical;min-height:55px"
-              oninput="wizard.data.errorDesc=this.value">${errDesc}</textarea>
-          </div>
-        </div>
-
-        <!-- Instruction Sheet toggle -->
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden">
-          <button id="wiz-is-toggle" onclick="(function(){
-            var on = wizard.data.hasIS !== 'Yes';
-            wizard.data.hasIS = on ? 'Yes' : 'No';
-            document.getElementById('wiz-is-body').style.display = on ? 'flex' : 'none';
-            document.getElementById('wiz-is-toggle').style.borderBottomColor = on ? 'var(--border)' : 'transparent';
-            var dot = document.getElementById('wiz-is-dot');
-            if(dot) dot.style.background = on ? 'var(--accent2)' : 'var(--border)';
-          })()" style="width:100%;display:flex;align-items:center;gap:0.65rem;padding:0.7rem 1rem;background:none;border:none;border-bottom:1px solid ${hasIS ? 'var(--border)' : 'transparent'};cursor:pointer;text-align:left;font-family:var(--font-body)">
-            <span id="wiz-is-dot" style="width:10px;height:10px;border-radius:50%;background:${hasIS ? 'var(--accent2)' : 'var(--border)'};flex-shrink:0"></span>
-            <span style="font-size:0.85rem;color:var(--text);font-weight:500">Has instruction sheet?</span>
-            <span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">Sheet number & condition</span>
-          </button>
-          <div id="wiz-is-body" style="display:${hasIS ? 'flex' : 'none'};padding:0.75rem 1rem;flex-direction:column;gap:0.6rem">
-            <div>
-              <div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem">Sheet Number</div>
-              <input type="text" id="wiz-is-num" value="${isSheetNum}" placeholder="e.g. 924-6, 1-1957"
-                style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:0.55rem 0.8rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none"
-                oninput="wizard.data.is_sheetNum=this.value">
-            </div>
-            <div>
-              <div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem">Sheet Condition</div>
-              <div style="display:flex;align-items:center;gap:0.75rem">
-                <span id="wiz-is-cond-val" style="font-family:var(--font-head);font-size:1.4rem;color:var(--accent2);width:1.5rem;text-align:center">${isCond}</span>
-                <input type="range" min="1" max="10" value="${isCond}" style="flex:1;accent-color:var(--accent)"
-                  oninput="wizard.data.is_condition=parseInt(this.value);document.getElementById('wiz-is-cond-val').textContent=this.value">
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div style="font-size:0.8rem;color:var(--text-dim)">All optional — press Next to skip</div>
-      </div>`;
-    setTimeout(() => { const i = document.getElementById('wiz-notes-main'); if(i) i.focus(); }, 50);
-
   } else if (s.type === 'textarea') {
     const val = wizard.data[s.id] || '';
     // Use step-specific placeholder or fall back to a helpful default for notes
@@ -6904,8 +6173,8 @@ function renderWizardStep() {
           padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;
           outline:none;resize:vertical;min-height:100px"
           oninput="wizard.data['${s.id}']=this.value">${val}</textarea>
-        ${s.note && s.note(wizard.data) ? `<div style="font-size:0.85rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
-        <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
+        ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
       </div>`;
     setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
 
@@ -6913,40 +6182,14 @@ function renderWizardStep() {
     const itemNum = (wizard.data.itemNum || '').trim();
     const matchKeys = Object.keys(state.personalData).filter(k => {
       const pd = state.personalData[k];
+      // Show all owned rows for this item number
+      // Include rows with real item info (condition not N/A or empty)
       return k.split('|')[0] === itemNum && pd.owned;
     });
-    // For Sale items for this number
-    const fsKeys = Object.keys(state.forSaleData).filter(k => k.split('|')[0] === itemNum);
       const selected = wizard.data.selectedSoldKey || '';
     body.innerHTML = `
       <div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.5rem">
-        ${matchKeys.length === 0 && fsKeys.length === 0 ? '<div style="color:var(--text-dim);font-size:0.85rem">No owned or listed items found for this number.</div>' : ''}
-        ${fsKeys.length > 0 ? `<div style="font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;color:#e67e22;font-weight:600;margin-bottom:0.15rem;margin-top:0.25rem">🏷 Listed For Sale</div>` : ''}
-        ${fsKeys.map(k => {
-          const fs = state.forSaleData[k];
-          const isSelected = selected === 'fs:' + k;
-          return `<button onclick="wizardPickSoldItem('fs:${k}')" style="
-            display:flex;align-items:flex-start;gap:0.75rem;padding:0.85rem 1rem;
-            border-radius:10px;text-align:left;width:100%;cursor:pointer;
-            font-family:var(--font-body);transition:all 0.15s;
-            border:2px solid ${isSelected ? '#e67e22' : 'var(--border)'};
-            background:${isSelected ? 'rgba(230,126,34,0.12)' : 'var(--surface2)'};
-          ">
-            <div style="flex:1">
-              <div style="font-family:var(--font-mono);color:#e67e22;font-size:0.9rem;font-weight:600">
-                ${fs.itemNum}${fs.variation ? ' — Var ' + fs.variation : ''}
-                <span style="font-size:0.72rem;background:rgba(230,126,34,0.2);color:#e67e22;padding:0.1rem 0.4rem;border-radius:4px;margin-left:0.4rem">FOR SALE</span>
-              </div>
-              <div style="font-size:0.8rem;color:var(--text-mid);margin-top:0.3rem;display:flex;gap:1rem;flex-wrap:wrap">
-                ${fs.askingPrice ? `<span>Asking: <strong style="color:#e67e22">$${parseFloat(fs.askingPrice).toLocaleString()}</strong></span>` : ''}
-                ${fs.whereListed ? `<span>${fs.whereListed}</span>` : ''}
-                ${fs.dateListed ? `<span>Listed: ${fs.dateListed}</span>` : ''}
-              </div>
-            </div>
-            ${isSelected ? '<span style="color:#e67e22;font-size:1.1rem;align-self:center">✓</span>' : ''}
-          </button>`;
-        }).join('')}
-        ${matchKeys.length > 0 ? `<div style="font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);font-weight:600;margin-bottom:0.15rem;margin-top:0.25rem">From My Collection</div>` : ''}
+        ${matchKeys.length === 0 ? '<div style="color:var(--text-dim);font-size:0.85rem">No owned items found for this number.</div>' : ''}
         ${matchKeys.map(k => {
           const pd = state.personalData[k];
           const isSelected = selected === k;
@@ -7037,8 +6280,8 @@ function renderWizardStep() {
         ${!_isEph && item ? `
           <div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">
             <div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.8rem">No. ${item.itemNum}${item.variation ? ' — Var ' + item.variation : ''}</div>
-            <div style="font-weight:600;margin-top:0.2rem">${item.roadName || (wizard.data.boxOnly ? 'Box' : item.itemType) || ''}</div>
-            <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">${item.yearProd || ''} · ${wizard.data.boxOnly ? 'Box' : (item.itemType || '')}</div>
+            <div style="font-weight:600;margin-top:0.2rem">${item.roadName || item.itemType || ''}</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">${item.yearProd || ''} · ${item.itemType || ''}</div>
           </div>` : !_isEph ? `
           <div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">
             <div style="font-family:var(--font-mono);color:var(--accent2)">Item ${wizard.data.itemNum || '?'}${wizard.data.variation ? ' Var ' + wizard.data.variation : ''}</div>
@@ -7258,28 +6501,11 @@ function toggleAttachToBox(itemNum) {
 function wizardPickSoldItem(key) {
   wizard.data.selectedSoldKey = key;
   if (key !== '__new__') {
-    if (key.startsWith('fs:')) {
-      // For Sale item selected
-      const fsKey = key.slice(3);
-      const fs = state.forSaleData[fsKey];
-      if (fs) {
-        wizard.data.forSaleKey = fsKey; // track for cleanup on save
-        if (fs.askingPrice) wizard.data.salePrice = fs.askingPrice; // pre-fill sale price from asking
-        if (fs.origPrice) wizard.data.priceItem = fs.origPrice;
-        // Also check collection for condition data
-        const pd = Object.values(state.personalData).find(p => p.itemNum === fs.itemNum && p.variation === fs.variation);
-        if (pd) {
-          if (pd.condition && pd.condition !== 'N/A') wizard.data.condition = parseInt(pd.condition);
-          if (!fs.origPrice && pd.priceItem && pd.priceItem !== 'N/A') wizard.data.priceItem = pd.priceItem;
-        }
-      }
-    } else {
-      // Collection item selected
-      const pd = state.personalData[key];
-      if (pd) {
-        if (pd.condition && pd.condition !== 'N/A') wizard.data.condition = parseInt(pd.condition);
-        if (pd.priceItem && pd.priceItem !== 'N/A') wizard.data.priceItem = pd.priceItem;
-      }
+    const pd = state.personalData[key];
+    if (pd) {
+      // Pre-fill condition and original price from collection data
+      if (pd.condition && pd.condition !== 'N/A') wizard.data.condition = parseInt(pd.condition);
+      if (pd.priceItem && pd.priceItem !== 'N/A') wizard.data.priceItem = pd.priceItem;
     }
   }
   setTimeout(() => wizardNext(), 150);
@@ -8077,13 +7303,6 @@ async function saveWizardItem() {
           ( d.notes || ex.notes || '' ).trim(),
           d.purchaseDate || ex.datePurchased || '',
           d.userEstWorth || ex.userEstWorth || '',
-          ex.matchedTo || '',  // Matched Tender/Engine
-          ex.setId || '',      // Set ID
-          ex.yearMade || '',   // Year Made
-          ex.isError || 'No',  // Is Error
-          ex.errorDesc || '',  // Error Description
-          ex.quickEntry ? 'Yes' : '',  // Quick Entry
-          d.location || ex.location || '',  // Location (col U)
         ];
       } else {
         const _paired = d.tenderMatch && d.tenderMatch !== 'none';
@@ -8116,7 +7335,6 @@ async function saveWizardItem() {
         d.isError === 'Yes' ? 'Yes' : 'No',  // Is Error (col R)
         d.isError === 'Yes' ? (d.errorDesc || '') : '',  // Error Description (col S)
         '',  // Quick Entry (col T) — blank = normal full entry
-        d.location || '',  // Location (col U)
         ];
       }
       // ── SET UNIT SAVE: if diesel set, save unit2 (and unit3) rows with shared Set ID ──
@@ -8296,17 +7514,6 @@ async function saveWizardItem() {
       if (collectionEntry?.itemNum) {
         try { await driveMoveToSold(collectionEntry.itemNum); } catch(e) { console.warn('Drive move failed:', e); }
       }
-      // Clean up For Sale listing if this item was listed
-      const _fsCleanKey = d.forSaleKey || `${itemNum}|${soldVariation}`;
-      const _fsEntry = state.forSaleData[_fsCleanKey];
-      if (_fsEntry) {
-        try {
-          if (_fsEntry.row && typeof _fsEntry.row === 'number' && _fsEntry.row < 100000) {
-            await sheetsUpdate(state.personalSheetId, `For Sale!A${_fsEntry.row}:G${_fsEntry.row}`, [['','','','','','','']]);
-          }
-          delete state.forSaleData[_fsCleanKey];
-        } catch(e) { console.warn('For Sale cleanup failed:', e); }
-      }
 
     } else if (tab === 'want') {
       const row = [
@@ -8394,7 +7601,6 @@ async function saveWizardItem() {
     resetFilters();
     buildDashboard();
     buildSoldPage();
-    buildForSalePage();
     renderBrowse();
     showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
 
@@ -8409,7 +7615,6 @@ async function saveWizardItem() {
         resetFilters();
         buildDashboard();
         buildSoldPage();
-        buildForSalePage();
         renderBrowse();
       } catch(e) { console.warn('Background sync after save:', e); }
     }, _syncDelay);
@@ -8418,67 +7623,6 @@ async function saveWizardItem() {
     console.error('Save error:', e, '| accessToken:', accessToken ? 'present' : 'MISSING');
     showToast('❌ Save failed: ' + e.message, 8000, true);
   }
-}
-
-function startQuickEntry() {
-  // Open a minimal dialog — just item number → save
-  wizard = { step: 0, tab: 'collection', data: { itemCategory: 'lionel', entryMode: 'quick' }, steps: [], matchedItem: null };
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay open';
-  overlay.style.zIndex = '250';
-  overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); } };
-  const box = document.createElement('div');
-  box.className = 'modal';
-  box.style.maxWidth = '420px';
-  box.innerHTML = `
-    <div class="modal-header" style="border-bottom-color:rgba(39,174,96,0.3)">
-      <div>
-        <div class="modal-title" style="color:#27ae60">⚡ Quick Add</div>
-        <div class="modal-subtitle">Save just the item number — fill details later</div>
-      </div>
-      <button class="btn-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-field">
-        <label>Item Number</label>
-        <input type="text" id="qe-item-input" placeholder="e.g. 726, 2046, 6464-1" autocomplete="off"
-          style="font-size:1.1rem;padding:0.85rem 1rem">
-      </div>
-      <div id="qe-match-info" style="font-size:0.82rem;color:var(--text-dim);min-height:1.5rem;margin-top:0.25rem"></div>
-    </div>
-    <div class="modal-footer" style="border-top-color:rgba(39,174,96,0.3)">
-      <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
-      <button class="btn" id="qe-save-btn" style="background:#27ae60;color:#fff" onclick="_doQuickEntry()">⚡ Save</button>
-    </div>
-  `;
-  overlay.appendChild(box);
-  document.body.appendChild(overlay);
-  const inp = box.querySelector('#qe-item-input');
-  inp.focus();
-  inp.oninput = function() {
-    const q = normalizeItemNum(this.value.trim());
-    const match = state.masterData.find(m => normalizeItemNum(m.itemNum) === q);
-    const info = document.getElementById('qe-match-info');
-    if (match && info) info.innerHTML = '<span style="color:var(--green)">✓</span> ' + match.itemType + ' — ' + (match.roadName || match.description || '');
-    else if (q.length > 1 && info) info.textContent = 'Not in catalog — will save as custom item';
-    else if (info) info.textContent = '';
-  };
-  inp.onkeydown = function(e) { if (e.key === 'Enter') _doQuickEntry(); };
-}
-
-async function _doQuickEntry() {
-  const inp = document.getElementById('qe-item-input');
-  const itemNum = (inp ? inp.value : '').trim();
-  if (!itemNum) { showToast('Please enter an item number'); return; }
-  // Find variation from master
-  const match = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum));
-  wizard.data.itemNum = match ? match.itemNum : itemNum;
-  wizard.data.variation = match ? (match.variation || '') : '';
-  wizard.matchedItem = match || null;
-  // Close dialog, then save
-  document.querySelector('.modal-overlay[style*="250"]')?.remove();
-  await quickEntryAdd();
-  buildQuickEntryList();
 }
 
 async function quickEntryAdd() {
@@ -8515,7 +7659,7 @@ async function quickEntryAdd() {
     if (_nextBtn) _nextBtn.disabled = true;
 
     for (const r of rows) {
-      const row = [r.itemNum, r.variation,'','','','','','','','','', r.notes,'','',r.matchedTo,r.setId,'','','','Yes',''];  // 21 cols A-U
+      const row = [r.itemNum, r.variation,'','','','','','','','','', r.notes,'','',r.matchedTo,r.setId,'','','','Yes'];
       console.log('[QE] Saving', r.itemNum);
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
       const key = r.itemNum + '|' + r.variation + '|' + Date.now();
@@ -8527,7 +7671,6 @@ async function quickEntryAdd() {
         notes: r.notes, datePurchased: '', userEstWorth: '',
         matchedTo: r.matchedTo, setId: r.setId,
         yearMade: '', isError: '', errorDesc: '', quickEntry: true,
-        location: '',
       };
     }
 
