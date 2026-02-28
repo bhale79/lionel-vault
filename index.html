@@ -1004,9 +1004,9 @@ HTML — Trailing Modals & Widgets     8291 – 8417
 <div id="auth-screen">
   <div class="auth-logo" style="line-height:1.1">
     <div style="font-family:var(--font-head);font-size:2.4rem;font-weight:700;color:var(--cream);letter-spacing:0.07em;text-transform:uppercase">My <span style="color:var(--accent)">Collection</span> App</div>
-    <div style="font-size:0.62rem;letter-spacing:0.22em;color:var(--text-dim);margin-top:7px;text-transform:uppercase;font-family:var(--font-head);font-weight:400">Postwar Lionel Collector&rsquo;s Inventory</div>
+    <div style="font-size:0.62rem;letter-spacing:0.22em;color:var(--text-dim);margin-top:7px;text-transform:uppercase;font-family:var(--font-head);font-weight:400">Postwar Train Collector&rsquo;s Inventory</div>
   </div>
-  <div class="auth-sub">Postwar Lionel Collector's Inventory</div>
+  <div class="auth-sub">Postwar Train Collector's Inventory</div>
   <div style="display:flex;flex-direction:column;gap:0.6rem;margin:1.25rem 0;max-width:340px;text-align:left">
     <div style="display:flex;align-items:flex-start;gap:0.75rem;background:rgba(200,16,46,0.06);border-radius:10px;padding:0.75rem 1rem">
       <span style="font-size:1.3rem;flex-shrink:0">📋</span>
@@ -1690,13 +1690,13 @@ const CONFIG = {
   MOCKUP_TAB:   'Mock-Ups',
   OTHER_TAB:    'Other Lionel',
   IS_TAB:       'Instruction Sheets',
-  PERSONAL_SHEET_NAME: 'Lionel Vault — My Collection',
+  PERSONAL_SHEET_NAME: 'My Collection Vault',
 
   // ── Google Drive Folder Names ───────────────────────────────────
-  VAULT_FOLDER:  'Lionel Vault',
+  VAULT_FOLDER:  'My Collection Vault',
   PHOTOS_FOLDER: 'Photos',
   SOLD_PHOTOS_FOLDER: 'Sold Items',
-  CONFIG_FILE:   'lionel-vault-config.json',
+  CONFIG_FILE:   'collection-vault-config.json',
 
   // ── Cache ───────────────────────────────────────────────────────
   CACHE_VERSION: '2',
@@ -2078,7 +2078,7 @@ function showOnboarding() {
   ov.innerHTML = '<div style="background:var(--surface);border-radius:18px;max-width:380px;width:100%;padding:2rem;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5)">'
     + '<div style="font-size:3rem;margin-bottom:0.75rem">🚂</div>'
     + '<div style="font-family:var(--font-head);font-size:1.5rem;font-weight:700;margin-bottom:0.5rem;color:var(--text)">Welcome to <span style=\"color:var(--accent)\">My Collection App</span></div>'
-    + '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.7;margin-bottom:1.5rem">Your personal postwar Lionel collection manager. Here\'s how it works:</div>'
+    + '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.7;margin-bottom:1.5rem">Your personal postwar train collection manager. Here\'s how it works:</div>'
     + '<div style="display:flex;flex-direction:column;gap:0.75rem;text-align:left;margin-bottom:1.5rem">'
     + '<div style="display:flex;gap:0.75rem;align-items:flex-start"><div style="background:var(--accent);color:white;border-radius:50%;width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem">1</div><div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:var(--text)">Browse the Master Catalog</strong><br>Over 2,000 postwar items pre-loaded — engines, cars, accessories and more.</div></div>'
     + '<div style="display:flex;gap:0.75rem;align-items:flex-start"><div style="background:var(--accent);color:white;border-radius:50%;width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem">2</div><div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:var(--text)">Add items you own</strong><br>Tap Add Item, enter the number, and answer a few simple questions.</div></div>'
@@ -2381,7 +2381,7 @@ async function driveSetupVault() {
   // Find or create root vault folder
   const rootRes = await driveRequest('GET', '/files/root?fields=id');
   const rootId = rootRes.id;
-  driveCache.vaultId = await driveFindOrCreateFolder('Lionel Vault - My Collection', rootId);
+  driveCache.vaultId = await driveFindOrCreateFolder('My Collection Vault', rootId);
   localStorage.setItem('lv_vault_id', driveCache.vaultId);
 
   // Find or create both photo subfolders (always, so nothing is missing)
@@ -2509,7 +2509,7 @@ async function driveMoveToSold(itemNum) {
 // Stores personalSheetId in a small JSON file in Drive root
 // so any device can find the right sheet after signing in
 
-const CONFIG_FILENAME = 'lionel-vault-config.json';
+const CONFIG_FILENAME = 'collection-vault-config.json';
 
 async function driveReadConfig() {
   try {
@@ -4856,7 +4856,7 @@ function exportReport() {
   const csv = headers + '\n' + rows;
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'lionel-report.csv'; a.click();
+  const a = document.createElement('a'); a.href = url; a.download = 'collection-report.csv'; a.click();
 }
 
 // ── NAVIGATION ──────────────────────────────────────────────────
