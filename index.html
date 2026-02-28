@@ -1574,7 +1574,7 @@ function initGoogle() {
   // Check for existing session — master ID is hardcoded, just need saved user
   const savedUser = localStorage.getItem('lv_user');
   const savedPersonalId = localStorage.getItem('lv_personal_id');
-  state.masterSheetId = '1wvK4FU5k5t8Zgapul0A8ehrVIEL4IsDP';
+  state.masterSheetId = '1Qj7bqsaG1DhbECmEUn6NHm2T2YZoXE9q3vb87xSdUQY';
   localStorage.setItem('lv_master_id', state.masterSheetId);
 
   if (savedUser) {
@@ -1650,7 +1650,7 @@ function onTokenReceived(resp) {
   }
 
   // Master sheet is hardcoded
-  state.masterSheetId = '1wvK4FU5k5t8Zgapul0A8ehrVIEL4IsDP';
+  state.masterSheetId = '1Qj7bqsaG1DhbECmEUn6NHm2T2YZoXE9q3vb87xSdUQY';
   localStorage.setItem('lv_master_id', state.masterSheetId);
 
   // Always sync from Drive config to ensure correct sheet ID across devices
@@ -2403,7 +2403,7 @@ async function loadAllData() {
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '4';
+  const _CACHE_VER = '5';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
