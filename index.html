@@ -1,272 +1,82 @@
 <!DOCTYPE html>
 <!--
 ╔══════════════════════════════════════════════════════════════════════╗
-║  MY COLLECTION APP — Postwar Lionel 1945–1969                      ║
+║  MY COLLECTION APP — Postwar Trains 1945–1969                      ║
 ║  Single-file HTML/CSS/JS app · Google Sheets backend               ║
 ║  Last updated: 2026-02-28                                          ║
 ╚══════════════════════════════════════════════════════════════════════╝
 
-CURRENT PRIORITIES (sync with GOALS.md in project — 14 goals total)
+GOALS (15 total — sync with GOALS.md in project)
 ───────────────────────────────────────────────────
 Target user: Older male collectors, not tech-savvy, needs big fonts & simple flows.
 Mobile = primary input device. Desktop = browsing & reports.
 
-• CRITICAL: Audit all font sizes & tap targets for older users (#4)
-• HIGH: Remove "Lionel" from all branding/UI text — keep in data only (#14)
-• HIGH: Add "Location" field with persistent toggle preference (#10)
-• HIGH: Add "For Sale" section between Collection and Sold (#3)
-• HIGH: Simplify Add Item wizard — fewer steps, auto-skip (#1)
-• MEDIUM: Help menu + animated train engineer guide (#9)
-• MEDIUM: Step-by-step first-run tutorial system (#5)
-• MEDIUM: Insurance report — printable PDF with photos & values (#6)
-• MEDIUM: About App / Info page with data sources & legal (#11)
-• LOW: Richer dashboard stats — type breakdown, total values (#2)
-• LOW: Refactor for reusable collectibles framework (#13)
+✅ DONE: #1 Wizard simplified (18→12 steps), #3 For Sale section,
+         #4 Font/tap audit, #10 Location toggle, #14 Branding cleanup
+• MEDIUM: #5 Step-by-step tutorials, #6 Insurance report (PDF),
+          #9 Help menu + animated guide, #11 About App page
+• NEEDS NETWORK: #15 Re-verify COTT variation data
 ───────────────────────────────────────────────────
 
-CODE MAP (update line numbers after major edits)
+CODE MAP (9,467 lines)
 ─────────────────────────────────────────────────
 SECTION                              LINES (approx)
 ───────────────────────────────────── ──────────────
-HTML <head> & <style>                   3 –  730
+HTML <head> & <style>                 292 – 1000
   CSS variables & theme                25 –   45
   Component styles                     46 –  730
 
-HTML <body> — Layout & Pages          732 – 1400
-  Auth / sign-in screen               734 –  770
-  First-time setup screen             771 –  796
-  Main app shell (header + sidebar)   798 –  890
-  Dashboard page                      894 –  953
-  Quick Entry List page               955 –  970
-  Browse page                         972 – 1027
-  Sold page                          1028 – 1078
-  Want List page                     1080 – 1112
-  Reports & Ephemera pages           1113 – 1145
-  Mobile bottom nav                  1146 – 1177
-  Item Detail Modal                  1179 – 1342
-  Sold Modal                         1344 – 1370
-  Add Item Wizard (HTML shell)       1372 – 1400
+HTML <body> — Layout & Pages         1002 – 1729
+  Auth / sign-in screen
+  First-time setup screen
+  Main app shell (header + sidebar)
+  Dashboard page
+  Quick Entry List page
+  Browse page
+  Sold page
+  For Sale page
+  Want List page
+  Reports & Ephemera pages
+  Mobile bottom nav
+  Item Detail Modal
+  Sold Modal
+  Add Item Wizard (HTML shell)
 
-SCRIPT BLOCK 1 (inline)               895 –  899
-  startWizardFor() helper
+SCRIPT BLOCK 1 (main app logic)      1730 – 5665
+  ┌─ CONFIG & CONSTANTS              1734 – 1840
+  ├─ STATE & AUTH                     1840 – 2020
+  ├─ ONBOARDING & SETUP              2020 – 2180
+  ├─ SHEET INITIALIZATION            2180 – 2320
+  ├─ PHOTO VIEW DEFINITIONS          2320 – 2410
+  ├─ GOOGLE DRIVE INTEGRATION        2410 – 2700
+  ├─ GOOGLE SHEETS API               2700 – 2860
+  ├─ DATA LOADING (incl. For Sale)   2860 – 3150
+  ├─ APP BUILDING & DASHBOARD        3150 – 3320
+  ├─ BROWSE — FILTERS & RENDERING    3320 – 3620
+  ├─ ITEM INTERACTION MENUS          3620 – 4050
+  ├─ ITEM PANEL (detail editor)      4050 – 4460
+  ├─ BROWSE ROW CLICK / ITEM MODAL   4460 – 4750
+  ├─ SAVE TO SHEETS                  4750 – 4880
+  ├─ REPORTS                         4880 – 4980
+  ├─ EPHEMERA PAGE                   4980 – 5110
+  ├─ WANT LIST PAGE                  5110 – 5270
+  ├─ SOLD PAGE                       5270 – 5340
+  ├─ FOR SALE PAGE + ACTIONS         5340 – 5640
+  └─ PAGE NAVIGATION                 5640 – 5665
 
-SCRIPT BLOCK 2 (main app logic)      1402 – 4863
-  ┌─ CONFIG & CONSTANTS              1402 – 1525
-  │   App config (CONFIG object)     1402 – 1410
-  │   Google API constants           1405 – 1410
-  │   Sheet headers & tab defs       1411 – 1452
-  │   Tender/Loco mapping tables     1453 – 1456
-  │   Item utility functions         1457 – 1525
-  │     isSetUnit, getBUnit, getAUnit, getSetPartner
-  │     normalizeItemNum, isF3AlcoUnit, genSetId
-  │     isTender, isBoxOnlyEntry, displayItemType
-  │     isLocomotive, getMatchingTenders/Locos
-  │     findOwnedMatch
-  │
-  ├─ STATE & AUTH                    1527 – 1677
-  │   state object                   1527 – 1545
-  │   tokenClient                    1546
-  │   initGoogle()                   1548 – 1569
-  │   handleSignIn/Out               1571 – 1676
-  │   onGoogleSignIn, onTokenReceived
-  │
-  ├─ ONBOARDING & SETUP             1677 – 1800
-  │   closeOnboarding, showOnboarding
-  │   showApp, showSetup, updateUserUI
-  │   completeSetup, initPersonalSheet
-  │
-  ├─ SHEET INITIALIZATION            1801 – 1880
-  │   ensurePersonalHeaders()
-  │   ensureEphemeraSheets()
-  │
-  ├─ PHOTO VIEW DEFINITIONS          1881 – 1930
-  │   ITEM_VIEWS, ERROR_VIEWS, BOX_VIEWS
-  │   getItemLabel()
-  │
-  ├─ GOOGLE DRIVE INTEGRATION        1928 – 2175
-  │   driveCache, driveRequest
-  │   driveUploadFile, driveFindOrCreateFolder
-  │   driveUploadPhoto, driveMoveFileToFolder
-  │   driveSetupVault, driveEnsureSetup
-  │   driveEnsureItemFolder
-  │   driveGetFolderPhotos, loadDriveThumb
-  │   driveFolderLink, driveUploadItemPhoto
-  │   driveMoveToSold
-  │   driveReadConfig, driveWriteConfig
-  │   driveMoveSheetToVault
-  │
-  ├─ GOOGLE SHEETS API               2179 – 2360
-  │   sheetsGet, _withTokenRetry
-  │   sheetsUpdate, sheetsAppend
-  │   sheetsDeleteRow
-  │   createPersonalSheet
-  │   loadUserDefinedTabs, saveUserDefinedTabs
-  │
-  ├─ DATA LOADING                    2370 – 2660
-  │   loadAllData()                  2370
-  │   loadMasterData()               2385
-  │   parseMasterRows()              2427
-  │   loadPersonalData()             2448
-  │   _cachePersonalData()           2482
-  │   _loadPersonalFromSheets()      2496
-  │   parseEphemeraRows()            2574
-  │
-  ├─ APP BUILDING & DASHBOARD        2660 – 2865
-  │   buildApp()                     2660
-  │   showLoading()                  2676
-  │   forceRefreshData()             2683
-  │   buildDashboard()               2713
-  │
-  ├─ BROWSE — FILTERS & RENDERING    2866 – 3410
-  │   populateFilters()              2866
-  │   applyFilters, toggleFilter     2906 – 2920
-  │   resetFilters                   2922
-  │   filterOwned, removeQEFilter    2936 – 2971
-  │   buildQuickEntryList()          2973
-  │   goToMyCollection/WantList      3071 – 3085
-  │   renderOwnedItems               3087
-  │   filterWanted, filterByType     3101 – 3106
-  │   onPageSearch                   3108
-  │   renderBrowse()                 3127 – 3409
-  │   goPage()                       3410
-  │
-  ├─ ITEM INTERACTION MENUS          3413 – 3548
-  │   openPhotoWizard                3413
-  │   openPhotoFolder                3441
-  │   showOwnedItemMenu              3449
-  │   sellFromCollection             3519
-  │   updateCollectionItem           3544
-  │
-  ├─ ITEM PANEL (detail editor)      3548 – 3923
-  │   showItemPanel()                3548
-  │   renderFields() (inner fn)      3733
-  │   buildFooter() (inner fn)       3875
-  │
-  ├─ INSTRUCTION SHEET DETAIL        3924 – 3955
-  │   openISDetail()                 3924
-  │
-  ├─ BROWSE ROW CLICK HANDLER        3956 – 4097
-  │   browseRowClick()               3956
-  │   addFromBrowse()                4098
-  │
-  ├─ ITEM DETAIL MODAL               4120 – 4240
-  │   openItem()                     4120
-  │   fillItemFromBoxRow()           4208
-  │   closeModal, closeModalOnOverlay 4233
-  │
-  ├─ SAVE TO SHEETS                  4243 – 4375
-  │   setStatus()                    4243
-  │   saveItem()                     4267
-  │
-  ├─ REPORTS                         4376 – 4472
-  │   buildReport()                  4376
-  │   exportReport()                 4456
-  │
-  ├─ EPHEMERA PAGE                   4473 – 4606
-  │   buildEphemeraPage()            4473
-  │   switchEphTab()                 4491
-  │   openEphemeraDetail()           4535
-  │
-  ├─ WANT LIST PAGE                  4607 – 4690
-  │   buildWantPage()                4607
-  │
-  ├─ POPUPS (Var Desc, Want Desc)    4690 – 4761
-  │   showVarDescPopup()             4690
-  │   showWantDesc()                 4718
-  │
-  ├─ SOLD PAGE                       4762 – 4839
-  │   toggleSoldSummary()            4752
-  │   buildSoldPage()                4762
-  │
-  └─ PAGE NAVIGATION                 4834 – 4863
-      clearPageSearch()              4834
-      showPage()                     4840
-      parseJwt()                     4854
+SCRIPT BLOCK 2 (wizard + photos)     5670 – 9340
+  ┌─ WIZARD STEP DEFINITIONS         5685 – 6000
+  ├─ WIZARD RENDERING                6036 – 7370
+  │   (includes pricingCombined, notesPlus renderers)
+  ├─ WIZARD INTERACTION              7370 – 7770
+  ├─ WIZARD NAVIGATION               7770 – 7860
+  ├─ WIZARD SAVE LOGIC               7860 – 8610
+  ├─ QUICK ENTRY (startQuickEntry)   8613 – 8810
+  ├─ TOAST NOTIFICATIONS             8810 – 8840
+  ├─ IDENTIFY ITEM (Gemini/Lens)     8840 – 8950
+  └─ PHOTOS PAGE                     8950 – 9340
 
-SCRIPT BLOCK 3 (wizard + photos)     4868 – 8290
-  ┌─ WIZARD STEP DEFINITIONS         4883 – 5233
-  │   getSteps() — returns step      4883
-  │     arrays for each tab/category
-  │   startAddWizard, openWizard     5234 – 5256
-  │   closeWizard                    5257
-  │
-  ├─ WIZARD RENDERING                5266 – 6301
-  │   renderWizardStep()             5266
-  │     (massive fn — all step type rendering)
-  │
-  ├─ WIZARD INTERACTION              6302 – 6710
-  │   wizardChooseCategory()         6302
-  │   ensureUserDefinedSheet()       6334
-  │   wizardChooseTab()              6358
-  │   wizardChoose()                 6365
-  │   findPD, findPDKey              6376 – 6386
-  │   handlePhotoDrop/File           6388 – 6401
-  │   uploadWizardPhoto              6402
-  │   toggleBoxOnly()                6479
-  │   wizardChooseAndAdvance         6486
-  │   toggleAttachToBox              6492
-  │   wizardPickSoldItem/Row         6498 – 6515
-  │   wizardChooseVariation          6516
-  │   updateWizardPhoto              6521
-  │   updateItemSuggestions          6593 – 6675
-  │   selectSuggestion               6676
-  │   debounceItemLookup             6708
-  │   lookupItem()                   6713
-  │
-  ├─ WIZARD NAVIGATION               6794 – 6870
-  │   wizardBack()                   6794
-  │   wizardNextWithYearCheck()      6805
-  │   initCondDesc()                 6830
-  │   yearMadeReenter/Next           6838 – 6869
-  │
-  ├─ WIZARD SAVE LOGIC               6870 – 7760
-  │   wizardAdvance, wizardNext      6870 – 6894
-  │   _wizardNextCore()              6895
-  │   generateEphemeraItemNum()      6975
-  │   saveInstructionSheet()         6996
-  │   saveCatalogItem()              7040
-  │   saveEphemeraItem()             7126
-  │   savePhotoOnlyUpdate()          7193
-  │   saveWizardItem()               7227
-  │   quickEntryAdd()                7625
-  │   _showQuickEntryMultiUI         7686
-  │   _qeChip, _qeSelectChip        7759 – 7776
-  │
-  ├─ TOAST NOTIFICATIONS             7777 – 7805
-  │   showToast()                    7777
-  │
-  ├─ IDENTIFY ITEM (Gemini/Lens)     7806 – 7902
-  │   openIdentify, closeIdentify    7806 – 7817
-  │   openGoogleLens                 7818
-  │   useIdentifiedItem              7822
-  │   extractLionelNumber            7843
-  │   _applyIdentifiedItem           7862
-  │
-  ├─ PHOTOS PAGE                     7903 – 8244
-  │   buildPhotosTicker()            7903
-  │   loadTickerThumbs()             7943
-  │   loadDriveThumbUrl()            7964
-  │   _tickerClick()                 7978
-  │   onPhotosSearch()               7996
-  │   openPhotosViewer()             8034
-  │   loadPhotosFrame()              8099
-  │   photosNav/NavTo                8130 – 8148
-  │   renderPhotosDots               8136
-  │   renderPhotosItemHeader         8150
-  │   renderPhotosDetails            8167
-  │   photosOpenDrive                8198
-  │   setupPhotosSwipe               8203
-  │   buildPhotosPage()              8222
-  │
-  └─ PHOTO SOURCE PICKER             8250 – 8290
-      showPhotoSourcePicker()        8250
-      closePhotoPicker()             8269
-      pickerHandleFile()             8275
-
-HTML — Trailing Modals & Widgets     8291 – 8417
-  Identify Item modal                8291 – 8323
-  View Pictures page                 8325 – 8389
-  Photo Source Picker sheet          8390 – 8417
+──────────────────────────────────────────────────────
 -->
 <html lang="en">
 <head>
@@ -1234,9 +1044,9 @@ document.addEventListener('touchmove', function(){}, {passive: true});
             <div class="page-title" style="margin-bottom:0.15rem">⚡ Quick Entry List</div>
             <div style="font-size:0.82rem;color:var(--text-dim)">Items you logged quickly — tap any one to fill in the details.</div>
           </div>
-          <button onclick="startWizardFor('collection')" class="btn" style="display:flex;align-items:center;gap:0.4rem;border:1.5px solid #27ae60;color:#27ae60;background:rgba(39,174,96,0.1);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem">
+          <button onclick="startQuickEntry()" class="btn" style="display:flex;align-items:center;gap:0.4rem;border:1.5px solid #27ae60;color:#27ae60;background:rgba(39,174,96,0.1);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-            Add Item
+            ⚡ Quick Add
           </button>
         </div>
         <div id="qe-list-container">
@@ -5804,10 +5614,6 @@ function getSteps(tab) {
         skipIf: (d) => !!d.itemCategory },
       ...base,
 
-      // ── ENTRY MODE ──
-      { id: 'entryMode', title: (d) => 'How would you like to add this ' + getItemLabel(d) + '?',
-        type: 'entryMode' },
-
       // ── ITEM CONDITION ──
       { id: 'condition',       title: (d) => 'What condition is the ' + getItemLabel(d) + '?',
         type: 'slider', min:1, max:10 },
@@ -5940,32 +5746,9 @@ function getSteps(tab) {
         note: () => 'Unit 3 box photos.',
         skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' || d.unit3HasBox !== 'Yes' },
 
-      // ── INSTRUCTION SHEET — after all unit photos, before pricing ──
-      { id: 'hasIS',        title: (d) => 'Does it have an instruction sheet?',
-        type: 'choice2', choices: ['Yes','No'] },
-      { id: 'is_sheetNum',  title: 'What is the instruction sheet number?',
-        type: 'text', placeholder: 'e.g. 924-6, 1-1957, 726-13', optional: true,
-        skipIf: d => d.hasIS !== 'Yes' },
-      { id: 'is_condition', title: 'What condition is the instruction sheet?',
-        type: 'slider', min:1, max:10, skipIf: d => d.hasIS !== 'Yes' },
-      { id: 'photosIS',     title: 'Add photos of the instruction sheet',
-        type: 'drivePhotos', label: 'IS',
-        views: [
-          { key: 'IS-FRONT', label: 'Front Side', abbr: 'Front' },
-          { key: 'IS-BACK',  label: 'Back Side',  abbr: 'Back'  },
-        ],
-        optional: true, skipIf: d => d.hasIS !== 'Yes' },
-
-      // ── PRICING ──
-      { id: 'pricePaid',     title: 'What did you pay?', type: 'pricePaid',
-        note: (d) => isPaired(d) || d.setMatch === 'set-now' ? 'Full price goes to the first unit — other units will reference it in their notes.' : '' },
-      { id: 'yearMade',      title: 'What year do you think this was made?',
-        type: 'yearMade', optional: true },
-      { id: 'datePurchased', title: 'When did you purchase?',
-        type: 'date', optional: true },
-      { id: 'userEstWorth',  title: 'What do you estimate it is worth?',
-        type: 'money', placeholder: '0.00', optional: true,
-        note: (d) => (isPaired(d) || d.setMatch === 'set-now') ? 'Full estimated value goes to the first unit.' : (d.hasBox === 'Yes' ? 'Include the value of both the item and the box.' : '') },
+      // ── PRICING (combined) ──
+      { id: 'pricing',       title: 'Pricing & Purchase Details', type: 'pricingCombined', optional: true,
+        note: (d) => isPaired(d) || d.setMatch === 'set-now' ? 'Full price/value goes to the first unit — other units will reference it in their notes.' : '' },
 
       // ── LOCATION ──
       { id: 'location',        title: 'Where is this item stored?',
@@ -5973,22 +5756,9 @@ function getSteps(tab) {
         optional: true,
         skipIf: () => localStorage.getItem(CONFIG.LS.LOCATION_ENABLED) === 'no' },
 
-      // ── NOTES & ERROR ──
+      // ── NOTES (with optional Error + IS toggles) ──
       { id: 'notes',           title: (d) => 'Any notes about this ' + (d.itemNum ? d.itemNum + ' ' : '') + getItemLabel(d) + '?',
-        type: 'textarea', optional: true },
-      { id: 'isError',         title: (d) => 'Is this ' + getItemLabel(d) + ' an error item?',
-        type: 'choice2', choices: ['No','Yes'],
-        note: () => 'Error items have factory mistakes like double-stamping, missing lettering or decoration, wrong color, etc.' },
-      { id: 'errorDesc',       title: 'Describe the error',
-        type: 'textarea', optional: true,
-        placeholder: 'e.g. Double-stamped road name, missing decoration on left side',
-        skipIf: d => d.isError !== 'Yes' },
-      { id: 'wantErrorPhotos', title: 'Add close-up photos of the error?',
-        type: 'choice2', choices: ['Yes','No'], skipIf: d => d.isError !== 'Yes' },
-      { id: 'photosError',     title: 'Add close-up photos of the error',
-        type: 'drivePhotos', label: 'Error', views: ERROR_VIEWS,
-        note: () => 'Close-ups of the error — e.g. double-stamp area, missing lettering. Filed in the same Drive folder.',
-        skipIf: d => d.isError !== 'Yes' || d.wantErrorPhotos !== 'Yes' },
+        type: 'notesPlus', optional: true },
 
       // ── TOGETHER PHOTOS — last question before saving ──
       { id: 'wantTogetherPhotos',
@@ -6393,6 +6163,42 @@ function renderWizardStep() {
         </div>
         ${s.note && s.note(wizard.data) ? `<div style="font-size:0.85rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
         <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
+      </div>`;
+    setTimeout(() => { const i = document.getElementById('wiz-price-item'); if(i) i.focus(); }, 50);
+
+  } else if (s.type === 'pricingCombined') {
+    const priceVal = wizard.data.priceItem || '';
+    const estVal = wizard.data.userEstWorth || '';
+    const dateVal = wizard.data.datePurchased || '';
+    const noteHtml = s.note && s.note(wizard.data) ? `<div style="font-size:0.82rem;color:var(--accent2);margin-top:0.75rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px;line-height:1.4">${s.note(wizard.data)}</div>` : '';
+    body.innerHTML = `
+      <div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:1rem">
+        <div>
+          <div style="font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.35rem">Price Paid ($)</div>
+          <div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.65rem 0.85rem">
+            <span style="color:var(--text-dim);font-size:1.1rem">$</span>
+            <input type="number" id="wiz-price-item" value="${priceVal}" placeholder="0.00" min="0" step="0.01"
+              style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem"
+              oninput="wizard.data.priceItem=this.value">
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.35rem">Estimated Worth ($)</div>
+          <div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.65rem 0.85rem">
+            <span style="color:var(--text-dim);font-size:1.1rem">$</span>
+            <input type="number" id="wiz-est-worth" value="${estVal}" placeholder="0.00" min="0" step="0.01"
+              style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem"
+              oninput="wizard.data.userEstWorth=this.value">
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.35rem">Date Purchased</div>
+          <input type="date" id="wiz-date-purch" value="${dateVal}"
+            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.65rem 0.85rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none"
+            oninput="wizard.data.datePurchased=this.value">
+        </div>
+        ${noteHtml}
+        <div style="font-size:0.8rem;color:var(--text-dim)">All fields optional — press Next to skip</div>
       </div>`;
     setTimeout(() => { const i = document.getElementById('wiz-price-item'); if(i) i.focus(); }, 50);
 
@@ -7009,6 +6815,81 @@ function renderWizardStep() {
       });
     }
     if (enabled) setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
+
+  } else if (s.type === 'notesPlus') {
+    const notesVal = wizard.data.notes || '';
+    const isErr = wizard.data.isError === 'Yes';
+    const errDesc = wizard.data.errorDesc || '';
+    const hasIS = wizard.data.hasIS === 'Yes';
+    const isSheetNum = wizard.data.is_sheetNum || '';
+    const isCond = wizard.data.is_condition || 7;
+
+    body.innerHTML = `
+      <div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.85rem">
+        <textarea id="wiz-notes-main" placeholder="e.g. Purchased at train show, minor rust on trucks, runs well"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
+          padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;
+          outline:none;resize:vertical;min-height:80px"
+          oninput="wizard.data.notes=this.value">${notesVal}</textarea>
+
+        <!-- Error Item toggle -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+          <button id="wiz-err-toggle" onclick="(function(){
+            var on = wizard.data.isError !== 'Yes';
+            wizard.data.isError = on ? 'Yes' : 'No';
+            document.getElementById('wiz-err-body').style.display = on ? 'block' : 'none';
+            document.getElementById('wiz-err-toggle').style.borderBottomColor = on ? 'var(--border)' : 'transparent';
+            var dot = document.getElementById('wiz-err-dot');
+            if(dot) dot.style.background = on ? '#e74c3c' : 'var(--border)';
+          })()" style="width:100%;display:flex;align-items:center;gap:0.65rem;padding:0.7rem 1rem;background:none;border:none;border-bottom:1px solid ${isErr ? 'var(--border)' : 'transparent'};cursor:pointer;text-align:left;font-family:var(--font-body)">
+            <span id="wiz-err-dot" style="width:10px;height:10px;border-radius:50%;background:${isErr ? '#e74c3c' : 'var(--border)'};flex-shrink:0"></span>
+            <span style="font-size:0.85rem;color:var(--text);font-weight:500">Error item?</span>
+            <span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">Factory mistakes, double-stamping, etc.</span>
+          </button>
+          <div id="wiz-err-body" style="display:${isErr ? 'block' : 'none'};padding:0.75rem 1rem">
+            <textarea id="wiz-err-desc" placeholder="Describe the error (e.g. double-stamped road name, missing decoration)"
+              style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;
+              padding:0.6rem 0.8rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;
+              outline:none;resize:vertical;min-height:55px"
+              oninput="wizard.data.errorDesc=this.value">${errDesc}</textarea>
+          </div>
+        </div>
+
+        <!-- Instruction Sheet toggle -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+          <button id="wiz-is-toggle" onclick="(function(){
+            var on = wizard.data.hasIS !== 'Yes';
+            wizard.data.hasIS = on ? 'Yes' : 'No';
+            document.getElementById('wiz-is-body').style.display = on ? 'flex' : 'none';
+            document.getElementById('wiz-is-toggle').style.borderBottomColor = on ? 'var(--border)' : 'transparent';
+            var dot = document.getElementById('wiz-is-dot');
+            if(dot) dot.style.background = on ? 'var(--accent2)' : 'var(--border)';
+          })()" style="width:100%;display:flex;align-items:center;gap:0.65rem;padding:0.7rem 1rem;background:none;border:none;border-bottom:1px solid ${hasIS ? 'var(--border)' : 'transparent'};cursor:pointer;text-align:left;font-family:var(--font-body)">
+            <span id="wiz-is-dot" style="width:10px;height:10px;border-radius:50%;background:${hasIS ? 'var(--accent2)' : 'var(--border)'};flex-shrink:0"></span>
+            <span style="font-size:0.85rem;color:var(--text);font-weight:500">Has instruction sheet?</span>
+            <span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">Sheet number & condition</span>
+          </button>
+          <div id="wiz-is-body" style="display:${hasIS ? 'flex' : 'none'};padding:0.75rem 1rem;flex-direction:column;gap:0.6rem">
+            <div>
+              <div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem">Sheet Number</div>
+              <input type="text" id="wiz-is-num" value="${isSheetNum}" placeholder="e.g. 924-6, 1-1957"
+                style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:0.55rem 0.8rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none"
+                oninput="wizard.data.is_sheetNum=this.value">
+            </div>
+            <div>
+              <div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem">Sheet Condition</div>
+              <div style="display:flex;align-items:center;gap:0.75rem">
+                <span id="wiz-is-cond-val" style="font-family:var(--font-head);font-size:1.4rem;color:var(--accent2);width:1.5rem;text-align:center">${isCond}</span>
+                <input type="range" min="1" max="10" value="${isCond}" style="flex:1;accent-color:var(--accent)"
+                  oninput="wizard.data.is_condition=parseInt(this.value);document.getElementById('wiz-is-cond-val').textContent=this.value">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size:0.8rem;color:var(--text-dim)">All optional — press Next to skip</div>
+      </div>`;
+    setTimeout(() => { const i = document.getElementById('wiz-notes-main'); if(i) i.focus(); }, 50);
 
   } else if (s.type === 'textarea') {
     const val = wizard.data[s.id] || '';
@@ -8537,6 +8418,67 @@ async function saveWizardItem() {
     console.error('Save error:', e, '| accessToken:', accessToken ? 'present' : 'MISSING');
     showToast('❌ Save failed: ' + e.message, 8000, true);
   }
+}
+
+function startQuickEntry() {
+  // Open a minimal dialog — just item number → save
+  wizard = { step: 0, tab: 'collection', data: { itemCategory: 'lionel', entryMode: 'quick' }, steps: [], matchedItem: null };
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay open';
+  overlay.style.zIndex = '250';
+  overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); } };
+  const box = document.createElement('div');
+  box.className = 'modal';
+  box.style.maxWidth = '420px';
+  box.innerHTML = `
+    <div class="modal-header" style="border-bottom-color:rgba(39,174,96,0.3)">
+      <div>
+        <div class="modal-title" style="color:#27ae60">⚡ Quick Add</div>
+        <div class="modal-subtitle">Save just the item number — fill details later</div>
+      </div>
+      <button class="btn-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label>Item Number</label>
+        <input type="text" id="qe-item-input" placeholder="e.g. 726, 2046, 6464-1" autocomplete="off"
+          style="font-size:1.1rem;padding:0.85rem 1rem">
+      </div>
+      <div id="qe-match-info" style="font-size:0.82rem;color:var(--text-dim);min-height:1.5rem;margin-top:0.25rem"></div>
+    </div>
+    <div class="modal-footer" style="border-top-color:rgba(39,174,96,0.3)">
+      <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+      <button class="btn" id="qe-save-btn" style="background:#27ae60;color:#fff" onclick="_doQuickEntry()">⚡ Save</button>
+    </div>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  const inp = box.querySelector('#qe-item-input');
+  inp.focus();
+  inp.oninput = function() {
+    const q = normalizeItemNum(this.value.trim());
+    const match = state.masterData.find(m => normalizeItemNum(m.itemNum) === q);
+    const info = document.getElementById('qe-match-info');
+    if (match && info) info.innerHTML = '<span style="color:var(--green)">✓</span> ' + match.itemType + ' — ' + (match.roadName || match.description || '');
+    else if (q.length > 1 && info) info.textContent = 'Not in catalog — will save as custom item';
+    else if (info) info.textContent = '';
+  };
+  inp.onkeydown = function(e) { if (e.key === 'Enter') _doQuickEntry(); };
+}
+
+async function _doQuickEntry() {
+  const inp = document.getElementById('qe-item-input');
+  const itemNum = (inp ? inp.value : '').trim();
+  if (!itemNum) { showToast('Please enter an item number'); return; }
+  // Find variation from master
+  const match = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum));
+  wizard.data.itemNum = match ? match.itemNum : itemNum;
+  wizard.data.variation = match ? (match.variation || '') : '';
+  wizard.matchedItem = match || null;
+  // Close dialog, then save
+  document.querySelector('.modal-overlay[style*="250"]')?.remove();
+  await quickEntryAdd();
+  buildQuickEntryList();
 }
 
 async function quickEntryAdd() {
