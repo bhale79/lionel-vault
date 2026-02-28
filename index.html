@@ -1600,6 +1600,10 @@ document.addEventListener('touchmove', function(){}, {passive: true});
             <label>Notes</label>
             <textarea id="fc-notes" placeholder="Any personal notes about this item…"></textarea>
           </div>
+          <div class="form-field full" style="margin-top:0.5rem">
+            <label>Location</label>
+            <input type="text" id="fc-location" placeholder="Where is this item stored? e.g. Display Case 3">
+          </div>
         </div>
       </div>
     </div>
@@ -1722,6 +1726,7 @@ const CONFIG = {
     PERSONAL_CACHE:    'lv_personal_cache',
     PERSONAL_CACHE_TS: 'lv_personal_cache_ts',
     SOLD_SUMMARY:    'soldSummaryHidden',
+    LOCATION_ENABLED: 'lv_location_enabled',
   },
 };
 
@@ -1744,7 +1749,7 @@ const PC = {
   PHOTO_ITEM: 9, PHOTO_BOX: 10,
   NOTES: 11, DATE_PURCHASED: 12,
   USER_EST_WORTH: 13, MATCHED_TO: 14, SET_ID: 15, YEAR_MADE: 16,
-  IS_ERROR: 17, ERROR_DESC: 18, QUICK_ENTRY: 19,
+  IS_ERROR: 17, ERROR_DESC: 18, QUICK_ENTRY: 19, LOCATION: 20,
 };
 
 // Sold columns (A=0 through H=7)
@@ -1774,7 +1779,7 @@ const PERSONAL_HEADERS = [
   'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
   'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes',
   'Date Purchased','User Est. Worth','Matched Tender/Engine','Set ID','Year Made',
-  'Is Error','Error Description','Quick Entry'
+  'Is Error','Error Description','Quick Entry','Location'
 ];
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
@@ -2155,10 +2160,10 @@ async function initPersonalSheet(sheetId) {
   if (rows.length === 0 || !rows[0] || rows[0].length === 0) {
     // Brand new sheet — write title row 1 and headers row 2
     await sheetsUpdate(sheetId, 'My Collection!A1:A1', [['My Collection']]);
-    await sheetsUpdate(sheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:U2', [PERSONAL_HEADERS]);
   } else if (rows.length === 1 || !rows[1] || rows[1].length < 13) {
     // Has title but missing/old headers — rewrite row 2
-    await sheetsUpdate(sheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:U2', [PERSONAL_HEADERS]);
   }
   // Get existing sheet tab names
   const metaRes = await fetch(
@@ -2196,13 +2201,13 @@ async function ensurePersonalHeaders(sheetId) {
   if (!sheetId) return;
   try {
     // Fetch current row 2 headers (A2:T2)
-    const res = await sheetsGet(sheetId, 'My Collection!A2:T2');
+    const res = await sheetsGet(sheetId, 'My Collection!A2:U2');
     const current = (res.values && res.values[0]) || [];
 
     // Check each expected header — write the full row if anything is missing or wrong
     const needsUpdate = PERSONAL_HEADERS.some((h, i) => current[i] !== h);
     if (needsUpdate) {
-      await sheetsUpdate(sheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
+      await sheetsUpdate(sheetId, 'My Collection!A2:U2', [PERSONAL_HEADERS]);
       console.log('[Headers] My Collection headers repaired');
     }
 
@@ -2732,7 +2737,7 @@ async function createPersonalSheet() {
 
   // 3. Write headers and create all tabs
   await sheetsUpdate(state.personalSheetId, 'My Collection!A1:A1', [['My Collection']]);
-  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:T2', [PERSONAL_HEADERS]);
+  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:U2', [PERSONAL_HEADERS]);
   await initPersonalSheet(state.personalSheetId);
 
   // 4. Move the sheet file into the vault folder
@@ -2898,7 +2903,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // Fetch all tabs in parallel
   const [collRes, soldRes, wantRes,
          catRes, paperRes, mockRes, otherRes, isRes] = await Promise.all([
-    sheetsGet(sheetId, 'My Collection!A3:T').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'My Collection!A3:U').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Sold!A3:H').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Want List!A3:E').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Catalogs!A3:I').catch(() => ({values:[]})),
@@ -2925,6 +2930,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       setId: r[PC.SET_ID]||'', yearMade: r[PC.YEAR_MADE]||'',
       isError: r[PC.IS_ERROR]||'', errorDesc: r[PC.ERROR_DESC]||'',
       quickEntry: r[PC.QUICK_ENTRY] === 'Yes',
+      location: r[PC.LOCATION]||'',
     };
   });
 
@@ -3993,6 +3999,7 @@ function showItemPanel(idx, pdKey, mode) {
     { label: 'Year Made',     key: 'yearMade',      val: pd.yearMade || '—',      type: 'number', min:1945, max:1969 },
     { label: 'Date Purchased',key: 'datePurchased', val: pd.datePurchased || '—', type: 'date' },
     { label: 'Notes',         key: 'notes',         val: pd.notes || '—',         type: 'text' },
+    { label: 'Location',      key: 'location',      val: pd.location || '—',      type: 'text' },
     ...(item.refLink ? [{ label: 'COTT Reference', key: null, val: item.refLink, type: 'link' }] : []),
     ...(item.errorDesc || pd.isError ? [{ label: 'Error', key: null, val: pd.errorDesc || '—', type: 'readonly' }] : []),
   ];
@@ -4285,9 +4292,12 @@ function showItemPanel(idx, pdKey, mode) {
         pd.notes || '', pd.datePurchased || '',
         pd.userEstWorth || '', pd.matchedTo || '',
         pd.setId || '', pd.yearMade || '',
+        pd.isError || '', pd.errorDesc || '',
+        pd.quickEntry ? 'Yes' : '',
+        pd.location || '',  // Location (col U)
       ];
       try {
-        await sheetsUpdate(state.personalSheetId, 'My Collection!A' + pd.row + ':Q' + pd.row, [newRow]);
+        await sheetsUpdate(state.personalSheetId, 'My Collection!A' + pd.row + ':U' + pd.row, [newRow]);
         state.personalData[pdKey] = Object.assign({}, pd, { priceComplete: calc > 0 ? calc.toFixed(2) : '' });
         overlay.remove();
         showToast('✓ Item updated!');
@@ -4586,6 +4596,7 @@ function openItem(idx) {
   document.getElementById('fc-photo-item').value = pd.photoItem || '';
   document.getElementById('fc-photo-box').value = pd.photoBox || '';
   document.getElementById('fc-notes').value = pd.notes || '';
+  document.getElementById('fc-location').value = pd.location || '';
 
   // Show box-only prompt if row has box but no item info
   const isBoxOnly = pd.owned && pd.hasBox === 'Yes' && 
@@ -4683,10 +4694,11 @@ async function saveItem() {
       _ex.matchedTo || '', _ex.setId || '', _ex.yearMade || '',
       _ex.isError || '', _ex.errorDesc || '',
       _ex.quickEntry ? 'Yes' : '',  // preserve Quick Entry flag
+      document.getElementById('fc-location').value || '',  // Location (col U)
     ];
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:T${existing.row}`, [ownedRow]);
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:U${existing.row}`, [ownedRow]);
     } else {
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [ownedRow]);
     }
@@ -4705,7 +4717,7 @@ async function saveItem() {
     // Remove from My Collection
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:T${existing.row}`, [['','','','','','','','','','','','','','','','','','','','']]);  // 20 cols A-T
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:U${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','']]);  // 21 cols A-U
     }
     // Write to Sold tab
     const soldRow = [
@@ -4726,7 +4738,7 @@ async function saveItem() {
     // Remove from My Collection if present
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:T${existing.row}`, [['','','','','','','','','','','','','','','','','','','','']]);  // 20 cols A-T
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:U${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','']]);  // 21 cols A-U
     }
     // Write/update Want List tab
     const wantRow = [
@@ -4787,7 +4799,7 @@ function buildReport() {
       </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-dim)">All items owned! 🎉</td></tr>';
 
   } else if (type === 'collection') {
-    thead.innerHTML = '<tr><th>Item #</th><th>Type</th><th>Road Name</th><th>Variation</th><th>Copy #</th><th>Condition</th><th>Has Box</th><th>All Original</th><th>Item Price</th><th>Item+Box</th></tr>';
+    thead.innerHTML = '<tr><th>Item #</th><th>Type</th><th>Road Name</th><th>Variation</th><th>Copy #</th><th>Condition</th><th>Has Box</th><th>All Original</th><th>Item Price</th><th>Item+Box</th><th>Location</th></tr>';
     const owned = state.masterData.filter(i => state.personalData[`${i.itemNum}|${i.variation}`]?.owned);
     tbody.innerHTML = owned.map(i => {
       const pd = state.personalData[`${i.itemNum}|${i.variation}`];
@@ -4802,8 +4814,9 @@ function buildReport() {
         <td>${pd.allOriginal || '—'}</td>
         <td class="market-val">${pd.priceItem ? '$'+parseFloat(pd.priceItem).toLocaleString() : '—'}</td>
         <td class="market-val">${pd.priceComplete ? '$'+parseFloat(pd.priceComplete).toLocaleString() : '—'}</td>
+        <td>${pd.location || '—'}</td>
       </tr>`;
-    }).join('') || '<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--text-dim)">No owned items yet</td></tr>';
+    }).join('') || '<tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--text-dim)">No owned items yet</td></tr>';
 
   } else if (type === 'value') {
     thead.innerHTML = '<tr><th>Category</th><th>Owned</th><th>Total in Master</th><th>% Complete</th><th>Est. Collection Value</th></tr>';
@@ -5557,6 +5570,12 @@ function getSteps(tab) {
       { id: 'userEstWorth',  title: 'What do you estimate it is worth?',
         type: 'money', placeholder: '0.00', optional: true,
         note: (d) => (isPaired(d) || d.setMatch === 'set-now') ? 'Full estimated value goes to the first unit.' : (d.hasBox === 'Yes' ? 'Include the value of both the item and the box.' : '') },
+
+      // ── LOCATION ──
+      { id: 'location',        title: 'Where is this item stored?',
+        type: 'location', placeholder: 'e.g. Display Case 3, Garage Shelf B',
+        optional: true,
+        skipIf: () => localStorage.getItem(CONFIG.LS.LOCATION_ENABLED) === 'no' },
 
       // ── NOTES & ERROR ──
       { id: 'notes',           title: (d) => 'Any notes about this ' + (d.itemNum ? d.itemNum + ' ' : '') + getItemLabel(d) + '?',
@@ -6549,6 +6568,49 @@ function renderWizardStep() {
     wrap.appendChild(hint);
 
     body.appendChild(wrap);
+
+  } else if (s.type === 'location') {
+    const val = wizard.data[s.id] || '';
+    const enabled = localStorage.getItem(CONFIG.LS.LOCATION_ENABLED) !== 'no'; // default on
+    body.innerHTML = `
+      <div style="padding-top:0.75rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;
+          background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.75rem 1rem">
+          <div>
+            <div style="font-size:0.88rem;font-weight:600;color:var(--text)">Track item location</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.15rem">Show this step when adding items</div>
+          </div>
+          <label style="position:relative;width:48px;height:28px;flex-shrink:0;cursor:pointer">
+            <input type="checkbox" id="wiz-loc-toggle" ${enabled ? 'checked' : ''}
+              onchange="localStorage.setItem('${CONFIG.LS.LOCATION_ENABLED}', this.checked ? 'yes' : 'no');
+                document.getElementById('wiz-loc-input-wrap').style.display = this.checked ? 'block' : 'none'"
+              style="opacity:0;width:0;height:0;position:absolute">
+            <span style="position:absolute;inset:0;background:${enabled ? 'var(--accent)' : 'var(--border)'};
+              border-radius:14px;transition:background 0.2s"></span>
+            <span style="position:absolute;top:3px;left:${enabled ? '23px' : '3px'};width:22px;height:22px;
+              background:#fff;border-radius:50%;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></span>
+          </label>
+        </div>
+        <div id="wiz-loc-input-wrap" style="display:${enabled ? 'block' : 'none'}">
+          <input type="text" id="wiz-input" value="${val.replace(/"/g, '&quot;')}"
+            placeholder="${s.placeholder || 'e.g. Display Case 3, Garage Shelf B'}"
+            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
+            padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:0.95rem;outline:none"
+            oninput="wizard.data['${s.id}']=this.value">
+          <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
+        </div>
+      </div>`;
+    // Fix toggle knob position reactively
+    const _tog = document.getElementById('wiz-loc-toggle');
+    if (_tog) {
+      _tog.addEventListener('change', function() {
+        const knob = this.parentElement.querySelectorAll('span')[1];
+        const track = this.parentElement.querySelectorAll('span')[0];
+        if (knob) knob.style.left = this.checked ? '23px' : '3px';
+        if (track) track.style.background = this.checked ? 'var(--accent)' : 'var(--border)';
+      });
+    }
+    if (enabled) setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
 
   } else if (s.type === 'textarea') {
     const val = wizard.data[s.id] || '';
@@ -7693,6 +7755,13 @@ async function saveWizardItem() {
           ( d.notes || ex.notes || '' ).trim(),
           d.purchaseDate || ex.datePurchased || '',
           d.userEstWorth || ex.userEstWorth || '',
+          ex.matchedTo || '',  // Matched Tender/Engine
+          ex.setId || '',      // Set ID
+          ex.yearMade || '',   // Year Made
+          ex.isError || 'No',  // Is Error
+          ex.errorDesc || '',  // Error Description
+          ex.quickEntry ? 'Yes' : '',  // Quick Entry
+          d.location || ex.location || '',  // Location (col U)
         ];
       } else {
         const _paired = d.tenderMatch && d.tenderMatch !== 'none';
@@ -7725,6 +7794,7 @@ async function saveWizardItem() {
         d.isError === 'Yes' ? 'Yes' : 'No',  // Is Error (col R)
         d.isError === 'Yes' ? (d.errorDesc || '') : '',  // Error Description (col S)
         '',  // Quick Entry (col T) — blank = normal full entry
+        d.location || '',  // Location (col U)
         ];
       }
       // ── SET UNIT SAVE: if diesel set, save unit2 (and unit3) rows with shared Set ID ──
@@ -8049,7 +8119,7 @@ async function quickEntryAdd() {
     if (_nextBtn) _nextBtn.disabled = true;
 
     for (const r of rows) {
-      const row = [r.itemNum, r.variation,'','','','','','','','','', r.notes,'','',r.matchedTo,r.setId,'','','','Yes'];
+      const row = [r.itemNum, r.variation,'','','','','','','','','', r.notes,'','',r.matchedTo,r.setId,'','','','Yes',''];  // 21 cols A-U
       console.log('[QE] Saving', r.itemNum);
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
       const key = r.itemNum + '|' + r.variation + '|' + Date.now();
@@ -8061,6 +8131,7 @@ async function quickEntryAdd() {
         notes: r.notes, datePurchased: '', userEstWorth: '',
         matchedTo: r.matchedTo, setId: r.setId,
         yearMade: '', isError: '', errorDesc: '', quickEntry: true,
+        location: '',
       };
     }
 
