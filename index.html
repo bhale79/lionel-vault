@@ -5371,6 +5371,8 @@ function _selectGrouping(groupId) {
   }
   
   _updateGroupingButtons();
+  // Auto-advance to next step after grouping selection
+  setTimeout(function() { wizardNext(); }, 150);
 }
 
 // Condition Details inline toggle helpers
@@ -7242,6 +7244,22 @@ function selectSuggestion(num) {
   const el = document.getElementById('wiz-suggestions');
   if (el) { el.style.display = 'none'; el.innerHTML = ''; }
   lookupItem(num);
+
+  // On itemNumGrouping screen: check if grouping buttons will appear
+  const _curStep = wizard.steps[wizard.step];
+  if (_curStep && _curStep.type === 'itemNumGrouping') {
+    // Update grouping buttons first
+    _updateGroupingButtons();
+    // Check if buttons are now visible — if so, wait for user to pick one
+    const _grpEl = document.getElementById('wiz-grouping-btns');
+    const _hasButtons = _grpEl && _grpEl.style.display !== 'none' && _grpEl.innerHTML.indexOf('button') >= 0;
+    if (_hasButtons) {
+      // Stay on this screen — user needs to pick a grouping
+      return;
+    }
+    // No grouping buttons (freight car, accessory, etc.) — set single and advance
+    wizard.data._itemGrouping = 'single';
+  }
   // Auto-advance to next step after a brief moment so lookupItem can render
   setTimeout(() => wizardNext(), 120);
 }
@@ -7458,6 +7476,16 @@ async function _wizardNextCore() {
   }
   if (s.type === 'itemNumGrouping' && !(wizard.data.itemNum || '').trim()) {
     showToast('Please enter an item number.'); return;
+  }
+  if (s.type === 'itemNumGrouping') {
+    // If grouping buttons are visible, require a selection before advancing
+    const _grpEl = document.getElementById('wiz-grouping-btns');
+    const _hasButtons = _grpEl && _grpEl.style.display !== 'none' && _grpEl.innerHTML.indexOf('button') >= 0;
+    if (_hasButtons && !wizard.data._itemGrouping) {
+      showToast('Please select how you are entering this item.'); return;
+    }
+    // If no buttons shown, default to single
+    if (!wizard.data._itemGrouping) wizard.data._itemGrouping = 'single';
   }
   // conditionDetails: commit slider defaults if user never moved them
   if (s.type === 'conditionDetails') {
