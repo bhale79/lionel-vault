@@ -3684,7 +3684,7 @@ function showItemPanel(idx, pdKey, mode) {
     { label: 'Has Box',       key: 'hasBox',        val: pd.hasBox || '—',        type: 'select', options: ['Yes','No'] },
     { label: 'Box Condition', key: 'boxCond',       val: pd.boxCond || '—',       type: 'number', min:1, max:10 },
     { label: 'Price Paid ($)',key: 'priceItem',     val: pd.priceItem || '—',     type: 'number' },
-    { label: 'Est. Worth ($)',key: 'userEstWorth',  val: pd.userEstWorth || '—',  type: 'number' },
+    { label: 'Est. Worth (insurance)',key: 'userEstWorth',  val: pd.userEstWorth || '—',  type: 'number' },
     { label: 'Year Made',     key: 'yearMade',      val: pd.yearMade || '—',      type: 'number', min:1945, max:1969 },
     { label: 'Date Purchased',key: 'datePurchased', val: pd.datePurchased || '—', type: 'date' },
     { label: 'Notes',         key: 'notes',         val: pd.notes || '—',         type: 'text' },
@@ -5097,7 +5097,7 @@ function getSteps(tab) {
         { id: 'boxCond',       title: (d) => 'What condition is the ' + getItemLabel(d) + ' box?',         type: 'slider',   min:1, max:10 },
         { id: 'priceBox',      title: 'What did you pay for the box?',      type: 'money',    placeholder: '0.00', optional: true },
         { id: 'purchaseDate',  title: 'When did you buy the box?',          type: 'date',     optional: true },
-        { id: 'userEstWorth',  title: 'What do you estimate it is worth?',  type: 'money',    placeholder: '0.00', optional: true },
+        { id: 'userEstWorth',  title: 'Estimated worth (for insurance purposes)',  type: 'money',    placeholder: '0.00', optional: true },
         { id: 'notes',         title: (d) => 'Any notes about this ' + getItemLabel(d) + ' box?',          type: 'textarea', optional: true },
         { id: 'location',     title: 'Where will this box be stored?',
           type: 'location', optional: true,
@@ -6665,13 +6665,11 @@ function renderWizardStep() {
       html += '<input type="range" min="1" max="10" value="' + boxCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data[\'' + boxCondKey + '\']=parseInt(this.value);document.getElementById(\'cd-boxcond-val-' + col.id + '\').textContent=this.value"></div>';
       html += '</div></div>';
       
-      // IS, Error only on main column
+      // Instruction Sheet — only on main column
       if (col.id === 'main') {
         const isVal = wizard.data.hasIS || '';
         const isSheetVal = wizard.data.is_sheetNum || '';
         const isCondVal = wizard.data.is_condition || 7;
-        const errVal = wizard.data.isError || '';
-        const errDescVal = wizard.data.errorDesc || '';
         
         // Instruction Sheet toggle
         html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Instruction Sheet?</div>';
@@ -6687,11 +6685,15 @@ function renderWizardStep() {
         html += '<div style="display:flex;align-items:center;gap:0.4rem"><span style="font-size:0.7rem;color:var(--text-dim)">Cond:</span><span id="cd-is-cond-val" style="font-family:var(--font-head);font-size:1rem;color:var(--accent2)">' + isCondVal + '</span>';
         html += '<input type="range" min="1" max="10" value="' + isCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data.is_condition=parseInt(this.value);document.getElementById(\'cd-is-cond-val\').textContent=this.value"></div>';
         html += '</div></div>';
-        
-        // Error item toggle
+      }
+      
+      // Error item toggle — shown on every item column
+      {
+        const errVal = wizard.data.isError || '';
+        const errDescVal = wizard.data.errorDesc || '';
         html += '<div style="margin-bottom:0.4rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Error Item?</div>';
         html += '<div style="display:flex;gap:0.3rem">';
-        ['No','Yes'].forEach(function(c) {
+        ['Yes','No'].forEach(function(c) {
           var sel = errVal === c;
           html += '<button onclick="wizard.data.isError=\'' + c + '\';_cdToggleError(\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? (c==='Yes' ? '#e74c3c' : 'var(--accent)') : 'var(--border)') + ';background:' + (sel ? (c==='Yes' ? 'rgba(231,76,60,0.12)' : 'rgba(232,64,28,0.12)') : 'var(--bg)') + ';color:' + (sel ? (c==='Yes' ? '#e74c3c' : 'var(--accent)') : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
         });
@@ -6787,7 +6789,7 @@ function renderWizardStep() {
     _pvHtml += '</div></div>';
     
     // Estimated worth
-    _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Estimated Worth ($)</div>';
+    _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Estimated Worth (for insurance purposes)</div>';
     _pvHtml += '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">';
     _pvHtml += '<span style="color:var(--text-dim);font-size:1.1rem">$</span>';
     _pvHtml += '<input type="number" value="' + (_pvD.userEstWorth || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.userEstWorth=this.value"></div></div>';
@@ -9002,7 +9004,7 @@ function renderPhotosDetails(pd) {
     pd.hasBox         ? ['Has Box',      pd.hasBox + (pd.boxCond ? ' (Cond: ' + pd.boxCond + ')' : '')] : null,
     pd.priceItem      ? ['Paid (Item)',  '$' + pd.priceItem] : null,
     pd.priceBox       ? ['Paid (Box)',   '$' + pd.priceBox] : null,
-    pd.userEstWorth   ? ['Est. Worth',   '$' + pd.userEstWorth] : null,
+    pd.userEstWorth   ? ['Est. Worth (insurance)',   '$' + pd.userEstWorth] : null,
     pd.yearMade       ? ['Year Made',    pd.yearMade] : null,
     pd.datePurchased  ? ['Purchased',    pd.datePurchased] : null,
     pd.matchedTo      ? ['Matched To',  pd.matchedTo] : null,
