@@ -1970,6 +1970,39 @@ let _ensureEphemDone = false;
 async function ensurePersonalHeaders(sheetId) {
   if (!sheetId) return;
   try {
+    // Ensure all tabs exist (For Sale, Sold, Want List may not exist for older sheets)
+    const metaRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const meta = await metaRes.json();
+    const existingTabs = (meta.sheets || []).map(s => s.properties.title);
+    const toCreate = [];
+    if (!existingTabs.includes('Sold'))      toCreate.push({ addSheet: { properties: { title: 'Sold' } } });
+    if (!existingTabs.includes('For Sale'))  toCreate.push({ addSheet: { properties: { title: 'For Sale' } } });
+    if (!existingTabs.includes('Want List')) toCreate.push({ addSheet: { properties: { title: 'Want List' } } });
+    if (toCreate.length > 0) {
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: toCreate }),
+      });
+      // Write headers for newly created tabs
+      if (!existingTabs.includes('Sold')) {
+        await sheetsUpdate(sheetId, 'Sold!A1:A1', [['Sold']]);
+        await sheetsUpdate(sheetId, 'Sold!A2:H2', [SOLD_HEADERS]);
+      }
+      if (!existingTabs.includes('For Sale')) {
+        await sheetsUpdate(sheetId, 'For Sale!A1:A1', [['For Sale']]);
+        await sheetsUpdate(sheetId, 'For Sale!A2:H2', [FOR_SALE_HEADERS]);
+      }
+      if (!existingTabs.includes('Want List')) {
+        await sheetsUpdate(sheetId, 'Want List!A1:A1', [['Want List']]);
+        await sheetsUpdate(sheetId, 'Want List!A2:E2', [WANT_HEADERS]);
+      }
+      console.log('[Setup] Created missing tabs:', toCreate.map(t => t.addSheet.properties.title).join(', '));
+    }
+
     // Fetch current row 2 headers (A2:W2 — 23 cols)
     const res = await sheetsGet(sheetId, 'My Collection!A2:W2');
     const current = (res.values && res.values[0]) || [];
@@ -2344,34 +2377,9 @@ async function driveMoveSheetToVault(sheetId) {
 }
 
 // ── SHEETS API ──────────────────────────────────────────────────
-// Quote sheet names with spaces — ONLY for JSON body, NOT for URLs
-function _quoteRange(range) {
-  if (!range.includes('!')) return range;
-  const parts = range.split('!');
-  const sheet = parts[0];
-  const rest = parts.slice(1).join('!');
-  if (sheet.startsWith("'")) return range;
-  if (sheet.includes(' ') || sheet.includes('-')) {
-    return "'" + sheet.replace(/'/g, "''") + "'!" + rest;
-  }
-  return range;
-}
-
-// Encode range for URL path — just encode spaces, no quotes
+// Encode range for URL path — just encode spaces
 function _encodeRange(range) {
-  // Strip any existing quotes (in case _quoteRange was applied first)
-  let clean = range;
-  if (clean.includes('!')) {
-    const parts = clean.split('!');
-    let sheet = parts[0];
-    const rest = parts.slice(1).join('!');
-    // Remove wrapping single quotes
-    if (sheet.startsWith("'") && sheet.endsWith("'")) {
-      sheet = sheet.slice(1, -1).replace(/''/g, "'");
-    }
-    clean = sheet + '!' + rest;
-  }
-  return clean.replace(/ /g, '%20');
+  return range.replace(/ /g, '%20');
 }
 
 async function sheetsGet(spreadsheetId, range) {
@@ -2440,8 +2448,7 @@ async function _withTokenRetry(fetchFn) {
 
 async function sheetsUpdate(spreadsheetId, range, values) {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(range)}?valueInputOption=USER_ENTERED`;
-  const bodyRange = _quoteRange(range);
-  const body = JSON.stringify({ range: bodyRange, majorDimension: 'ROWS', values });
+  const body = JSON.stringify({ range, majorDimension: 'ROWS', values });
   const res = await _withTokenRetry(() => fetch(url, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -2475,8 +2482,7 @@ async function sheetsAppend(spreadsheetId, range, values) {
     const row = values[i];
     const endCol = colLetter(Math.max(row.length, 1));
     const writeRange = `${tabName}!A${nextRow + i}:${endCol}${nextRow + i}`;
-    const bodyRange = _quoteRange(writeRange);
-    const body = JSON.stringify({ range: bodyRange, majorDimension: 'ROWS', values: [row] });
+    const body = JSON.stringify({ range: writeRange, majorDimension: 'ROWS', values: [row] });
     const res = await _withTokenRetry(() => fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(writeRange)}?valueInputOption=USER_ENTERED`,
       { method: 'PUT', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body }
@@ -2584,7 +2590,7 @@ async function loadAllData() {
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '7';
+  const _CACHE_VER = '8';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -2683,7 +2689,7 @@ async function loadPersonalData() {
   }
 
   ensureEphemeraSheets(state.personalSheetId).catch(() => {});
-  ensurePersonalHeaders(state.personalSheetId).catch(() => {});
+  await ensurePersonalHeaders(state.personalSheetId).catch(() => {});
   await _loadPersonalFromSheets(state.personalSheetId);
   _cachePersonalData();
 }
