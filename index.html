@@ -3822,7 +3822,7 @@ function showCollectionDetail(idx) {
   box.innerHTML = '<div style="padding:1.25rem 1.5rem;border-bottom:2px solid var(--accent);display:flex;align-items:center;justify-content:space-between">'
     + '<div><div style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent);letter-spacing:0.04em">No. ' + it.itemNum + '</div>'
     + '<div style="font-size:0.82rem;color:var(--text-mid);margin-top:2px">' + (it.roadName || it.itemType || '') + '</div></div>'
-    + '<button onclick="var o=this;while(o&&!o.style.position)o=o.parentElement;if(o)o.remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer">✕</button>'
+    + '<button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer">✕</button>'
     + '</div>'
     + '<div style="padding:1rem 1.5rem">'
     + rows.map(r => '<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border)">'
@@ -3831,7 +3831,7 @@ function showCollectionDetail(idx) {
       + '</div>').join('')
     + groupHtml
     + '<div style="margin-top:1rem;text-align:center">'
-    + '<button onclick="var o=this;while(o&&!o.style.position)o=o.parentElement;if(o)o.remove();browseRowClick(null,' + idx + ')" style="padding:0.5rem 1.2rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;font-weight:600">Edit Item</button>'
+    + '<button onclick="this.closest('[style*=fixed]').remove();browseRowClick(null,' + idx + ')" style="padding:0.5rem 1.2rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;font-weight:600">Edit Item</button>'
     + '</div>'
     + '</div>';
 
@@ -3854,7 +3854,7 @@ function openPhotoWizard(itemNum, variation, pdKey) {
   document.getElementById('wizard-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
   // Skip to the photosItem step
-  const autoSkip = new Set(['tab','itemNum','variation','entryMode','condition','allOriginal','notOriginalDesc',
+  const autoSkip = new Set(['tab','itemNum','variation','itemPicker','entryMode','condition','allOriginal','notOriginalDesc',
     'hasBox','boxCond','hasIS','is_sheetNum','is_condition','pricePaid','datePurchased','userEstWorth','yearMade',
     'tenderAllOriginal','tenderNotOriginalDesc','unit2AllOriginal','unit2NotOriginalDesc',
     'unit3AllOriginal','unit3NotOriginalDesc','wantTenderPhotos','tenderMatch','dieselSetQ','setMatch','setType',
@@ -3980,7 +3980,7 @@ function sellFromCollection(idx, pdKey) {
   document.getElementById('wizard-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
   // Skip tab, itemNum, variation steps
-  const autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemCategory']);
+  const autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemPicker', 'itemCategory']);
   while (wizard.step < wizard.steps.length - 1) {
     const s = wizard.steps[wizard.step];
     if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) wizard.step++;
@@ -4015,7 +4015,7 @@ function listForSaleFromCollection(idx, pdKey) {
   document.getElementById('wizard-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
   // Skip tab, itemNum, pickForSaleItem, condition steps (all pre-filled from collection)
-  const autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemCategory', 'pickForSaleItem', 'condition']);
+  const autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemPicker', 'itemCategory', 'pickForSaleItem', 'condition']);
   while (wizard.step < wizard.steps.length - 1) {
     const s = wizard.steps[wizard.step];
     if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) wizard.step++;
@@ -4697,7 +4697,7 @@ function addFromBrowse(idx) {
   document.body.style.overflow = 'hidden';
   // Skip the tab picker (step 0) and itemNum step — advance past any steps
   // whose id is 'itemNum' or 'variation' (already known)
-  const autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemCategory']);
+  const autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemPicker', 'itemCategory']);
   while (wizard.step < wizard.steps.length - 1) {
     const s = wizard.steps[wizard.step];
     if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) {
@@ -5802,6 +5802,10 @@ function getSteps(tab) {
       // ── SCREEN 1: Item Number + Grouping ──
       { id: 'itemNumGrouping', title: 'Item Number', type: 'itemNumGrouping' },
 
+      // ── SCREEN 1b: Partial match picker (auto-skip if exact match or no matches) ──
+      { id: 'itemPicker', title: 'Select an item', type: 'itemPicker',
+        skipIf: (d) => !d._partialMatches || d._partialMatches.length === 0 },
+
       // ── SCREEN 2: Variation (auto-skip for no/single variations) ──
       { id: 'variation',  title: 'Which variation is it?', type: 'variation', optional: true },
 
@@ -6328,13 +6332,9 @@ function renderWizardStep() {
     const _userTabs = state.userDefinedTabs || [];
     const _cats = [
       { id: 'lionel',   label: 'Lionel Item #',  desc: 'Train, car, accessory with a Lionel catalog number', emoji: '🚂', color: 'var(--accent)' },
-      { id: 'catalogs', label: 'Catalog',         desc: 'Lionel consumer or dealer catalog',                  emoji: '📒', color: '#e67e22' },
-      { id: 'instrsheet', label: 'Instruction Sheet', desc: 'Instruction sheet linked to a specific item #',    emoji: '📋', color: '#16a085' },
-      { id: 'paper',    label: 'Paper Item',       desc: 'Ad, flyer, article, box insert',                    emoji: '📄', color: '#3498db' },
+      { id: 'paper',    label: 'Paper Item',       desc: 'Catalog, ad, flyer, instruction sheet, article, box insert', emoji: '📄', color: '#3498db' },
       { id: 'mockups',  label: 'Mock-Up',          desc: 'Pre-production prototype',                          emoji: '🔩', color: '#9b59b6' },
-      { id: 'other',    label: 'Other Lionel',     desc: 'Accessory, display, anything else',                 emoji: '📦', color: '#27ae60' },
-      ..._userTabs.map(t => ({ id: t.id, label: t.label, desc: 'Your custom category', emoji: '⭐', color: '#f39c12' })),
-      { id: '__new__',  label: 'User Defined',     desc: 'Create your own custom category',                   emoji: '✏️', color: '#95a5a6' },
+      { id: 'other',    label: 'Other Item',       desc: 'Accessory, display, anything else',                 emoji: '📦', color: '#27ae60' },
     ];
     const cur = wizard.data.itemCategory || '';
     body.innerHTML = `
@@ -7460,6 +7460,43 @@ function renderWizardStep() {
       _updateGroupingButtons();
     }, 50);
 
+  } else if (s.type === 'itemPicker') {
+    // ── SCREEN 1b: Partial match picker ──
+    const _matches = wizard.data._partialMatches || [];
+    const _query = wizard.data._partialQuery || '';
+    const _wrap = document.createElement('div');
+    _wrap.style.cssText = 'display:flex;flex-direction:column;gap:0.4rem;padding-top:0.25rem';
+
+    const _info = document.createElement('div');
+    _info.style.cssText = 'font-size:0.82rem;color:var(--text-dim);margin-bottom:0.4rem';
+    _info.textContent = _matches.length + ' item' + (_matches.length !== 1 ? 's' : '') + ' matching "' + _query + '" — tap to select';
+    _wrap.appendChild(_info);
+
+    const _list = document.createElement('div');
+    _list.style.cssText = 'display:flex;flex-direction:column;gap:0.35rem;max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch';
+
+    _matches.forEach(function(m) {
+      const desc = m.description || m.roadName || '';
+      const road = m.roadName || '';
+      const sub = (road && desc && road !== desc) ? road + ' — ' + desc : (desc || road);
+      const btn = document.createElement('button');
+      btn.style.cssText = 'text-align:left;width:100%;padding:0.7rem 0.9rem;border:2px solid var(--border);background:var(--surface2);border-radius:10px;cursor:pointer;color:var(--text);font-family:var(--font-body);display:flex;flex-direction:column;gap:0.15rem;transition:all 0.12s';
+      btn.innerHTML = '<div style="font-family:var(--font-mono);font-weight:700;font-size:0.95rem;color:var(--accent2)">' + m.itemNum + '</div>'
+        + (sub ? '<div style="font-size:0.78rem;color:var(--text-dim);line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + sub + '</div>' : '');
+      btn.onclick = function() {
+        wizard.data.itemNum = m.itemNum;
+        wizard.data._partialMatches = [];
+        wizard.matchedItem = m;
+        // Go back to itemNumGrouping with the selected number filled in
+        wizard.step = wizard.step - 1;
+        renderWizardStep();
+      };
+      _list.appendChild(btn);
+    });
+    _wrap.appendChild(_list);
+    body.innerHTML = '';
+    body.appendChild(_wrap);
+
   } else if (s.type === 'conditionDetails') {
     // ── SCREEN 3: Multi-column Condition & Details ──
     const _cdGrouping = wizard.data._itemGrouping || 'single';
@@ -7752,7 +7789,7 @@ function renderWizardStep() {
       priority:'Priority', expectedPrice:'Expected Price',
       salePrice:'Sale Price', dateSold:'Date Sold',
     };
-    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem']);
+    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping']);
     const _summaryEntries = Object.entries(wizard.data).filter(function(e) {
       return !_skipKeys.has(e[0]) && e[1] && e[1] !== '' && !e[0].startsWith('photos') && !Array.isArray(e[1]) && typeof e[1] !== 'object';
     });
@@ -8258,28 +8295,39 @@ function updateItemSuggestions(query) {
   const q = (query || '').trim().toLowerCase();
   if (q.length < 1) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
+  // Parse query: split into number part and optional keyword part
+  // e.g. "6142 olive" → numPart="6142", keyParts=["olive"]
+  const qParts = q.split(/\s+/);
+  const numPart = qParts[0];
+  const keyParts = qParts.slice(1).filter(p => p.length > 0);
+
   // Choose source based on tab
   const tab = wizard.tab;
   let candidates = [];
 
   if (tab === 'sold' || tab === 'forsale') {
-    // Sell/For Sale tab: suggest from owned collection
     const seen = new Set();
     Object.values(state.personalData).forEach(pd => {
       const key = pd.itemNum + (pd.variation ? ' (' + pd.variation + ')' : '');
-      if (!seen.has(key) && pd.itemNum.toLowerCase().includes(q)) {
+      if (!seen.has(key) && pd.itemNum.toLowerCase().includes(numPart)) {
         seen.add(key);
         candidates.push({ num: pd.itemNum, label: key, sub: '' });
       }
     });
   } else {
     // Collection + Want: suggest from master list — unique item numbers
+    // Match itemNum containing numPart, then filter by keyword in description/roadName
     const seen = new Set();
     state.masterData.forEach(m => {
-      if (!seen.has(m.itemNum) && m.itemNum.toLowerCase().includes(q)) {
+      if (!m.itemNum.toLowerCase().includes(numPart)) return;
+      if (keyParts.length > 0) {
+        const haystack = (m.roadName + ' ' + m.description + ' ' + m.varDesc).toLowerCase();
+        if (!keyParts.every(kp => haystack.includes(kp))) return;
+      }
+      if (!seen.has(m.itemNum)) {
         seen.add(m.itemNum);
         const road = m.roadName || m.description || '';
-        candidates.push({ num: m.itemNum, label: m.itemNum, sub: road.substring(0, 40) });
+        candidates.push({ num: m.itemNum, label: m.itemNum, sub: road.substring(0, 50) });
       }
     });
   }
@@ -8337,6 +8385,7 @@ function highlightSuggestion(idx) {
 
 function selectSuggestion(num) {
   wizard.data.itemNum = num;
+  wizard.data._partialMatches = [];
   const inp = document.getElementById('wiz-input');
   if (inp) inp.value = num;
   const el = document.getElementById('wiz-suggestions');
@@ -8577,6 +8626,50 @@ async function _wizardNextCore() {
     showToast('Please enter an item number.'); return;
   }
   if (s.type === 'itemNumGrouping') {
+    const _rawInput = (wizard.data.itemNum || '').trim();
+    const _inputParts = _rawInput.toLowerCase().split(/\s+/);
+    const _numPart = _inputParts[0];
+    const _keyParts = _inputParts.slice(1).filter(p => p.length > 0);
+
+    // Check for exact match first
+    const _exactMatch = state.masterData.find(i => i.itemNum.toLowerCase() === _rawInput.toLowerCase());
+
+    if (!_exactMatch) {
+      // No exact match — look for partial matches (items whose number contains the input)
+      const _seen = new Set();
+      const _partials = state.masterData.filter(m => {
+        if (!m.itemNum.toLowerCase().includes(_numPart)) return false;
+        if (_keyParts.length > 0) {
+          const hay = (m.roadName + ' ' + m.description + ' ' + m.varDesc).toLowerCase();
+          if (!_keyParts.every(kp => hay.includes(kp))) return false;
+        }
+        // Deduplicate by itemNum
+        if (_seen.has(m.itemNum)) return false;
+        _seen.add(m.itemNum);
+        return true;
+      });
+
+      if (_partials.length === 1) {
+        // Single match — auto-select it
+        wizard.data.itemNum = _partials[0].itemNum;
+        wizard.data._partialMatches = [];
+        wizard.matchedItem = _partials[0];
+        lookupItem(_partials[0].itemNum);
+      } else if (_partials.length > 1) {
+        // Multiple partial matches — store them for itemPicker step
+        wizard.data._partialMatches = _partials;
+        wizard.data._partialQuery = _rawInput;
+      } else {
+        // No matches at all — allow adding as custom item
+        wizard.data._partialMatches = [];
+      }
+    } else {
+      // Exact match found
+      wizard.data._partialMatches = [];
+      wizard.data.itemNum = _exactMatch.itemNum;
+      wizard.matchedItem = _exactMatch;
+    }
+
     // If grouping buttons are visible, require a selection before advancing
     const _grpEl = document.getElementById('wiz-grouping-btns');
     const _hasButtons = _grpEl && _grpEl.style.display !== 'none' && _grpEl.innerHTML.indexOf('button') >= 0;
