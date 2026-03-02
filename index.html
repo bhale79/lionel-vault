@@ -2344,7 +2344,23 @@ async function driveMoveSheetToVault(sheetId) {
 }
 
 // ── SHEETS API ──────────────────────────────────────────────────
+// Quote sheet names that contain spaces for the Sheets API
+function _quoteRange(range) {
+  if (!range.includes('!')) return range;
+  const parts = range.split('!');
+  const sheet = parts[0];
+  const rest = parts.slice(1).join('!');
+  // Already quoted
+  if (sheet.startsWith("'")) return range;
+  // Needs quoting if it has spaces or special chars
+  if (sheet.includes(' ') || sheet.includes('-')) {
+    return "'" + sheet.replace(/'/g, "''") + "'!" + rest;
+  }
+  return range;
+}
+
 async function sheetsGet(spreadsheetId, range) {
+  range = _quoteRange(range);
   // Use API key for master sheet (public), OAuth token for personal sheet
   const isMaster = spreadsheetId === state.masterSheetId;
   const useApiKey = isMaster && API_KEY && API_KEY !== 'YOUR_API_KEY';
@@ -2409,6 +2425,7 @@ async function _withTokenRetry(fetchFn) {
 }
 
 async function sheetsUpdate(spreadsheetId, range, values) {
+  range = _quoteRange(range);
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
   const body = JSON.stringify({ range, majorDimension: 'ROWS', values });
   const res = await _withTokenRetry(() => fetch(url, {
@@ -2425,7 +2442,8 @@ async function sheetsUpdate(spreadsheetId, range, values) {
 }
 
 async function sheetsAppend(spreadsheetId, range, values) {
-  // Extract tab name from range (e.g. "My Collection!A:A" -> "My Collection")
+  range = _quoteRange(range);
+  // Extract tab name from range (e.g. "'My Collection'!A:A" -> "'My Collection'")
   const tabName = range.includes('!') ? range.split('!')[0] : range;
 
   // Helper: convert column number (1-based) to letter(s): 1=A, 26=Z, 27=AA
