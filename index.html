@@ -65,7 +65,7 @@
   .nav-label { font-size: 0.7rem !important; }
   .stat-label { font-size: 0.75rem !important; }
   .section-title { font-size: 0.75rem !important; }
-  .owned-badge.yes, .owned-badge.no, .owned-badge.want { font-size: 0.72rem !important; }
+  .owned-badge.yes, .owned-badge.no, .owned-badge.want, .owned-badge.forsale { font-size: 0.72rem !important; }
   .mobile-nav-item { font-size: 0.72rem !important; }
   .info-field label { font-size: 0.78rem !important; }
   .form-field label { font-size: 0.78rem !important; }
@@ -308,6 +308,7 @@
   .owned-badge.yes  { background: rgba(58,158,104,0.15); color: #4dc880; border: 1px solid rgba(58,158,104,0.3); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
   .owned-badge.no   { background: var(--surface2); color: var(--text-dim); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
   .owned-badge.want { background: rgba(212,168,67,0.15); color: #e8c060; border: 1px solid rgba(212,168,67,0.3); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
+  .owned-badge.forsale { background: rgba(230,126,34,0.15); color: #e67e22; border: 1px solid rgba(230,126,34,0.3); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
   .condition-pip {
     display: inline-block; width: 8px; height: 8px; border-radius: 50%;
     margin-right: 0.25rem;
@@ -899,6 +900,11 @@
           Want List
           <span class="nav-badge" id="nav-wanted2" style="background:var(--accent2);color:#000">—</span>
         </button>
+        <button class="nav-item" onclick="showPage('forsale', this); buildForSalePage();">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+          For Sale
+          <span class="nav-badge" id="nav-forsale" style="background:#e67e22;color:#fff">—</span>
+        </button>
         <button class="nav-item" onclick="showPage('sold', this)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           Sold Items
@@ -967,6 +973,10 @@ document.addEventListener('touchmove', function(){}, {passive: true});
             <button class="btn" onclick="startWizardFor('want')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #2980b9;color:#2980b9;background:rgba(41,128,185,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
               Want List
+            </button>
+            <button class="btn" onclick="startWizardFor('forsale')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.12);font-weight:600">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+              For Sale
             </button>
             <button class="btn" onclick="startWizardFor('sold')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #2ecc71;color:#2ecc71;background:rgba(46,204,113,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -1135,6 +1145,63 @@ document.addEventListener('touchmove', function(){}, {passive: true});
         </div>
       </div>
 
+      <!-- ── For Sale ── -->
+      <div class="page" id="page-forsale">
+        <div class="page-title" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+          <span>Items For Sale</span>
+          <div style="display:flex;gap:0.5rem">
+            <button class="btn" onclick="startWizardFor('forsale')" style="display:flex;align-items:center;gap:0.4rem;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.12);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+              List an Item
+            </button>
+            <button class="btn" onclick="showPickFromCollectionForSale()" style="display:flex;align-items:center;gap:0.4rem;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.08);font-weight:500;font-size:0.82rem;padding:0.5rem 0.75rem">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              From Collection
+            </button>
+          </div>
+        </div>
+        <!-- For Sale Summary Panel -->
+        <div id="forsale-summary-wrap" style="margin-bottom:0.85rem">
+          <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+            <div id="forsale-summary-box" style="display:flex;gap:1.25rem;background:var(--surface);border:1px solid rgba(230,126,34,0.35);border-radius:12px;padding:0.75rem 1.25rem;align-items:center">
+              <div style="text-align:center">
+                <div style="font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px">Listed</div>
+                <div id="forsale-stat-count" style="font-family:var(--font-head);font-size:1.6rem;color:#e67e22;line-height:1">—</div>
+              </div>
+              <div style="width:1px;height:36px;background:var(--border)"></div>
+              <div style="text-align:center">
+                <div style="font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px">Total Asking</div>
+                <div id="forsale-stat-total" style="font-family:var(--font-head);font-size:1.6rem;color:#e67e22;line-height:1">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-bottom:0.75rem">
+          <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.35rem 0.65rem;flex:1;max-width:320px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input id="forsale-search" type="text" placeholder="Search item #, road, type…" oninput="onPageSearch(this.value,'forsale')" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:100%">
+          </div>
+        </div>
+        <div id="forsale-cards" style="display:none;flex-direction:column;gap:0.6rem"></div>
+        <div class="table-wrap" id="forsale-table-wrap">
+          <table class="item-table">
+            <thead>
+              <tr>
+                <th>Item #</th>
+                <th>Type</th>
+                <th>Road / Name</th>
+                <th>Cond</th>
+                <th>Asking Price</th>
+                <th>Est. Worth</th>
+                <th>Listed</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="forsale-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- ── Want List ── -->
       <div class="page" id="page-want">
         <div class="page-title">Want List</div>
@@ -1285,6 +1352,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <div style="display:flex;gap:0.5rem">
             <button class="status-btn" id="status-want" onclick="setStatus('Want')" style="flex:1;padding:0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s">Want</button>
             <button class="status-btn" id="status-owned" onclick="setStatus('Owned')" style="flex:1;padding:0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s">Owned</button>
+            <button class="status-btn" id="status-forsale" onclick="setStatus('ForSale')" style="flex:1;padding:0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s">For Sale</button>
             <button class="status-btn" id="status-sold" onclick="setStatus('Sold')" style="flex:1;padding:0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s">Sold</button>
           </div>
         </div>
@@ -1298,6 +1366,18 @@ document.addEventListener('touchmove', function(){}, {passive: true});
             <div class="form-field">
               <label>Date Sold</label>
               <input type="date" id="fc-date-sold">
+            </div>
+          </div>
+        </div>
+        <div id="forsale-fields" style="display:none;margin-bottom:0.75rem">
+          <div class="price-row">
+            <div class="form-field">
+              <label>Asking Price ($)</label>
+              <input type="number" id="fc-asking-price" placeholder="0.00" min="0" step="0.01">
+            </div>
+            <div class="form-field">
+              <label>Date Listed</label>
+              <input type="date" id="fc-date-listed">
             </div>
           </div>
         </div>
@@ -1478,6 +1558,10 @@ const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
   'Sale Price','Date Sold','Notes'
 ];
+const FOR_SALE_HEADERS = [
+  'Item Number','Variation','Condition (1-10)','Asking Price',
+  'Date Listed','Notes','Original Price Paid','Est. Worth'
+];
 const WANT_HEADERS = [
   'Item Number','Variation','Priority','Expected Price','Notes'
 ];
@@ -1614,6 +1698,7 @@ let state = {
   masterData: [],      // all rows from master sheet
   personalData: {},    // keyed by "itemNum|variation" -> personal row (owned items)
   soldData: {},        // keyed by "itemNum|variation" -> sold row
+  forSaleData: {},     // keyed by "itemNum|variation" -> for sale row
   wantData: {},        // keyed by "itemNum|variation" -> want list row
   filteredData: [],
   currentPage: 1,
@@ -1858,6 +1943,7 @@ async function initPersonalSheet(sheetId) {
   // Build list of tabs to create
   const toCreate = [];
   if (!existingTabs.includes('Sold'))      toCreate.push({ addSheet: { properties: { title: 'Sold' } } });
+  if (!existingTabs.includes('For Sale'))  toCreate.push({ addSheet: { properties: { title: 'For Sale' } } });
   if (!existingTabs.includes('Want List')) toCreate.push({ addSheet: { properties: { title: 'Want List' } } });
 
   if (toCreate.length > 0) {
@@ -1871,6 +1957,8 @@ async function initPersonalSheet(sheetId) {
   // Write headers to all tabs
   await sheetsUpdate(sheetId, 'Sold!A1:A1',      [['Sold']]);
   await sheetsUpdate(sheetId, 'Sold!A2:H2',      [SOLD_HEADERS]);
+  await sheetsUpdate(sheetId, 'For Sale!A1:A1',   [['For Sale']]);
+  await sheetsUpdate(sheetId, 'For Sale!A2:H2',   [FOR_SALE_HEADERS]);
   await sheetsUpdate(sheetId, 'Want List!A1:A1', [['Want List']]);
   await sheetsUpdate(sheetId, 'Want List!A2:E2', [WANT_HEADERS]);
 
@@ -2548,6 +2636,7 @@ async function loadPersonalData() {
       const _pd = JSON.parse(_pcache);
       state.personalData  = _pd.personalData  || {};
       state.soldData      = _pd.soldData      || {};
+      state.forSaleData   = _pd.forSaleData   || {};
       state.wantData      = _pd.wantData      || {};
       state.isData        = _pd.isData        || {};
       state.ephemeraData  = _pd.ephemeraData  || { catalogs:{}, paper:{}, mockups:{}, other:{} };
@@ -2572,6 +2661,7 @@ function _cachePersonalData() {
     const _snap = {
       personalData: state.personalData,
       soldData: state.soldData,
+      forSaleData: state.forSaleData,
       wantData: state.wantData,
       isData: state.isData,
       ephemeraData: state.ephemeraData,
@@ -2589,12 +2679,14 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   const newWant     = {};
   const newIsData   = {};
   const newEphemera = { catalogs:{}, paper:{}, mockups:{}, other:{} };
+  const newForSale = {};
 
   // Fetch all tabs in parallel
-  const [collRes, soldRes, wantRes,
+  const [collRes, soldRes, forSaleRes, wantRes,
          catRes, paperRes, mockRes, otherRes, isRes] = await Promise.all([
     sheetsGet(sheetId, 'My Collection!A3:W').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Sold!A3:H').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'For Sale!A3:H').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Want List!A3:E').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Catalogs!A3:I').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Paper Items!A3:J').catch(() => ({values:[]})),
@@ -2633,6 +2725,17 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
       copy: r[2]||'1', condition: r[3]||'', priceItem: r[4]||'',
       salePrice: r[5]||'', dateSold: r[6]||'', notes: r[7]||'',
+    };
+  });
+
+  // For Sale
+  (forSaleRes.values || []).forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Item Number') return;
+    const key = `${r[0]}|${r[1]||''}`;
+    newForSale[key] = {
+      row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
+      condition: r[2]||'', askingPrice: r[3]||'', dateListed: r[4]||'',
+      notes: r[5]||'', originalPrice: r[6]||'', estWorth: r[7]||'',
     };
   });
 
@@ -2740,6 +2843,9 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   if (forceOverwrite || Object.keys(newSold).length > 0 || Object.keys(state.soldData).length === 0) {
     state.soldData = newSold;
   }
+  if (forceOverwrite || Object.keys(newForSale).length > 0 || Object.keys(state.forSaleData).length === 0) {
+    state.forSaleData = newForSale;
+  }
   if (forceOverwrite || Object.keys(newWant).length > 0 || Object.keys(state.wantData).length === 0) {
     state.wantData = newWant;
   }
@@ -2754,6 +2860,7 @@ function buildApp() {
   buildDashboard();
   buildBrowse();
   buildSoldPage();
+  buildForSalePage();
   buildWantPage();
   // Wire up the Google Sheet link in the sidebar
   const sheetLink = document.getElementById('nav-sheet-link');
@@ -2785,12 +2892,14 @@ async function forceRefreshData() {
     // Wipe state completely so merge logic can't keep stale optimistic items
     state.personalData = {};
     state.soldData = {};
+    state.forSaleData = {};
     state.wantData = {};
     await _loadPersonalFromSheets(state.personalSheetId, true);
     _cachePersonalData();
     resetFilters();
     buildDashboard();
     buildSoldPage();
+    buildForSalePage();
     buildWantPage();
     renderBrowse();
     buildQuickEntryList && buildQuickEntryList();
@@ -2875,6 +2984,8 @@ function buildDashboard() {
   const _mnavQeBadge = document.getElementById('mnav-qe-badge');
   if (_mnavQeBadge) { if (_qeCount > 0) { _mnavQeBadge.style.display='flex'; _mnavQeBadge.textContent=_qeCount; } else { _mnavQeBadge.style.display='none'; } }
   if (document.getElementById('nav-sold')) document.getElementById('nav-sold').textContent = soldCount;
+  const fsCount = Object.keys(state.forSaleData).length;
+  if (document.getElementById('nav-forsale')) document.getElementById('nav-forsale').textContent = fsCount;
 
 
   // Recent Additions — last 5 owned items including ephemera, by row order
@@ -3206,6 +3317,9 @@ function onPageSearch(val, page) {
   } else if (page === 'sold') {
     state._soldSearch = q;
     buildSoldPage();
+  } else if (page === 'forsale') {
+    state._forsaleSearch = q;
+    buildForSalePage();
   } else if (page === 'want') {
     state._wantSearch = q;
     buildWantPage();
@@ -3396,8 +3510,9 @@ function renderBrowse() {
         globalIdx = -(poIdx + 1000);
       }
     }
-    const badgeClass = isOwned ? 'yes' : isWanted ? 'want' : 'no';
-    const badgeText  = isOwned ? '✓ Owned' : isWanted ? '★ Want' : '—';
+    const isForSale = !!state.forSaleData[`${item.itemNum}|${item.variation||''}`];
+    const badgeClass = isOwned ? (isForSale ? 'forsale' : 'yes') : isWanted ? 'want' : 'no';
+    const badgeText  = isOwned ? (isForSale ? '🏷️ For Sale' : '✓ Owned') : isWanted ? '★ Want' : '—';
     const marketVal  = item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '';
 
     if (isMobile) {
@@ -3589,6 +3704,16 @@ function showOwnedItemMenu(idx, pdKey) {
     '#2ecc71', 'rgba(46,204,113,0.1)',
     function() { overlay.remove(); sellFromCollection(idx, pdKey); }
   ));
+  // Check if already listed for sale
+  const _fsKey = pd.itemNum + '|' + (pd.variation || '');
+  const _alreadyForSale = !!state.forSaleData[_fsKey];
+  box.appendChild(mkBtn(
+    _alreadyForSale
+      ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> Update For Sale Listing'
+      : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> List for Sale',
+    '#e67e22', 'rgba(230,126,34,0.1)',
+    function() { overlay.remove(); listForSaleFromCollection(idx, pdKey); }
+  ));
   box.appendChild(mkBtn(
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Update Info',
     '#2980b9', 'rgba(224,64,40,0.08)',
@@ -3627,6 +3752,146 @@ function sellFromCollection(idx, pdKey) {
     else break;
   }
   renderWizardStep();
+}
+
+function listForSaleFromCollection(idx, pdKey) {
+  const pd = state.personalData[pdKey] || {};
+  const item = state.masterData[idx] || {
+    itemNum: pd.itemNum, variation: pd.variation || '',
+    roadName: pd.roadName || '', itemType: pd.itemType || '',
+    yearProd: pd.yearMade || '', marketVal: '',
+  };
+  // Pre-fill from collection data and existing for-sale listing
+  const fsKey = pd.itemNum + '|' + (pd.variation || '');
+  const existingFs = state.forSaleData[fsKey] || {};
+  wizard = { step: 0, tab: 'forsale', data: {
+    tab: 'forsale',
+    itemNum: item.itemNum,
+    variation: item.variation || '',
+    condition: existingFs.condition || pd.condition || '',
+    selectedForSaleKey: pdKey,
+    askingPrice: existingFs.askingPrice || '',
+    dateListed: existingFs.dateListed || '',
+    notes: existingFs.notes || '',
+    originalPrice: pd.priceItem || '',
+    estWorth: pd.userEstWorth || '',
+    _collectionPdKey: pdKey,
+  }, steps: getSteps('forsale'), matchedItem: item };
+  document.getElementById('wizard-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Skip tab, itemNum, pickForSaleItem, condition steps (all pre-filled from collection)
+  const autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemCategory', 'pickForSaleItem', 'condition']);
+  while (wizard.step < wizard.steps.length - 1) {
+    const s = wizard.steps[wizard.step];
+    if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) wizard.step++;
+    else break;
+  }
+  renderWizardStep();
+}
+
+function showPickFromCollectionForSale() {
+  const owned = Object.entries(state.personalData).filter(function(e) { return e[1].owned; });
+  if (owned.length === 0) {
+    showToast('No items in your collection yet');
+    return;
+  }
+  const existing = document.getElementById('pick-fs-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'pick-fs-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(230,126,34,0.4);border-radius:16px;max-width:480px;width:100%;position:relative;max-height:85vh;display:flex;flex-direction:column;overflow:hidden';
+
+  // Header
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'padding:1rem 1.25rem;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between';
+  hdr.innerHTML = '<div style="font-family:var(--font-head);font-size:1rem;color:#e67e22">List from Collection</div>'
+    + '<button onclick="document.getElementById(\'pick-fs-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">✕</button>';
+  box.appendChild(hdr);
+
+  // Search
+  const searchWrap = document.createElement('div');
+  searchWrap.style.cssText = 'padding:0.6rem 1.25rem;border-bottom:1px solid var(--border);flex-shrink:0';
+  searchWrap.innerHTML = '<input id="pick-fs-search" type="text" placeholder="Search item #, road name…" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:0.45rem 0.7rem;background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box" oninput="_filterPickFs(this.value)">';
+  box.appendChild(searchWrap);
+
+  // Scrollable item list
+  const listWrap = document.createElement('div');
+  listWrap.id = 'pick-fs-list';
+  listWrap.style.cssText = 'flex:1;overflow-y:auto;padding:0.5rem 1rem';
+  box.appendChild(listWrap);
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  // Render the list
+  _renderPickFsList('');
+}
+
+function _renderPickFsList(q) {
+  const listEl = document.getElementById('pick-fs-list');
+  if (!listEl) return;
+  q = (q || '').toLowerCase();
+
+  const owned = Object.entries(state.personalData).filter(function(e) {
+    if (!e[1].owned) return false;
+    if (!q) return true;
+    var pd = e[1];
+    var master = state.masterData.find(function(m) { return m.itemNum === pd.itemNum && m.variation === (pd.variation||''); }) || {};
+    return (pd.itemNum||'').toLowerCase().includes(q)
+      || (master.roadName||'').toLowerCase().includes(q)
+      || (master.itemType||'').toLowerCase().includes(q)
+      || (pd.variation||'').toLowerCase().includes(q);
+  });
+
+  // Sort by item number
+  owned.sort(function(a,b) { return (a[1].itemNum||'').localeCompare(b[1].itemNum||'', undefined, {numeric:true}); });
+
+  if (owned.length === 0) {
+    listEl.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-dim)">No matching items</div>';
+    return;
+  }
+
+  var html = '';
+  owned.forEach(function(entry) {
+    var pdKey = entry[0], pd = entry[1];
+    var master = state.masterData.find(function(m) { return m.itemNum === pd.itemNum && m.variation === (pd.variation||''); }) || {};
+    var fsKey = pd.itemNum + '|' + (pd.variation||'');
+    var alreadyListed = !!state.forSaleData[fsKey];
+    var idx = state.masterData.indexOf(master);
+    if (idx < 0) idx = -1;
+
+    html += '<button onclick="_pickFsSelect(' + idx + ',\'' + pdKey.replace(/'/g,"\\'") + '\')" style="'
+      + 'display:flex;align-items:center;gap:0.7rem;padding:0.7rem 0.85rem;'
+      + 'border-radius:9px;text-align:left;width:100%;cursor:pointer;'
+      + 'font-family:var(--font-body);margin-bottom:0.35rem;transition:all 0.15s;'
+      + 'border:1.5px solid ' + (alreadyListed ? 'rgba(230,126,34,0.4)' : 'var(--border)') + ';'
+      + 'background:' + (alreadyListed ? 'rgba(230,126,34,0.06)' : 'var(--surface2)') + '">'
+      + '<div style="flex:1">'
+      + '<div style="font-family:var(--font-mono);font-size:0.88rem;color:var(--accent2);font-weight:600">'
+      + pd.itemNum + (pd.variation ? ' <span style="color:var(--text-dim);font-size:0.72rem">Var ' + pd.variation + '</span>' : '')
+      + '</div>'
+      + '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.15rem">'
+      + (master.roadName || master.itemType || '')
+      + (pd.condition ? ' · Cond: ' + pd.condition + '/10' : '')
+      + (pd.priceItem ? ' · Paid: $' + parseFloat(pd.priceItem).toLocaleString() : '')
+      + '</div>'
+      + '</div>'
+      + (alreadyListed ? '<span style="font-size:0.68rem;color:#e67e22;font-weight:600;white-space:nowrap">LISTED</span>' : '')
+      + '</button>';
+  });
+  listEl.innerHTML = html;
+}
+
+function _filterPickFs(q) { _renderPickFsList(q); }
+
+function _pickFsSelect(idx, pdKey) {
+  document.getElementById('pick-fs-overlay').remove();
+  listForSaleFromCollection(idx, pdKey);
 }
 
 function updateCollectionItem(idx, pdKey) {
@@ -4260,14 +4525,17 @@ function openItem(idx) {
   if (item.varDesc) { document.getElementById('mi-varDesc').textContent = item.varDesc; vd.style.display = 'block'; }
   else { vd.style.display = 'none'; }
 
-  // Personal data - check owned and sold
+  // Personal data - check owned, for sale, sold, and want
   const sd = state.soldData[key] || {};
+  const fs = state.forSaleData[key] || {};
   const wd = state.wantData[key] || {};
-  const itemStatus = pd.owned ? 'Owned' : sd.itemNum ? 'Sold' : wd.itemNum ? 'Want' : '';
+  const itemStatus = pd.owned ? 'Owned' : fs.itemNum ? 'ForSale' : sd.itemNum ? 'Sold' : wd.itemNum ? 'Want' : '';
   currentStatus = itemStatus || '';
   setStatus(itemStatus || 'Want');
   document.getElementById('fc-sale-price').value = sd.salePrice || '';
   document.getElementById('fc-date-sold').value = sd.dateSold || '';
+  document.getElementById('fc-asking-price').value = fs.askingPrice || '';
+  document.getElementById('fc-date-listed').value = fs.dateListed || '';
   document.getElementById('fc-want-priority').value = wd.priority || 'Medium';
   document.getElementById('fc-want-price').value = wd.expectedPrice || '';
   document.getElementById('fc-want-notes').value = wd.notes || '';
@@ -4336,11 +4604,11 @@ let currentStatus = 'Want';
 function setStatus(status) {
   currentStatus = status;
   // Update button styles
-  ['Want','Owned','Sold'].forEach(s => {
+  ['Want','Owned','ForSale','Sold'].forEach(s => {
     const btn = document.getElementById('status-' + s.toLowerCase());
     if (!btn) return;
     if (s === status) {
-      const colors = { Want: 'var(--accent2)', Owned: 'var(--green)', Sold: '#9b59b6' };
+      const colors = { Want: 'var(--accent2)', Owned: 'var(--green)', ForSale: '#e67e22', Sold: '#9b59b6' };
       btn.style.background = colors[s] + '22';
       btn.style.borderColor = colors[s];
       btn.style.color = colors[s];
@@ -4350,9 +4618,11 @@ function setStatus(status) {
       btn.style.color = 'var(--text-mid)';
     }
   });
-  document.getElementById('collection-form').style.display = (status === 'Owned' || status === 'Sold') ? 'block' : 'none';
+  document.getElementById('collection-form').style.display = (status === 'Owned' || status === 'Sold' || status === 'ForSale') ? 'block' : 'none';
   const soldFields = document.getElementById('sold-fields');
   if (soldFields) soldFields.style.display = status === 'Sold' ? 'block' : 'none';
+  const forsaleFields = document.getElementById('forsale-fields');
+  if (forsaleFields) forsaleFields.style.display = status === 'ForSale' ? 'block' : 'none';
   const wantFields = document.getElementById('want-fields');
   if (wantFields) wantFields.style.display = status === 'Want' ? 'block' : 'none';
 }
@@ -4403,12 +4673,51 @@ async function saveItem() {
     if (wantEntry && wantEntry.row) {
       await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:E${wantEntry.row}`, [['','','','','']]);
     }
+    // Remove from For Sale if it was there
+    const fsEntry = state.forSaleData[key];
+    if (fsEntry && fsEntry.row) {
+      await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:H${fsEntry.row}`, [['','','','','','','','']]);
+    }
+
+  } else if (currentStatus === 'ForSale') {
+    // Write to For Sale tab (keep in collection too — it's still yours)
+    const existing = state.personalData[key];
+    const forSaleRow = [
+      item.itemNum, item.variation || '',
+      condition,
+      document.getElementById('fc-asking-price').value,
+      document.getElementById('fc-date-listed').value || new Date().toISOString().split('T')[0],
+      document.getElementById('fc-notes').value,
+      existing?.priceItem || '',
+      existing?.userEstWorth || '',
+    ];
+    const fsEntry2 = state.forSaleData[key];
+    if (fsEntry2 && fsEntry2.row) {
+      await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry2.row}:H${fsEntry2.row}`, [forSaleRow]);
+    } else {
+      await sheetsAppend(state.personalSheetId, 'For Sale!A:A', [forSaleRow]);
+    }
+    // Remove from Sold if it was there
+    const soldEntry2 = state.soldData[key];
+    if (soldEntry2 && soldEntry2.row) {
+      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry2.row}:H${soldEntry2.row}`, [['','','','','','','','']]);
+    }
+    // Remove from Want if it was there
+    const wantEntry2 = state.wantData[key];
+    if (wantEntry2 && wantEntry2.row) {
+      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry2.row}:E${wantEntry2.row}`, [['','','','','']]);
+    }
 
   } else if (currentStatus === 'Sold') {
     // Remove from My Collection
     const existing = state.personalData[key];
     if (existing && existing.row) {
       await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:W${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','','','']]);  // 23 cols A-W
+    }
+    // Remove from For Sale if it was there
+    const fsEntry3 = state.forSaleData[key];
+    if (fsEntry3 && fsEntry3.row) {
+      await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry3.row}:H${fsEntry3.row}`, [['','','','','','','','']]);
     }
     // Write to Sold tab
     const soldRow = [
@@ -4454,6 +4763,7 @@ async function saveItem() {
   closeModal();
   buildDashboard();
   buildSoldPage();
+  buildForSalePage();
   renderBrowse();
   showToast('✓ Item updated!');
 
@@ -4933,6 +5243,145 @@ function clearPageSearch(name) {
   // Don't clear — keep search term when returning to same page
 }
 
+function buildForSalePage() {
+  const _fq = (state._forsaleSearch || '').toLowerCase();
+  const fsEntries = Object.values(state.forSaleData).filter(fs => {
+    if (!_fq) return true;
+    const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
+    return (fs.itemNum||'').toLowerCase().includes(_fq)
+      || (master.roadName||'').toLowerCase().includes(_fq)
+      || (master.itemType||'').toLowerCase().includes(_fq)
+      || (fs.variation||'').toLowerCase().includes(_fq);
+  });
+
+  // Summary stats
+  const totalAsking = fsEntries.reduce((sum, fs) => sum + (parseFloat(fs.askingPrice) || 0), 0);
+  const countEl = document.getElementById('forsale-stat-count');
+  const totalEl = document.getElementById('forsale-stat-total');
+  if (countEl) countEl.textContent = fsEntries.length.toLocaleString();
+  if (totalEl) totalEl.textContent = totalAsking > 0 ? '$' + Math.round(totalAsking).toLocaleString() : '$0';
+
+  const isMobileFs = window.innerWidth <= 640;
+  const fsCardsEl = document.getElementById('forsale-cards');
+  const fsTableWrap = document.getElementById('forsale-table-wrap');
+  const tbody = document.getElementById('forsale-tbody');
+
+  if (isMobileFs) {
+    if (fsCardsEl) fsCardsEl.style.display = 'flex';
+    if (fsTableWrap) fsTableWrap.style.display = 'none';
+    if (fsCardsEl) fsCardsEl.innerHTML = fsEntries.length ? fsEntries.map(fs => {
+      const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
+      const collPd = state.personalData[fs.itemNum + '|' + (fs.variation||'')] || {};
+      const estWorth = fs.estWorth || collPd.userEstWorth || '';
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${fs.itemNum}</span>
+            ${fs.variation ? `<span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.4rem">${fs.variation}</span>` : ''}
+            ${master.roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${master.roadName}</div>` : ''}
+            <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[master.itemType, fs.condition ? 'Cond: '+fs.condition : '', fs.dateListed ? 'Listed: '+fs.dateListed : ''].filter(Boolean).join(' · ')}</div>
+            ${estWorth ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.1rem">Est. Worth: $${parseFloat(estWorth).toLocaleString()}</div>` : ''}
+            ${fs.notes ? `<div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.15rem;font-style:italic">${fs.notes.length > 60 ? fs.notes.substring(0,57)+'…' : fs.notes}</div>` : ''}
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            ${fs.askingPrice ? `<div style="font-family:var(--font-mono);color:#e67e22;font-size:1.1rem;font-weight:600">$${parseFloat(fs.askingPrice).toLocaleString()}</div>` : '<div style="color:var(--text-dim);font-size:0.8rem">No price</div>'}
+          </div>
+        </div>
+        <div style="display:flex;gap:0.4rem;margin-top:0.6rem">
+          <button onclick="markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">Mark Sold</button>
+          <button onclick="removeForSaleItem('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
+        </div>
+      </div>`;
+    }).join('') : '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🏷️</div><p>No items listed for sale</p></div>';
+  } else {
+    if (fsCardsEl) fsCardsEl.style.display = 'none';
+    if (fsTableWrap) fsTableWrap.style.display = '';
+    if (tbody) tbody.innerHTML = fsEntries.length ? fsEntries.map(fs => {
+      const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
+      const collPd = state.personalData[fs.itemNum + '|' + (fs.variation||'')] || {};
+      const estWorth = fs.estWorth || collPd.userEstWorth || '';
+      return `<tr>
+        <td><span class="item-num">${fs.itemNum}</span>${fs.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + fs.variation + '</span>' : ''}</td>
+        <td><span class="tag">${master.itemType || '—'}</span></td>
+        <td>${master.roadName || '—'}</td>
+        <td>${fs.condition || '—'}</td>
+        <td class="market-val" style="color:#e67e22">${fs.askingPrice ? '$' + parseFloat(fs.askingPrice).toLocaleString() : '—'}</td>
+        <td class="text-dim">${estWorth ? '$' + parseFloat(estWorth).toLocaleString() : '—'}</td>
+        <td class="text-dim">${fs.dateListed || '—'}</td>
+        <td style="white-space:nowrap">
+          <button onclick="markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.3rem">Sold</button>
+          <button onclick="removeForSaleItem('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">✕</button>
+        </td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🏷️</div><p>No items listed for sale</p></div></td></tr>';
+  }
+
+  const navBadge = document.getElementById('nav-forsale');
+  if (navBadge) navBadge.textContent = fsEntries.length;
+}
+
+async function markForSaleAsSold(itemNum, variation, askingPrice) {
+  const salePrice = prompt('Sale price? (leave blank for asking price)', askingPrice || '');
+  if (salePrice === null) return; // cancelled
+  const dateSold = new Date().toISOString().split('T')[0];
+  const fsKey = `${itemNum}|${variation}`;
+  const fs = state.forSaleData[fsKey] || {};
+
+  // Write to Sold tab
+  const soldRow = [
+    itemNum, variation, '1',
+    fs.condition || '',
+    fs.originalPrice || '',
+    salePrice || askingPrice || '',
+    dateSold,
+    fs.notes || '',
+  ];
+  const existingSold = state.soldData[fsKey];
+  if (existingSold?.row) {
+    await sheetsUpdate(state.personalSheetId, `Sold!A${existingSold.row}:H${existingSold.row}`, [soldRow]);
+  } else {
+    await sheetsAppend(state.personalSheetId, 'Sold!A:A', [soldRow]);
+  }
+
+  // Remove from For Sale tab
+  if (fs.row) {
+    await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:H${fs.row}`, [['','','','','','','','']]);
+  }
+
+  // Remove from My Collection
+  const collKey = Object.keys(state.personalData).find(k => k.split('|')[0] === itemNum && (state.personalData[k].variation || '') === variation);
+  const collEntry = collKey ? state.personalData[collKey] : null;
+  if (collEntry?.row) {
+    await sheetsUpdate(state.personalSheetId, `My Collection!A${collEntry.row}:W${collEntry.row}`, [['','','','','','','','','','','','','','','','','','','','','','','']]);
+    delete state.personalData[collKey];
+  }
+
+  // Optimistic state update
+  state.soldData[fsKey] = { row: existingSold?.row || 99999, itemNum, variation, condition: fs.condition, salePrice: salePrice || askingPrice, dateSold, notes: fs.notes };
+  delete state.forSaleData[fsKey];
+
+  localStorage.removeItem('lv_personal_cache');
+  localStorage.removeItem('lv_personal_cache_ts');
+
+  buildForSalePage();
+  buildSoldPage();
+  buildDashboard();
+  showToast('✓ Marked as sold!');
+}
+
+async function removeForSaleItem(itemNum, variation, row) {
+  if (!confirm('Remove this item from your For Sale list?')) return;
+  const fsKey = `${itemNum}|${variation}`;
+  if (row) {
+    await sheetsUpdate(state.personalSheetId, `For Sale!A${row}:H${row}`, [['','','','','','','','']]);
+  }
+  delete state.forSaleData[fsKey];
+  localStorage.removeItem('lv_personal_cache');
+  localStorage.removeItem('lv_personal_cache_ts');
+  buildForSalePage();
+  showToast('✓ Removed from For Sale');
+}
+
 function showPage(name, clickedEl) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -4942,6 +5391,7 @@ function showPage(name, clickedEl) {
   if (name === 'browse') renderBrowse();
   if (name === 'reports') buildReport();
   if (name === 'sold') buildSoldPage();
+  if (name === 'forsale') buildForSalePage();
   if (name === 'want') buildWantPage();
   document.getElementById('main-content').scrollTop = 0;
 }
@@ -5201,6 +5651,27 @@ function getSteps(tab) {
 
       // ── Confirm & Save ──
       { id: 'confirm', title: (d) => 'Looking good! Ready to save your ' + getItemLabel(d) + '?', type: 'confirm' },
+    ];
+  } else if (tab === 'forsale') {
+    return [
+      { id: 'tab',          title: 'What would you like to add?',         type: 'choice' },
+      { id: 'itemNum',      title: 'What is the Lionel item number?',      type: 'text',        placeholder: 'e.g. 726, 2046, 6464-1' },
+      { id: 'pickForSaleItem', title: 'Which item are you listing?',       type: 'pickForSaleItem',
+        skipIf: (d) => {
+          const matches = Object.keys(state.personalData).filter(k => k.split('|')[0] === (d.itemNum||'').trim());
+          return matches.length === 0;
+        }
+      },
+      { id: 'condition',    title: 'What condition is the item?',         type: 'slider',      min:1, max:10,
+        skipIf: (d) => !!d.selectedForSaleKey && d.selectedForSaleKey !== '__new__' },
+      { id: 'hasBox',       title: 'Does it have the original box?',      type: 'choice3',     choices: ['Yes','No'],
+        skipIf: (d) => !!d.selectedForSaleKey && d.selectedForSaleKey !== '__new__' },
+      { id: 'allOriginal',  title: 'Is it all original?',                 type: 'choice3',     choices: ['Yes','No','Unknown'],
+        skipIf: (d) => !!d.selectedForSaleKey && d.selectedForSaleKey !== '__new__' },
+      { id: 'askingPrice',  title: 'What is your asking price?',          type: 'money',       placeholder: '0.00' },
+      { id: 'dateListed',   title: 'Date listed',                         type: 'date',        optional: true },
+      { id: 'notes',        title: 'Any notes about the listing?',        type: 'textarea',    optional: true },
+      { id: 'confirm',      title: 'Ready to list for sale!',             type: 'confirm' },
     ];
   } else if (tab === 'sold') {
     return [
@@ -5579,6 +6050,7 @@ function renderWizardStep() {
     wizModal.classList.remove('wiz-collection','wiz-want','wiz-sold');
     if (wizard.tab === 'collection') wizModal.classList.add('wiz-collection');
     else if (wizard.tab === 'want')   wizModal.classList.add('wiz-want');
+    else if (wizard.tab === 'forsale') wizModal.classList.add('wiz-forsale');
     else if (wizard.tab === 'sold')   wizModal.classList.add('wiz-sold');
   }
   const progBar = document.getElementById('wizard-progress');
@@ -5586,12 +6058,14 @@ function renderWizardStep() {
     const _ephColors = {catalogs:'#e67e22',paper:'#3498db',mockups:'#9b59b6',other:'#27ae60'};
     if (wizard.tab === 'collection') progBar.style.background = 'var(--accent)';
     else if (wizard.tab === 'want')  progBar.style.background = '#2980b9';
+    else if (wizard.tab === 'forsale') progBar.style.background = '#e67e22';
     else if (wizard.tab === 'sold')  progBar.style.background = '#2ecc71';
     else if (_ephColors[wizard.tab]) progBar.style.background = _ephColors[wizard.tab];
     else                             progBar.style.background = 'var(--accent)';
   }
   if (nextBtn) {
     if (wizard.tab === 'want')       { nextBtn.style.background='#2980b9'; nextBtn.style.borderColor='#2980b9'; nextBtn.style.color='#fff'; }
+    else if (wizard.tab === 'forsale') { nextBtn.style.background='#e67e22'; nextBtn.style.borderColor='#e67e22'; nextBtn.style.color='#fff'; }
     else if (wizard.tab === 'sold')  { nextBtn.style.background='#2ecc71'; nextBtn.style.borderColor='#2ecc71'; nextBtn.style.color='#081a0e'; }
     else                             { nextBtn.style.background=''; nextBtn.style.borderColor=''; nextBtn.style.color=''; }
   }
@@ -5600,7 +6074,7 @@ function renderWizardStep() {
   document.getElementById('wizard-title').textContent = typeof s.title === 'function' ? s.title(wizard.data) : s.title;
   document.getElementById('wizard-progress').style.width = pct + '%';
   document.getElementById('wizard-back-btn').style.display = step > 0 ? 'inline-flex' : 'none';
-  const autoAdvanceTypes = new Set(['choice','choice2','choice3','pickRow','pickSoldItem']); // 'variation' removed — Next needed when item has no variations
+  const autoAdvanceTypes = new Set(['choice','choice2','choice3','pickRow','pickSoldItem','pickForSaleItem']); // 'variation' removed — Next needed when item has no variations
   // New consolidated types always use Next button
   // setMatch and setUnit2Num need Next button (user may interact multiple times)
   if (s.type === 'confirm') {
@@ -6578,6 +7052,48 @@ function renderWizardStep() {
         ">Not in my collection — enter details manually</button>
       </div>`;
 
+  } else if (s.type === 'pickForSaleItem') {
+    const itemNum = (wizard.data.itemNum || '').trim();
+    const matchKeys = Object.keys(state.personalData).filter(k => {
+      const pd = state.personalData[k];
+      return k.split('|')[0] === itemNum && pd.owned;
+    });
+    const selected = wizard.data.selectedForSaleKey || '';
+    body.innerHTML = `
+      <div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.5rem">
+        ${matchKeys.length === 0 ? '<div style="color:var(--text-dim);font-size:0.85rem">No owned items found for this number.</div>' : ''}
+        ${matchKeys.map(k => {
+          const pd = state.personalData[k];
+          const isSelected = selected === k;
+          return `<button onclick="wizardPickForSaleItem('${k}')" style="
+            display:flex;align-items:flex-start;gap:0.75rem;padding:0.85rem 1rem;
+            border-radius:10px;text-align:left;width:100%;cursor:pointer;
+            font-family:var(--font-body);transition:all 0.15s;
+            border:2px solid ${isSelected ? '#e67e22' : 'var(--border)'};
+            background:${isSelected ? 'rgba(230,126,34,0.12)' : 'var(--surface2)'};
+          ">
+            <div style="flex:1">
+              <div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.9rem;font-weight:600">
+                ${pd.itemNum}${pd.variation ? ' — Var ' + pd.variation : ''}
+              </div>
+              <div style="font-size:0.8rem;color:var(--text-mid);margin-top:0.3rem;display:flex;gap:1rem;flex-wrap:wrap">
+                ${pd.condition ? `<span>Condition: <strong style="color:var(--text)">${pd.condition}</strong></span>` : ''}
+                ${pd.hasBox === 'Yes' ? `<span style="color:var(--green)">✓ Has box</span>` : ''}
+                ${pd.priceItem ? `<span>Paid: <strong style="color:var(--text)">$${parseFloat(pd.priceItem).toLocaleString()}</strong></span>` : ''}
+                ${pd.userEstWorth ? `<span>Est. Worth: <strong style="color:var(--text)">$${parseFloat(pd.userEstWorth).toLocaleString()}</strong></span>` : ''}
+              </div>
+            </div>
+            ${isSelected ? '<span style="color:#e67e22;font-size:1.1rem;align-self:center">✓</span>' : ''}
+          </button>`;
+        }).join('')}
+        <button onclick="wizardPickForSaleItem('__new__')" style="
+          padding:0.75rem 1rem;border-radius:10px;text-align:left;width:100%;cursor:pointer;
+          font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s;
+          border:2px solid var(--border);
+          background:var(--surface2);color:var(--text-dim);
+        ">Not in my collection — enter details manually</button>
+      </div>`;
+
   } else if (s.type === 'pickRow') {
     const itemNum = (wizard.data.itemNum || '').trim();
     const matchKeys = Object.keys(state.personalData).filter(k => k.split('|')[0] === itemNum);
@@ -7213,6 +7729,19 @@ function wizardPickSoldItem(key) {
   setTimeout(() => wizardNext(), 150);
 }
 
+function wizardPickForSaleItem(key) {
+  wizard.data.selectedForSaleKey = key;
+  if (key !== '__new__') {
+    const pd = state.personalData[key];
+    if (pd) {
+      if (pd.condition && pd.condition !== 'N/A') wizard.data.condition = parseInt(pd.condition);
+      if (pd.priceItem && pd.priceItem !== 'N/A') wizard.data.originalPrice = pd.priceItem;
+      if (pd.userEstWorth) wizard.data.estWorth = pd.userEstWorth;
+    }
+  }
+  setTimeout(() => wizardNext(), 150);
+}
+
 function wizardPickRow(key) {
   wizard.data.selectedRowKey = key;
   setTimeout(() => wizardNext(), 150);
@@ -7305,8 +7834,8 @@ function updateItemSuggestions(query) {
   const tab = wizard.tab;
   let candidates = [];
 
-  if (tab === 'sold') {
-    // Sell tab: suggest from owned collection
+  if (tab === 'sold' || tab === 'forsale') {
+    // Sell/For Sale tab: suggest from owned collection
     const seen = new Set();
     Object.values(state.personalData).forEach(pd => {
       const key = pd.itemNum + (pd.variation ? ' (' + pd.variation + ')' : '');
@@ -7439,21 +7968,22 @@ function lookupItem(num) {
   const trimmed = num.trim();
   if (!trimmed) { el.innerHTML = ''; return; }
 
-  if (wizard.tab === 'sold') {
-    // Sold mode: check collection first, show what they own
+  if (wizard.tab === 'sold' || wizard.tab === 'forsale') {
+    const _fsLabel = wizard.tab === 'forsale' ? 'For Sale' : 'Sold';
+    const _fsColor = wizard.tab === 'forsale' ? '#e67e22' : 'var(--green)';
+    // Sold/For Sale mode: check collection first, show what they own
     const collectionKeys = Object.keys(state.personalData).filter(k => k.split('|')[0] === trimmed);
     const inCollection = collectionKeys.length > 0;
     if (inCollection) {
       const count = collectionKeys.length;
-      el.innerHTML = `<div style="background:rgba(46,204,113,0.1);border:1px solid var(--green);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
-        <span style="color:var(--green)">✓ Found in your collection</span> — ${count} item${count>1?'s':''} · select which one on the next step
+      el.innerHTML = `<div style="background:${_fsColor}15;border:1px solid ${_fsColor};border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
+        <span style="color:${_fsColor}">✓ Found in your collection</span> — ${count} item${count>1?'s':''} · select which one on the next step
       </div>`;
     } else {
-      // Not in collection — show master catalog info if available
       if (match) {
         el.innerHTML = `<div style="background:rgba(201,146,42,0.1);border:1px solid var(--accent2);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
           <span style="color:var(--accent2)">Not in your collection</span> · ${match.roadName || match.itemType || ''} · ${match.yearProd || ''}<br>
-          <span style="color:var(--text-dim)">You can still enter sale details manually</span>
+          <span style="color:var(--text-dim)">You can still enter details manually</span>
         </div>`;
       } else {
         el.innerHTML = `<div style="font-size:0.8rem;color:var(--text-dim)">Not found in collection or catalog — enter details manually</div>`;
@@ -8263,8 +8793,45 @@ async function saveWizardItem() {
         }
       }
 
+    } else if (tab === 'forsale') {
+      const collectionEntry = d.selectedForSaleKey && d.selectedForSaleKey !== '__new__' ? state.personalData[d.selectedForSaleKey] : null;
+      const fsVariation = collectionEntry ? (collectionEntry.variation || '') : variation;
+      const fsCondition = d.condition || (collectionEntry?.condition !== 'N/A' ? collectionEntry?.condition : '') || '';
+      const fsOrigPrice = d.originalPrice || (collectionEntry?.priceItem !== 'N/A' ? collectionEntry?.priceItem : '') || '';
+      const fsEstWorth = d.estWorth || collectionEntry?.userEstWorth || '';
+      // For direct entries, append box/original status to notes
+      let fsNotes = (d.notes || '').trim();
+      if (!collectionEntry) {
+        const extras = [];
+        if (d.hasBox) extras.push('Box: ' + d.hasBox);
+        if (d.allOriginal) extras.push('All Original: ' + d.allOriginal);
+        if (extras.length) fsNotes = fsNotes ? fsNotes + ' | ' + extras.join(', ') : extras.join(', ');
+      }
+
+      const row = [
+        itemNum, fsVariation,
+        fsCondition,
+        d.askingPrice || '',
+        d.dateListed || new Date().toISOString().split('T')[0],
+        fsNotes,
+        fsOrigPrice,
+        fsEstWorth,
+      ];
+      const fsKey = `${itemNum}|${fsVariation}`;
+      const existingFs = state.forSaleData[fsKey];
+      if (existingFs?.row) {
+        await sheetsUpdate(state.personalSheetId, `For Sale!A${existingFs.row}:H${existingFs.row}`, [row]);
+      } else {
+        await sheetsAppend(state.personalSheetId, 'For Sale!A:A', [row]);
+      }
+      // Optimistic update
+      state.forSaleData[fsKey] = {
+        row: existingFs?.row || 99999, itemNum, variation: fsVariation,
+        condition: fsCondition, askingPrice: d.askingPrice || '',
+        dateListed: row[4], notes: row[5], originalPrice: fsOrigPrice, estWorth: fsEstWorth,
+      };
+
     } else if (tab === 'sold') {
-      // If user picked a collection row, pull its data and clear it from My Collection
       const collectionEntry = d.selectedSoldKey ? state.personalData[d.selectedSoldKey] : null;
       const soldVariation = collectionEntry ? (collectionEntry.variation || '') : variation;
       const soldCondition = d.condition || (collectionEntry?.condition !== 'N/A' ? collectionEntry?.condition : '') || '';
@@ -8494,8 +9061,9 @@ async function saveWizardItem() {
     resetFilters();
     buildDashboard();
     buildSoldPage();
+    buildForSalePage();
     renderBrowse();
-    showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
+    showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'forsale' ? 'For Sale' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
 
     // ── Background sync: bust cache and re-fetch from Sheets to get real row numbers ──
     // Longer delay on mobile to give Sheets time to propagate
@@ -8508,6 +9076,7 @@ async function saveWizardItem() {
         resetFilters();
         buildDashboard();
         buildSoldPage();
+        buildForSalePage();
         renderBrowse();
       } catch(e) { console.warn('Background sync after save:', e); }
     }, _syncDelay);
