@@ -2344,29 +2344,31 @@ async function driveMoveSheetToVault(sheetId) {
 }
 
 // ── SHEETS API ──────────────────────────────────────────────────
-// Quote sheet names that contain spaces for the Sheets API
+// Quote sheet names that contain spaces for the Sheets API JSON body
 function _quoteRange(range) {
   if (!range.includes('!')) return range;
   const parts = range.split('!');
   const sheet = parts[0];
   const rest = parts.slice(1).join('!');
-  // Already quoted
   if (sheet.startsWith("'")) return range;
-  // Needs quoting if it has spaces or special chars
   if (sheet.includes(' ') || sheet.includes('-')) {
     return "'" + sheet.replace(/'/g, "''") + "'!" + rest;
   }
   return range;
 }
 
+// Encode range for URL path — encode spaces but preserve : ! ' which Sheets API needs
+function _encodeRange(range) {
+  return range.replace(/ /g, '%20');
+}
+
 async function sheetsGet(spreadsheetId, range) {
-  range = _quoteRange(range);
-  // Use API key for master sheet (public), OAuth token for personal sheet
   const isMaster = spreadsheetId === state.masterSheetId;
   const useApiKey = isMaster && API_KEY && API_KEY !== 'YOUR_API_KEY';
+  const urlRange = _encodeRange(_quoteRange(range));
   const url = useApiKey
-    ? `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?key=${API_KEY}`
-    : `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`;
+    ? `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${urlRange}?key=${API_KEY}`
+    : `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${urlRange}`;
   const headers = useApiKey
     ? {}
     : { Authorization: `Bearer ${accessToken}` };
@@ -2426,7 +2428,7 @@ async function _withTokenRetry(fetchFn) {
 
 async function sheetsUpdate(spreadsheetId, range, values) {
   range = _quoteRange(range);
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(range)}?valueInputOption=USER_ENTERED`;
   const body = JSON.stringify({ range, majorDimension: 'ROWS', values });
   const res = await _withTokenRetry(() => fetch(url, {
     method: 'PUT',
@@ -2464,7 +2466,7 @@ async function sheetsAppend(spreadsheetId, range, values) {
     const writeRange = `${tabName}!A${nextRow + i}:${endCol}${nextRow + i}`;
     const body = JSON.stringify({ range: writeRange, majorDimension: 'ROWS', values: [row] });
     const res = await _withTokenRetry(() => fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(writeRange)}?valueInputOption=USER_ENTERED`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(writeRange)}?valueInputOption=USER_ENTERED`,
       { method: 'PUT', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body }
     ));
     const json = await res.json();
