@@ -2192,17 +2192,12 @@ async function driveUploadFile(file, name, folderId) {
 }
 
 async function driveFindOrCreateFolder(name, parentId) {
-  if (!parentId) throw new Error('Missing parentId for folder: ' + name);
   const q = encodeURIComponent(`name='${name}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`);
   const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&spaces=drive`);
   if (res.files && res.files.length > 0) return res.files[0].id;
   const created = await driveRequest('POST', '/files?fields=id', {
     name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId],
   });
-  if (!created || !created.id) {
-    console.error('Drive folder create failed:', name, created);
-    throw new Error('Could not create Drive folder: ' + name);
-  }
   return created.id;
 }
 
@@ -2262,24 +2257,13 @@ async function driveEnsureSetup() {
   const pId = localStorage.getItem('lv_photos_id');
   const sId = localStorage.getItem('lv_sold_photos_id');
   if (vId && pId && sId) {
-    // Quick-validate that the photos folder still exists
-    try {
-      const check = await driveRequest('GET', `/files/${pId}?fields=id,trashed`);
-      if (check && check.id && !check.trashed) {
-        driveCache.vaultId      = vId;
-        driveCache.photosId     = pId;
-        driveCache.soldPhotosId = sId;
-        return;
-      }
-    } catch(e) { /* fall through to full setup */ }
-    // Cached IDs are stale — clear and re-create
-    console.warn('[Drive] Cached folder IDs stale, re-running setup');
-    localStorage.removeItem('lv_vault_id');
-    localStorage.removeItem('lv_photos_id');
-    localStorage.removeItem('lv_sold_photos_id');
+    driveCache.vaultId      = vId;
+    driveCache.photosId     = pId;
+    driveCache.soldPhotosId = sId;
+  } else {
+    // Always run full setup so any missing folders get created
+    await driveSetupVault();
   }
-  // Always run full setup so any missing folders get created
-  await driveSetupVault();
 }
 
 async function driveEnsureItemFolder(itemNum) {
@@ -3680,10 +3664,10 @@ function renderBrowse() {
         </td>
         <td><span class="tag">${item.itemType || '—'}</span></td>
         <td style="text-align:center">
-          <span id="${_thumbId}" style="display:inline-block;width:40px;height:40px;border-radius:4px;background:var(--surface2);overflow:hidden;vertical-align:middle"></span>
+          <span id="${_thumbId}" style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:4px;background:var(--surface2);overflow:hidden;vertical-align:middle;color:var(--text-dim)">${_photoLink ? '' : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.35"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>'}</span>
         </td>
         <td style="text-align:center">
-          <button onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${_photoLink}')" style="padding:0.25rem 0.6rem;border-radius:6px;border:1px solid var(--gold);background:rgba(212,168,67,0.08);color:var(--gold);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600" ${!_photoLink ? 'disabled style="padding:0.25rem 0.6rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.75rem;cursor:default;opacity:0.5;font-weight:600"' : ''}>📷 Photos</button>
+          <button onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${_photoLink}')" style="padding:0.25rem 0.6rem;border-radius:6px;border:1px solid ${_photoLink ? 'var(--gold)' : 'var(--border)'};background:${_photoLink ? 'rgba(212,168,67,0.08)' : 'var(--surface2)'};color:${_photoLink ? 'var(--gold)' : 'var(--text-dim)'};font-family:var(--font-body);font-size:0.75rem;cursor:${_photoLink ? 'pointer' : 'default'};font-weight:600${_photoLink ? '' : ';opacity:0.6'}" ${_photoLink ? '' : 'disabled'}>${_photoLink ? '📷 Photos' : 'No Photos'}</button>
         </td>
       </tr>`;
     } else {
@@ -3748,7 +3732,7 @@ function renderBrowse() {
           if (el) el.innerHTML = '<img src="' + thumbUrl + '" style="width:40px;height:40px;object-fit:cover;border-radius:4px" onerror="this.parentElement.innerHTML=\'📷\'">';
         } else {
           const el = document.getElementById('thumb-' + item.itemNum + '-' + (item.variation || ''));
-          if (el) el.innerHTML = '<span style="color:var(--text-dim);font-size:0.7rem;display:flex;align-items:center;justify-content:center;height:100%">—</span>';
+          if (el) el.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;height:100%"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.35"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>';
         }
       });
     });
@@ -3889,34 +3873,11 @@ function openPhotoWizard(itemNum, variation, pdKey) {
 }
 
 async function openPhotoFolder(itemNum, storedLink) {
-  if (storedLink) {
-    // Validate stored link before opening — check folder actually exists
-    const _pfMatch = (storedLink || '').match(/folders\/([a-zA-Z0-9_-]+)/);
-    if (_pfMatch && _pfMatch[1] && _pfMatch[1] !== 'undefined') {
-      try {
-        const _pfCheck = await driveRequest('GET', '/files/' + _pfMatch[1] + '?fields=id,trashed');
-        if (_pfCheck && _pfCheck.id && !_pfCheck.trashed) {
-          window.open(storedLink, '_blank');
-          return;
-        }
-      } catch(e) { /* stale link, fall through to fresh lookup */ }
-    }
-    console.warn('[Photos] Stored link invalid for', itemNum, '- looking up fresh');
-  }
+  if (storedLink) { window.open(storedLink, '_blank'); return; }
   try {
     const folderId = await driveEnsureItemFolder(itemNum);
-    const freshLink = driveFolderLink(folderId);
-    window.open(freshLink, '_blank');
-    // Update stored link in the sheet so it works next time
-    const _pfKey = Object.keys(state.personalData).find(function(k) {
-      const pd = state.personalData[k];
-      return pd && pd.itemNum === itemNum && pd.owned;
-    });
-    if (_pfKey && state.personalData[_pfKey].row) {
-      state.personalData[_pfKey].photoItem = freshLink;
-      sheetsUpdate(state.personalSheetId, 'My Collection!J' + state.personalData[_pfKey].row, [[freshLink]]).catch(function(e) { console.warn('Photo link update:', e); });
-    }
-  } catch(e) { showToast('Could not open Drive folder: ' + e.message); }
+    window.open(driveFolderLink(folderId), '_blank');
+  } catch(e) { showToast('Could not open Drive folder'); }
 }
 
 function showOwnedItemMenu(idx, pdKey) {
@@ -9164,7 +9125,7 @@ async function savePhotoOnlyUpdate() {
   const pd = state.personalData[pdKey];
   // Get the folder link from whichever photo step just ran
   const photoObj = d.photosItem || d.photosBox || {};
-  const folderLink = Object.values(photoObj).find(v => v && !v.includes('undefined')) || '';
+  const folderLink = Object.values(photoObj).find(v => v) || '';
   if (folderLink && pd.row) {
     // Write folder link to col J (index 9) of the existing row
     try {
@@ -9208,8 +9169,8 @@ async function saveWizardItem() {
   const errorPhotoObj = d.photosError || {};
   // Primary display photo = Front View, fallback to first available
   // All views return the same folder link — just grab the first one found
-  const anyItemLink = Object.values(photoObj).find(v => v && !v.includes('undefined')) || '';
-  const anyBoxLink  = Object.values(boxPhotoObj).find(v => v && !v.includes('undefined')) || '';
+  const anyItemLink = Object.values(photoObj).find(v => v) || '';
+  const anyBoxLink  = Object.values(boxPhotoObj).find(v => v) || '';
   const photos    = [anyItemLink];
   const boxPhotos = [anyBoxLink];
 
