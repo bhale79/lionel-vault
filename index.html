@@ -1250,12 +1250,31 @@ document.addEventListener('touchmove', function(){}, {passive: true});
             <input id="want-search" type="text" placeholder="Search item #, road, notes…" oninput="onPageSearch(this.value,'want')" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:100%">
           </div>
         </div>
+        <div id="want-filter-bar" style="display:flex;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap;align-items:center">
+          <select id="want-filter-type" onchange="buildWantPage()" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem">
+            <option value="">All Types</option>
+          </select>
+          <select id="want-filter-priority" onchange="buildWantPage()" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem">
+            <option value="">All Priorities</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+          <select id="want-sort" onchange="buildWantPage()" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem">
+            <option value="priority">Sort: Priority</option>
+            <option value="itemNum">Sort: Item #</option>
+            <option value="priceAsc">Sort: Price Low→High</option>
+            <option value="priceDesc">Sort: Price High→Low</option>
+          </select>
+          <span id="want-count-label" style="font-size:0.75rem;color:var(--text-dim);margin-left:auto"></span>
+        </div>
         <div id="want-cards" style="display:flex;flex-direction:column;gap:0.6rem"></div>
-        <div class="table-wrap" style="margin-top:0">
+        <div class="table-wrap" style="margin-top:0;overflow-x:auto;-webkit-overflow-scrolling:touch">
           <table class="item-table" id="want-table">
             <thead>
               <tr>
                 <th>Item #</th>
+                <th>Type</th>
                 <th>Road / Name</th>
                 <th>Var.</th>
                 <th>Var. Description</th>
@@ -5250,32 +5269,65 @@ function openEphemeraDetail(tabId, rowKey) {
 function buildWantPage() {
   const isMobile = window.innerWidth <= 640;
   const _wq = (state._wantSearch || '').toLowerCase();
+  const _wfType = document.getElementById('want-filter-type');
+  const _wfPri = document.getElementById('want-filter-priority');
+  const _wSort = document.getElementById('want-sort');
+  const fType = _wfType ? _wfType.value : '';
+  const fPri = _wfPri ? _wfPri.value : '';
+  const sortBy = _wSort ? _wSort.value : 'priority';
+
+  // Populate type dropdown from data (once)
+  if (_wfType && _wfType.options.length <= 1) {
+    const _ts = new Set();
+    Object.values(state.wantData).forEach(w => {
+      const m = state.masterData.find(mm => mm.itemNum === w.itemNum && (!w.variation || mm.variation === w.variation));
+      if (m && m.itemType) _ts.add(m.itemType);
+    });
+    [..._ts].sort().forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; _wfType.appendChild(o); });
+    if (fType) _wfType.value = fType;
+  }
+
   const entries = Object.values(state.wantData).filter(w => {
-    if (!_wq) return true;
     const master = state.masterData.find(m => m.itemNum === w.itemNum && (!w.variation || m.variation === w.variation)) || {};
-    return (w.itemNum||'').toLowerCase().includes(_wq)
-      || (master.roadName||'').toLowerCase().includes(_wq)
-      || (master.itemType||'').toLowerCase().includes(_wq)
-      || (w.variation||'').toLowerCase().includes(_wq)
-      || (w.notes||'').toLowerCase().includes(_wq);
+    if (_wq) {
+      const match = (w.itemNum||'').toLowerCase().includes(_wq)
+        || (master.roadName||'').toLowerCase().includes(_wq)
+        || (master.itemType||'').toLowerCase().includes(_wq)
+        || (w.variation||'').toLowerCase().includes(_wq)
+        || (w.notes||'').toLowerCase().includes(_wq);
+      if (!match) return false;
+    }
+    if (fType && (master.itemType || '') !== fType) return false;
+    if (fPri && (w.priority || 'Medium') !== fPri) return false;
+    return true;
   });
-  // Keep count badge in sync
+
+  const totalWant = Object.keys(state.wantData).length;
   const countBadge = document.getElementById('nav-wanted2');
-  if (countBadge) countBadge.textContent = entries.length.toLocaleString();
+  if (countBadge) countBadge.textContent = totalWant.toLocaleString();
+  const countLabel = document.getElementById('want-count-label');
+  if (countLabel) countLabel.textContent = entries.length === totalWant ? totalWant + ' items' : entries.length + ' of ' + totalWant;
   const cardsEl = document.getElementById('want-cards');
   const tableEl = document.getElementById('want-table');
   const tbody   = document.getElementById('want-tbody');
 
-  // Priority order
   const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
-  entries.sort((a, b) => (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1));
+  if (sortBy === 'itemNum') {
+    entries.sort((a, b) => { const na=parseInt((a.itemNum||'').replace(/\D/g,''))||0; const nb=parseInt((b.itemNum||'').replace(/\D/g,''))||0; return na-nb||(a.itemNum||'').localeCompare(b.itemNum||''); });
+  } else if (sortBy === 'priceAsc') {
+    entries.sort((a, b) => (parseFloat(a.expectedPrice)||0) - (parseFloat(b.expectedPrice)||0));
+  } else if (sortBy === 'priceDesc') {
+    entries.sort((a, b) => (parseFloat(b.expectedPrice)||0) - (parseFloat(a.expectedPrice)||0));
+  } else {
+    entries.sort((a, b) => (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1));
+  }
 
   const priorityColor = { High: 'var(--accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
 
   if (entries.length === 0) {
     const empty = `<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">❤️</div><p>Your want list is empty</p><p style="font-size:0.8rem;margin-top:0.5rem">Add items you're looking for</p></div>`;
     if (cardsEl) cardsEl.innerHTML = empty;
-    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-dim)">No items on want list</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-dim)">No items on want list</td></tr>';
     return;
   }
 
@@ -5285,6 +5337,7 @@ function buildWantPage() {
     cardsEl.innerHTML = entries.map(w => {
       const master = state.masterData.find(m => m.itemNum === w.itemNum && (!w.variation || m.variation === w.variation));
       const name = master ? (master.roadName || master.description || master.itemType || '') : '';
+      const itemType = master ? (master.itemType || '') : '';
       const pColor = priorityColor[w.priority] || 'var(--text-dim)';
       const masterIdx2 = master ? state.masterData.indexOf(master) : -1;
       const escVar = (w.variation||'').replace(/'/g,"\\'");
@@ -5294,6 +5347,7 @@ function buildWantPage() {
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.5rem">
               <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${w.itemNum}</span>
+              ${itemType ? \`<span class="tag" style="font-size:0.65rem">${itemType}</span>\` : ''}
               ${w.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${w.variation}</span>` : ''}
               <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${w.priority || 'Medium'}</span>
             </div>
@@ -5320,6 +5374,7 @@ function buildWantPage() {
     tbody.innerHTML = entries.map((w, idx) => {
       const master = state.masterData.find(m => m.itemNum === w.itemNum && (!w.variation || m.variation === w.variation));
       const roadName = master ? (master.roadName || '') : '';
+      const itemType = master ? (master.itemType || '') : '';
       const varDesc  = master ? (master.varDesc || master.variationDesc || '') : '';
       const fullDesc = master ? (master.description || '') : '';
       window._wantDescs[idx] = { title: roadName || w.itemNum, varDesc, fullDesc };
@@ -5330,6 +5385,7 @@ function buildWantPage() {
         : (w.variation ? `<span class="text-dim">${w.variation}</span>` : '<span class="text-dim">—</span>');
       return `<tr>
         <td><span class="item-num">${w.itemNum}</span></td>
+        <td><span class="tag">${itemType || '\u2014'}</span></td>
         <td>${roadName || '<span class="text-dim">—</span>'}</td>
         <td>${w.variation || '<span class="text-dim">—</span>'}</td>
         <td>${varCell}</td>
@@ -5342,7 +5398,7 @@ function buildWantPage() {
           <button onclick="removeWantItem('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}',${w.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)" title="Remove from Want List">Remove</button>
         </td>
       </tr>`;
-    }).join('') || '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-dim)">No items on want list</td></tr>';
+    }).join('') || '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-dim)">No items on want list</td></tr>';
   }
 }
 
@@ -5433,6 +5489,7 @@ function moveWantToCollection(itemNum, variation) {
     wizard.data._fromWantKey = `${itemNum}|${variation}`;
     wizard.data._rawItemNum = itemNum;
     wizard.data.itemNum = itemNum;
+    wizard.data.itemCategory = 'lionel';  // Skip category picker
     if (variation) wizard.data.variation = variation;
     // Try to find master match
     const master = state.masterData.find(m => m.itemNum === itemNum && (!variation || m.variation === variation));
@@ -5451,13 +5508,13 @@ function moveWantToCollection(itemNum, variation) {
 }
 
 function wantFindOnEbay(itemNum, roadName) {
-  const query = ['lionel', itemNum, roadName || ''].filter(Boolean).join(' ').trim();
+  const query = 'lionel ' + itemNum;
   const url = 'https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(query) + '&_sacat=180250';
   window.open(url, '_blank');
 }
 
 function wantSearchOtherSites(itemNum, roadName) {
-  const query = ['lionel', itemNum, roadName || '', 'for sale'].filter(Boolean).join(' ').trim();
+  const query = 'lionel ' + itemNum + ' for sale';
   const url = 'https://www.google.com/search?q=' + encodeURIComponent(query);
   window.open(url, '_blank');
 }
