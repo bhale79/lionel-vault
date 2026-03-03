@@ -1774,23 +1774,8 @@ function _oauthRedirectUrl(prompt) {
 // Track if we already handled an OAuth redirect (prevents redirect loop)
 let _oauthRedirectHandled = false;
 
-// Show a status message on screen (for debugging PWA auth)
-function _authStatus(msg) {
-  console.log('[Auth]', msg);
-  // Update page title so it's visible in tab/PWA header
-  document.title = msg;
-  try {
-    let el = document.getElementById('_auth-status');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = '_auth-status';
-      el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#000;border-bottom:3px solid #e8401c;padding:0.75rem 1rem;font-size:0.72rem;color:#0f0;z-index:99999;font-family:monospace;max-height:40vh;overflow:auto;line-height:1.6';
-      (document.body || document.documentElement).appendChild(el);
-    }
-    el.innerHTML += '<div>' + new Date().toLocaleTimeString() + ' ' + msg + '</div>';
-    el.scrollTop = el.scrollHeight;
-  } catch(e) { console.log('_authStatus DOM error:', e); }
-}
+// Auth debug logging (console only — no visible panel)
+function _authStatus(msg) { console.log('[Auth]', msg); }
 
 // Check URL hash for OAuth redirect token on page load
 function _checkOAuthRedirect() {
