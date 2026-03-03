@@ -6283,53 +6283,60 @@ function closeWizard() {
 }
 
 function completeQuickEntry(itemNum, variation, globalIdx) {
-  // Open wizard pre-filled for a Quick Entry item so user can complete details
-  openWizard('collection');
-  setTimeout(function() {
-    if (!window.wizard) return;
-    wizard.data._rawItemNum = itemNum;
-    wizard.data.itemNum = itemNum;
-    if (variation) wizard.data.variation = variation;
-    // Mark as fill-in mode so saveWizardItem updates the existing row
-    wizard.data._fillItemMode = true;
-    // Pre-fill from existing personal data so nothing gets blanked on save
-    var pdKey = findPDKey(itemNum, variation);
-    var pd = pdKey ? state.personalData[pdKey] : null;
-    if (pd) {
-      if (pd.condition && pd.condition !== 'N/A') wizard.data.condition = pd.condition;
-      if (pd.allOriginal) wizard.data.allOriginal = pd.allOriginal;
-      if (pd.hasBox) wizard.data.hasBox = pd.hasBox;
-      if (pd.boxCond) wizard.data.boxCond = pd.boxCond;
-      if (pd.priceItem && pd.priceItem !== 'N/A') wizard.data.priceItem = pd.priceItem;
-      if (pd.priceBox) wizard.data.priceBox = pd.priceBox;
-      if (pd.priceComplete) wizard.data.priceComplete = pd.priceComplete;
-      if (pd.notes) wizard.data.notes = pd.notes;
-      if (pd.datePurchased) wizard.data.datePurchased = pd.datePurchased;
-      if (pd.userEstWorth) wizard.data.userEstWorth = pd.userEstWorth;
-      if (pd.yearMade) wizard.data.yearMade = pd.yearMade;
-      if (pd.location) wizard.data.location = pd.location;
-      if (pd.matchedTo) wizard.data.tenderMatch = pd.matchedTo;
-      if (pd.setId) wizard.data._setId = pd.setId;
-      if (pd.isError) wizard.data.isError = pd.isError;
-      if (pd.errorDesc) wizard.data.errorDesc = pd.errorDesc;
-      if (pd.photoItem) wizard.data.photosItem = { existing: pd.photoItem };
-      if (pd.photoBox) wizard.data.photosBox = { existing: pd.photoBox };
-    }
-    // Try to find master match
-    var master = state.masterData.find(function(m) { return m.itemNum === itemNum && (!variation || m.variation === variation); });
-    if (master) {
-      wizard.data.matchedItem = master;
-    }
-    // Land on the conditionDetails step (skip identification since item already exists)
-    var steps = getSteps('collection');
-    var condIdx = steps.findIndex(function(s) { return s.id === 'conditionDetails'; });
-    if (condIdx >= 0) {
-      wizard.data.entryMode = 'full';
-      wizard.data._itemGrouping = 'single';
-      wizard.step = condIdx;
-      renderWizardStep();
-    }
-  }, 150);
+  // Set up wizard state directly — no openWizard() which resets and renders step 1
+  var _activePg = document.querySelector('.page.active');
+  var _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'browse';
+
+  // Pre-fill from existing personal data so nothing gets blanked on save
+  var pdKey = findPDKey(itemNum, variation);
+  var pd = pdKey ? state.personalData[pdKey] : null;
+  var master = state.masterData.find(function(m) { return m.itemNum === itemNum && (!variation || m.variation === variation); });
+
+  var data = {
+    tab: 'collection',
+    _returnPage: _returnPage,
+    _rawItemNum: itemNum,
+    itemNum: itemNum,
+    itemCategory: 'lionel',
+    entryMode: 'full',
+    _itemGrouping: 'single',
+    _fillItemMode: true,
+  };
+  if (variation) data.variation = variation;
+  if (master) data.matchedItem = master;
+
+  // Carry forward all existing personal data fields
+  if (pd) {
+    if (pd.condition && pd.condition !== 'N/A') data.condition = pd.condition;
+    if (pd.allOriginal) data.allOriginal = pd.allOriginal;
+    if (pd.hasBox) data.hasBox = pd.hasBox;
+    if (pd.boxCond) data.boxCond = pd.boxCond;
+    if (pd.priceItem && pd.priceItem !== 'N/A') data.priceItem = pd.priceItem;
+    if (pd.priceBox) data.priceBox = pd.priceBox;
+    if (pd.priceComplete) data.priceComplete = pd.priceComplete;
+    if (pd.notes) data.notes = pd.notes;
+    if (pd.datePurchased) data.datePurchased = pd.datePurchased;
+    if (pd.userEstWorth) data.userEstWorth = pd.userEstWorth;
+    if (pd.yearMade) data.yearMade = pd.yearMade;
+    if (pd.location) data.location = pd.location;
+    if (pd.matchedTo) data.tenderMatch = pd.matchedTo;
+    if (pd.setId) data._setId = pd.setId;
+    if (pd.isError) data.isError = pd.isError;
+    if (pd.errorDesc) data.errorDesc = pd.errorDesc;
+    if (pd.photoItem) data.photosItem = { existing: pd.photoItem };
+    if (pd.photoBox) data.photosBox = { existing: pd.photoBox };
+  }
+
+  wizard = { step: 0, tab: 'collection', data: data, steps: getSteps('collection'), matchedItem: master || null };
+
+  // Jump to conditionDetails step
+  var condIdx = wizard.steps.findIndex(function(s) { return s.id === 'conditionDetails'; });
+  if (condIdx >= 0) wizard.step = condIdx;
+
+  // Now open the modal and render once at the correct step
+  document.getElementById('wizard-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderWizardStep();
 }
 
 function closeWizardOnOverlay(e) {
@@ -9529,13 +9536,13 @@ async function saveWizardItem() {
           d.datePurchased || '',
           engineWorth,
           d.tenderMatch && d.tenderMatch !== 'none' ? d.tenderMatch : '',
-          d._setId || '',  // Set ID — filled in after save if set unit
+          '',  // Set ID — filled in after save if set unit
           d.yearMade || '',  // Year Made (col Q)
         d.isError === 'Yes' ? 'Yes' : 'No',  // Is Error (col R)
         d.isError === 'Yes' ? (d.errorDesc || '') : '',  // Error Description (col S)
         '',  // Quick Entry (col T) — blank = normal full entry
-        (existing && existing.inventoryId) ? existing.inventoryId : nextInventoryId(),  // Inventory ID (col U)
-        (existing && existing.groupId) ? existing.groupId : '',  // Group ID (col V) — filled in below for grouped items
+        nextInventoryId(),  // Inventory ID (col U)
+        '',  // Group ID (col V) — filled in below for grouped items
         d.location || '',  // Location (col W)
         ];
       }
