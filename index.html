@@ -3994,13 +3994,21 @@ function showItemDetailPage(idx) {
     html += `<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">`;
     if (matchedTo) {
       const _mIcon = isTender(it.itemNum) ? '\ud83d\ude82' : '\ud83d\ude83';
-      html += `<div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:0.3rem">${_mIcon} Matched to: <strong style="color:var(--accent)">${matchedTo}</strong></div>`;
+      const _mtIdx = state.masterData.findIndex(md => md.itemNum === matchedTo);
+      html += `<div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:0.3rem">${_mIcon} Matched to: ${_mtIdx >= 0
+        ? '<a href="javascript:void(0)" onclick="showItemDetailPage(' + _mtIdx + ')" style="color:var(--accent);font-weight:700;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + matchedTo + '</a>'
+        : '<strong style="color:var(--accent)">' + matchedTo + '</strong>'}</div>`;
     }
     if (setId) {
       html += `<div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:0.3rem">\ud83d\udd17 Set: <strong style="color:#a855f7">${setId}</strong></div>`;
     }
     if (groupMembers.length) {
-      html += `<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.3rem">Grouped with: ${groupMembers.map(m => '<span style="color:var(--accent);font-family:var(--font-mono)">' + m.itemNum + '</span>').join(', ')}</div>`;
+      html += `<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.3rem">Grouped with: ${groupMembers.map(m => {
+        const _gIdx = state.masterData.findIndex(md => md.itemNum === m.itemNum && (!m.variation || md.variation === m.variation));
+        return _gIdx >= 0
+          ? '<a href="javascript:void(0)" onclick="showItemDetailPage(' + _gIdx + ')" style="color:var(--accent);font-family:var(--font-mono);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + m.itemNum + '</a>'
+          : '<span style="color:var(--accent);font-family:var(--font-mono)">' + m.itemNum + '</span>';
+      }).join(', ')}</div>`;
     }
     html += `</div>`;
   }
