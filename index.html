@@ -1761,6 +1761,10 @@ function initGoogle() {
 }
 
 function handleSignIn() {
+  if (!tokenClient) {
+    if (typeof google !== 'undefined') { initGoogle(); }
+    else { showToast('Google sign-in is still loading — try again in a moment', 3000, true); return; }
+  }
   tokenClient.requestAccessToken({ prompt: 'consent' });
 }
 
@@ -5606,7 +5610,7 @@ window.onload = () => {
 </script>
 
 <!-- Google Identity Services -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://accounts.google.com/gsi/client" async defer onload="if(!tokenClient)initGoogle();"></script>
 <script src="https://apis.google.com/js/api.js"></script>
 <script>
 // Picker state — declared at top so available to all onclick handlers
