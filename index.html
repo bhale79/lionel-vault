@@ -1771,6 +1771,9 @@ function _oauthRedirectUrl(prompt) {
   return 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
 }
 
+// Track if we already handled an OAuth redirect (prevents redirect loop)
+let _oauthRedirectHandled = false;
+
 // Check URL hash for OAuth redirect token on page load
 function _checkOAuthRedirect() {
   const hash = window.location.hash;
@@ -1793,6 +1796,8 @@ function _checkOAuthRedirect() {
   if (!params.get('access_token')) return false;
   const token = params.get('access_token');
   if (!token) return false;
+  // Mark as handled so initGoogle won't redirect again
+  _oauthRedirectHandled = true;
   // Clear the hash so it doesn't linger in the URL
   history.replaceState(null, '', window.location.pathname + window.location.search);
   // Process the token the same way as popup flow
@@ -1938,12 +1943,12 @@ function initGoogle() {
     showApp();
     showLoading();
     const savedEmail = state.user?.email || '';
-    if (_isStandalone()) {
+    if (_isStandalone() && !_oauthRedirectHandled && !accessToken) {
       // Standalone/PWA mode: popups are blocked, use redirect for silent re-auth
       window.location.href = _oauthRedirectUrl('none');
       return;
     }
-    if (tokenClient) {
+    if (tokenClient && !accessToken) {
       tokenClient.requestAccessToken({ prompt: '', login_hint: savedEmail });
     }
   }
