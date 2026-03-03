@@ -1915,20 +1915,30 @@ function _finishTokenSetup() {
 
 // Search Google Drive for existing personal sheet by name
 async function _findPersonalSheetByName() {
-  try {
-    const q = encodeURIComponent("name='" + PERSONAL_SHEET_NAME + "' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false");
-    const res = await fetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id,name)&spaces=drive', {
-      headers: { Authorization: 'Bearer ' + accessToken }
-    });
-    const data = await res.json();
-    if (data.files && data.files.length > 0) {
-      return data.files[0].id;
+  // Try exact name first, then broader searches
+  const searches = [
+    "name='" + PERSONAL_SHEET_NAME + "'",
+    "name contains 'Lionel Vault'",
+    "name contains 'My Collection'",
+  ];
+  for (const nameQ of searches) {
+    try {
+      const q = encodeURIComponent(nameQ + " and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false");
+      const res = await fetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id,name)&spaces=drive', {
+        headers: { Authorization: 'Bearer ' + accessToken }
+      });
+      const data = await res.json();
+      _authStatus('Drive search "' + nameQ.substring(0,30) + '": ' + (data.files ? data.files.length + ' results' : 'error'));
+      if (data.files && data.files.length > 0) {
+        // Log all found sheets
+        data.files.forEach(f => _authStatus('  → ' + f.name + ' (' + f.id.substring(0,10) + '...)'));
+        return data.files[0].id;
+      }
+    } catch(e) {
+      _authStatus('Drive search error: ' + e.message);
     }
-    return null;
-  } catch(e) {
-    console.warn('_findPersonalSheetByName error:', e);
-    return null;
   }
+  return null;
 }
 
 // Schedule silent token refresh 55 min from now
@@ -2979,6 +2989,40 @@ async function loadPersonalData() {
   _authStatus('loadPersonalData: sheetId=' + (state.personalSheetId ? state.personalSheetId.substring(0,10) + '...' : 'NULL'));
   if (!state.personalSheetId) {
     _authStatus('⚠️ No personal sheet ID — skipping personal data load');
+    return;
+  }
+
+  // Quick verification: check if the sheet actually exists (prevents loading from stale/wrong IDs)
+  try {
+    const checkRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=spreadsheetId', {
+      headers: { Authorization: 'Bearer ' + accessToken }
+    });
+    if (checkRes.status === 404 || checkRes.status === 403) {
+      _authStatus('⚠️ Personal sheet ' + state.personalSheetId.substring(0,10) + '... returned ' + checkRes.status + '. Searching Drive for real sheet...');
+      // Clear stale ID
+      localStorage.removeItem('lv_personal_id');
+      localStorage.removeItem('lv_personal_cache');
+      localStorage.removeItem('lv_personal_cache_ts');
+      state.personalSheetId = null;
+      // Search Drive for existing sheet by name
+      const foundId = await _findPersonalSheetByName();
+      if (foundId) {
+        _authStatus('✅ Found real personal sheet: ' + foundId.substring(0,10) + '...');
+        state.personalSheetId = foundId;
+        localStorage.setItem('lv_personal_id', foundId);
+        // Update Drive config for future loads
+        driveWriteConfig({ personalSheetId: foundId }).catch(() => {});
+      } else {
+        _authStatus('→ No existing sheet found. Creating new one...');
+        await createPersonalSheet();
+      }
+    }
+  } catch(e) {
+    _authStatus('Sheet verification error: ' + e.message);
+  }
+
+  if (!state.personalSheetId) {
+    _authStatus('⚠️ Still no personal sheet ID after recovery');
     return;
   }
 
