@@ -2688,6 +2688,12 @@ async function sheetsGet(spreadsheetId, range) {
     ? {}
     : { Authorization: `Bearer ${accessToken}` };
   const res = await fetch(url, { headers });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    const errMsg = 'sheetsGet ' + range + ' HTTP ' + res.status + ': ' + errText.substring(0, 200);
+    _authStatus('❌ ' + errMsg);
+    throw new Error(errMsg);
+  }
   return res.json();
 }
 
@@ -3030,19 +3036,24 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   const newEphemera = { catalogs:{}, paper:{}, mockups:{}, other:{} };
   const newForSale = {};
 
-  // Fetch all tabs in parallel
+  // Fetch all tabs in parallel — with debug logging
+  const _dbgFetch = (range) => sheetsGet(sheetId, range).catch(e => {
+    _authStatus('⚠️ Fetch ' + range + ' FAILED: ' + e.message);
+    return {values:[]};
+  });
   const [collRes, soldRes, forSaleRes, wantRes,
          catRes, paperRes, mockRes, otherRes, isRes] = await Promise.all([
-    sheetsGet(sheetId, 'My Collection!A3:W').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Sold!A3:H').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'For Sale!A3:H').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Want List!A3:E').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Catalogs!A3:I').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Paper Items!A3:J').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Mock-Ups!A3:O').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Other Lionel!A3:J').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Instruction Sheets!A3:H').catch(() => ({values:[]})),
+    _dbgFetch('My Collection!A3:W'),
+    _dbgFetch('Sold!A3:H'),
+    _dbgFetch('For Sale!A3:H'),
+    _dbgFetch('Want List!A3:E'),
+    _dbgFetch('Catalogs!A3:I'),
+    _dbgFetch('Paper Items!A3:J'),
+    _dbgFetch('Mock-Ups!A3:O'),
+    _dbgFetch('Other Lionel!A3:J'),
+    _dbgFetch('Instruction Sheets!A3:H'),
   ]);
+  _authStatus('Collection rows: ' + (collRes.values||[]).length + ' | Want: ' + (wantRes.values||[]).length + ' | Sold: ' + (soldRes.values||[]).length);
 
   // My Collection
   (collRes.values || []).forEach((r, idx) => {
