@@ -3572,11 +3572,34 @@ function renderBrowse() {
   const masterNums = new Set(state.masterData.map(m => m.itemNum + '|' + (m.variation||'')));
   const personalOnlyItems = Object.values(state.personalData)
     .filter(pd => pd.owned && !masterNums.has(pd.itemNum + '|' + (pd.variation||'')))
-    .map(pd => ({
-      itemNum: pd.itemNum, variation: pd.variation || '', itemType: pd.itemType || 'Diesel Locomotive',
-      roadName: pd.roadName || '', description: pd.notes || '', yearProd: pd.datePurchased || '',
-      marketVal: '', refLink: '', _personalOnly: true // market value from master sheet only
-    }));
+    .map(pd => {
+      // Infer type from item number suffix for personal-only items
+      let _poType = pd.itemType || '';
+      const _num = (pd.itemNum || '').toUpperCase();
+      if (!_poType) {
+        if (_num.endsWith('-MBOX'))      _poType = 'Master Carton';
+        else if (_num.endsWith('-BOX'))  _poType = 'Box';
+        else if (_num.endsWith('-P'))    _poType = 'Powered Unit';
+        else if (_num.endsWith('-T'))    _poType = 'Dummy Unit';
+      }
+      // Strip suffix to find the base item for description/roadName
+      const _baseNum = pd.itemNum.replace(/-(P|T|BOX|MBOX)$/i, '');
+      const _baseItem = _baseNum !== pd.itemNum
+        ? (state.masterData.find(m => m.itemNum === _baseNum && (!pd.variation || m.variation === pd.variation))
+           || state.masterData.find(m => m.itemNum === _baseNum))
+        : null;
+      return {
+        itemNum: pd.itemNum, variation: pd.variation || '',
+        itemType: _poType || (_baseItem ? _baseItem.itemType : ''),
+        roadName: pd.roadName || (_baseItem ? _baseItem.roadName : ''),
+        description: _baseItem ? _baseItem.description : (pd.notes || ''),
+        yearProd: pd.datePurchased || (_baseItem ? _baseItem.yearProd : ''),
+        marketVal: _baseItem ? _baseItem.marketVal : '',
+        varDesc: _baseItem ? _baseItem.varDesc : '',
+        refLink: _baseItem ? _baseItem.refLink : '',
+        _personalOnly: true
+      };
+    });
   const baseList = owned ? [...state.masterData, ...personalOnlyItems] : state.masterData;
 
   state.filteredData = baseList.filter(item => {
@@ -3945,7 +3968,32 @@ function showItemDetailPage(idx) {
     pdKey = poKey;
   }
   if (!pd && !item) return;
-  const it = item || { itemNum: pd.itemNum, variation: pd.variation || '', itemType: pd.itemType || '', roadName: pd.roadName || '', description: '', yearProd: pd.yearMade || '', marketVal: '', varDesc: '', refLink: '' };
+  // Infer type from suffix for personal-only items
+  let _detailType = pd && pd.itemType ? pd.itemType : '';
+  let _baseItem = null; // master data for the base item (e.g. 2032 for 2032-P)
+  if (!item && pd) {
+    const _dn = (pd.itemNum || '').toUpperCase();
+    if (_dn.endsWith('-MBOX'))      _detailType = _detailType || 'Master Carton';
+    else if (_dn.endsWith('-BOX'))  _detailType = _detailType || 'Box';
+    else if (_dn.endsWith('-P'))    _detailType = _detailType || 'Powered Unit';
+    else if (_dn.endsWith('-T'))    _detailType = _detailType || 'Dummy Unit';
+    // Strip suffix to find the base item in master data for description/roadName/varDesc
+    const _baseNum = pd.itemNum.replace(/-(P|T|BOX|MBOX)$/i, '');
+    if (_baseNum !== pd.itemNum) {
+      _baseItem = state.masterData.find(m => m.itemNum === _baseNum && (!pd.variation || m.variation === pd.variation))
+               || state.masterData.find(m => m.itemNum === _baseNum);
+    }
+  }
+  const it = item || {
+    itemNum: pd.itemNum, variation: pd.variation || '',
+    itemType: _detailType || (_baseItem ? _baseItem.itemType : ''),
+    roadName: pd.roadName || (_baseItem ? _baseItem.roadName : ''),
+    description: _baseItem ? _baseItem.description : '',
+    yearProd: pd.yearMade || (_baseItem ? _baseItem.yearProd : ''),
+    marketVal: _baseItem ? _baseItem.marketVal : '',
+    varDesc: _baseItem ? _baseItem.varDesc : '',
+    refLink: _baseItem ? _baseItem.refLink : '',
+  };
 
   // Show page
   showPage('itemdetail');
@@ -4166,7 +4214,24 @@ function showCollectionDetail(idx) {
     pd = poKey ? state.personalData[poKey] : null;
   }
   if (!pd && !item) return;
-  const it = item || { itemNum: pd.itemNum, variation: pd.variation, itemType: '', roadName: '', description: '', yearProd: '', marketVal: '', varDesc: '' };
+  // Look up base item for suffixed personal-only items
+  let _panelBase = null;
+  if (!item && pd) {
+    const _bn = pd.itemNum.replace(/-(P|T|BOX|MBOX)$/i, '');
+    if (_bn !== pd.itemNum) {
+      _panelBase = state.masterData.find(m => m.itemNum === _bn && (!pd.variation || m.variation === pd.variation))
+                || state.masterData.find(m => m.itemNum === _bn);
+    }
+  }
+  const it = item || {
+    itemNum: pd.itemNum, variation: pd.variation || '',
+    itemType: pd.itemType || (_panelBase ? _panelBase.itemType : ''),
+    roadName: pd.roadName || (_panelBase ? _panelBase.roadName : ''),
+    description: _panelBase ? _panelBase.description : '',
+    yearProd: _panelBase ? _panelBase.yearProd : '',
+    marketVal: _panelBase ? _panelBase.marketVal : '',
+    varDesc: _panelBase ? _panelBase.varDesc : '',
+  };
 
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
@@ -9753,6 +9818,7 @@ async function saveWizardItem() {
         state.personalData[boxKey] = {
           row: 99999, itemNum: boxItemNum, variation,
           status: 'Owned', owned: true,
+          itemType: 'Box',
           condition: d.boxCond || '', hasBox: 'Yes', boxCond: d.boxCond || '',
           priceBox: d.priceBox || '',
           notes: (d.notes || '').trim() || 'Box for ' + itemNum,
@@ -10168,6 +10234,7 @@ async function saveWizardItem() {
         state.personalData[mbKey] = {
           row: 99999, itemNum: mbItemNum, variation: '',
           status: 'Owned', owned: true,
+          itemType: 'Master Carton',
           condition: d.masterBoxCond || '', hasBox: 'Yes', boxCond: d.masterBoxCond || '',
           notes: (d.masterBoxNotes || '').trim() || 'Master box for ' + _rawItemNum + ' set',
           matchedTo: itemNum, setId: setId || '',
