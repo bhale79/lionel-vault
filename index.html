@@ -2325,14 +2325,8 @@ async function driveMoveFileToFolder(fileId, fromFolderId, toFolderId) {
 
 // Called once on first run — creates the full vault folder structure
 async function driveSetupVault() {
-  // Find or create root vault folder
-  const rootRes = await driveRequest('GET', '/files/root?fields=id');
-  const rootId = rootRes && rootRes.id;
-  if (!rootId) {
-    console.error('[Drive] Cannot access Drive root:', rootRes);
-    throw new Error('Cannot access Google Drive — please check permissions');
-  }
-  driveCache.vaultId = await driveFindOrCreateFolder('Lionel Vault - My Collection', rootId);
+  // Use 'root' directly as parent ID — Drive API accepts it without needing to look up the ID
+  driveCache.vaultId = await driveFindOrCreateFolder('Lionel Vault - My Collection', 'root');
   localStorage.setItem('lv_vault_id', driveCache.vaultId);
 
   // Find or create both photo subfolders (always, so nothing is missing)
