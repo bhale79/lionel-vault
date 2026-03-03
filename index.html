@@ -979,7 +979,13 @@
           My Google Sheet
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;opacity:0.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>
-
+        <button id="refresh-btn" onclick="forceRefreshData()"
+          style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;border-radius:7px;color:var(--text-dim);font-size:0.82rem;background:none;border:none;width:100%;cursor:pointer;text-align:left;font-family:var(--font-body)"
+          onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='var(--text)'"
+          onmouseout="this.style.background='none';this.style.color='var(--text-dim)'">
+          <svg id="refresh-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Sync from Sheet
+        </button>
       </div>
     </nav>
 
@@ -999,19 +1005,19 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
             <button class="btn" onclick="startWizardFor('collection')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid var(--accent);color:var(--accent);background:rgba(232,64,28,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              <span style="text-align:center;line-height:1.25">Add to<br>Collection</span>
+              Add to Collection
             </button>
             <button class="btn" onclick="startWizardFor('want')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #2980b9;color:#2980b9;background:rgba(41,128,185,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
-              <span style="text-align:center;line-height:1.25">Add to<br>Want List</span>
+              Want List
             </button>
             <button class="btn" onclick="startWizardFor('forsale')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-              <span style="text-align:center;line-height:1.25">Add to<br>For Sale List</span>
+              For Sale
             </button>
             <button class="btn" onclick="startWizardFor('sold')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #2ecc71;color:#2ecc71;background:rgba(46,204,113,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              <span style="text-align:center;line-height:1.25">Add to<br>Sold Items List</span>
+              Sell Item
             </button>
 
           </div>
@@ -1255,7 +1261,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
                 <th>Var. Description</th>
                 <th>Priority</th>
                 <th>Est. Price</th>
-                <th>Action</th>
+                <th style="min-width:220px">Actions</th>
               </tr>
             </thead>
             <tbody id="want-tbody"></tbody>
@@ -1738,262 +1744,12 @@ let state = {
 // ── GOOGLE IDENTITY / AUTH ──────────────────────────────────────
 let tokenClient;
 
-// Detect PWA standalone mode (home screen icon) — popups are blocked here
-// Only true when launched from home screen, NOT regular mobile browser
-function _isStandalone() {
-  // iOS Safari "Add to Home Screen"
-  if (window.navigator.standalone === true) return true;
-  // Android TWA or Chrome "Add to Home Screen"
-  if (window.matchMedia('(display-mode: standalone)').matches) return true;
-  // Fallback: check if there's no browser UI (not reliable, skip)
-  return false;
-}
-
-// Build OAuth redirect URL for standalone/PWA mode
-function _oauthRedirectUrl(prompt) {
-  const redirectUri = window.location.origin + window.location.pathname;
-  const params = new URLSearchParams({
-    client_id: CLIENT_ID,
-    redirect_uri: redirectUri,
-    response_type: 'token',
-    scope: SCOPES,
-    prompt: prompt || 'consent',
-    include_granted_scopes: 'true',
-  });
-  // Add login_hint if we know the user's email
-  const savedUser = localStorage.getItem('lv_user');
-  if (savedUser) {
-    try {
-      const u = JSON.parse(savedUser);
-      if (u.email) params.set('login_hint', u.email);
-    } catch(e) {}
-  }
-  return 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
-}
-
-// Track if we already handled an OAuth redirect (prevents redirect loop)
-let _oauthRedirectHandled = false;
-
-// Auth debug logging (console only — no visible panel)
-function _authStatus(msg) { console.log('[Auth]', msg); }
-
-// Check URL hash for OAuth redirect token on page load
-function _checkOAuthRedirect() {
-  const hash = window.location.hash;
-  if (!hash || hash.length < 2) return false;
-  const params = new URLSearchParams(hash.substring(1));
-
-  // Handle OAuth errors
-  const error = params.get('error');
-  if (error) {
-    _authStatus('⚠️ OAuth error: ' + error + ' / ' + (params.get('error_description') || ''));
-    history.replaceState(null, '', window.location.pathname + window.location.search);
-    if (_isStandalone() && (error === 'interaction_required' || error === 'login_required' || error === 'consent_required')) {
-      _authStatus('→ Retrying with consent prompt...');
-      window.location.href = _oauthRedirectUrl('consent');
-      return true;
-    }
-    // For other errors (e.g. redirect_uri_mismatch), show sign-in screen
-    _authStatus('→ Showing sign-in screen. Error: ' + error);
-    return false;
-  }
-
-  if (!params.get('access_token')) return false;
-  const token = params.get('access_token');
-  if (!token) return false;
-  _oauthRedirectHandled = true;
-  _authStatus('✅ Got token from redirect (' + token.substring(0,10) + '...)');
-  history.replaceState(null, '', window.location.pathname + window.location.search);
-  // Process the token the same way as popup flow
-  accessToken = token;
-  _tokenIsInitial = false;
-  // Set up master sheet
-  state.masterSheetId = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
-  localStorage.setItem('lv_master_id', state.masterSheetId);
-  // Fetch user info
-  fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-    headers: { Authorization: 'Bearer ' + accessToken }
-  })
-  .then(r => r.json())
-  .then(info => {
-    state.user = { name: info.given_name || info.name || 'User', email: info.email };
-    localStorage.setItem('lv_user', JSON.stringify(state.user));
-    showApp();
-    updateUserUI();
-    _finishTokenSetup();
-  })
-  .catch(e => {
-    console.error('User info fetch failed:', e);
-    const savedUser = localStorage.getItem('lv_user');
-    if (savedUser) {
-      state.user = JSON.parse(savedUser);
-      showApp();
-      updateUserUI();
-      _finishTokenSetup();
-    }
-  });
-  // Schedule token refresh
-  _scheduleTokenRefresh();
-  return true;
-}
-
-// Shared logic: after receiving a token, load data from sheets/drive
-function _finishTokenSetup() {
-  _authStatus('_finishTokenSetup called. personalSheetId in state: ' + (state.personalSheetId || 'null') + ' | in localStorage: ' + (localStorage.getItem('lv_personal_id') || 'null'));
-  driveReadConfig().then(config => {
-    _authStatus('driveReadConfig result: ' + (config ? JSON.stringify({pid: config.personalSheetId?.substring(0,10), vid: !!config.vaultId}) : 'null'));
-    if (config && config.personalSheetId) {
-      state.personalSheetId = config.personalSheetId;
-      localStorage.setItem('lv_personal_id', config.personalSheetId);
-      if (config.vaultId)      { driveCache.vaultId = config.vaultId;           localStorage.setItem('lv_vault_id', config.vaultId); }
-      if (config.photosId)     { driveCache.photosId = config.photosId;         localStorage.setItem('lv_photos_id', config.photosId); }
-      if (config.soldPhotosId) { driveCache.soldPhotosId = config.soldPhotosId; localStorage.setItem('lv_sold_photos_id', config.soldPhotosId); }
-      loadAllData();
-    } else {
-      state.personalSheetId = localStorage.getItem('lv_personal_id');
-      _authStatus('No drive config. localStorage personalSheetId: ' + (state.personalSheetId || 'null'));
-      if (!state.personalSheetId) {
-        // Last resort: search Drive for the personal sheet by name
-        _authStatus('→ Searching Drive for existing personal sheet...');
-        _findPersonalSheetByName().then(foundId => {
-          if (foundId) {
-            _authStatus('✅ Found personal sheet: ' + foundId.substring(0,10) + '...');
-            state.personalSheetId = foundId;
-            localStorage.setItem('lv_personal_id', foundId);
-            // Save to drive config so future loads are faster
-            driveWriteConfig({ personalSheetId: foundId }).catch(() => {});
-            loadAllData();
-          } else {
-            _authStatus('→ No existing sheet found. Creating new personal sheet...');
-            createPersonalSheet().then(loadAllData);
-          }
-        }).catch(e => {
-          _authStatus('→ Drive search failed: ' + e.message + '. Creating new sheet...');
-          createPersonalSheet().then(loadAllData);
-        });
-      } else {
-        driveEnsureSetup().catch(e => console.warn('Drive setup:', e));
-        loadAllData();
-      }
-    }
-  }).catch((e) => {
-    _authStatus('driveReadConfig FAILED: ' + e.message);
-    state.personalSheetId = localStorage.getItem('lv_personal_id');
-    if (!state.personalSheetId) {
-      // Last resort: search Drive for the personal sheet by name
-      _findPersonalSheetByName().then(foundId => {
-        if (foundId) {
-          state.personalSheetId = foundId;
-          localStorage.setItem('lv_personal_id', foundId);
-          loadAllData();
-        } else {
-          createPersonalSheet().then(loadAllData);
-        }
-      }).catch(() => {
-        createPersonalSheet().then(loadAllData);
-      });
-    } else {
-      loadAllData();
-    }
-  });
-}
-
-// Search Google Drive for existing personal sheet by name
-async function _findPersonalSheetByName() {
-  // Try exact name first, then broader searches
-  const searches = [
-    "name='" + PERSONAL_SHEET_NAME + "'",
-    "name contains 'Lionel Vault'",
-    "name contains 'My Collection'",
-  ];
-  for (const nameQ of searches) {
-    try {
-      const q = encodeURIComponent(nameQ + " and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false");
-      const res = await fetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id,name)&spaces=drive', {
-        headers: { Authorization: 'Bearer ' + accessToken }
-      });
-      const data = await res.json();
-      _authStatus('Drive search "' + nameQ.substring(0,30) + '": ' + (data.files ? data.files.length + ' results' : 'error'));
-      if (data.files && data.files.length > 0) {
-        // Log all found sheets
-        data.files.forEach(f => _authStatus('  → ' + f.name + ' (' + f.id.substring(0,10) + '...)'));
-        return data.files[0].id;
-      }
-    } catch(e) {
-      _authStatus('Drive search error: ' + e.message);
-    }
-  }
-  return null;
-}
-
-// Schedule silent token refresh 55 min from now
-function _scheduleTokenRefresh() {
-  setTimeout(() => {
-    if (!accessToken) return;
-    if (_isStandalone()) {
-      // In standalone mode, try a hidden iframe for silent refresh
-      _silentIframeRefresh();
-    } else if (tokenClient) {
-      const hint = state.user?.email || '';
-      tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
-    }
-  }, 55 * 60 * 1000);
-}
-
-// Silent token refresh via hidden iframe (for standalone PWA mode)
-function _silentIframeRefresh() {
-  const redirectUri = window.location.origin + window.location.pathname;
-  const params = new URLSearchParams({
-    client_id: CLIENT_ID,
-    redirect_uri: redirectUri,
-    response_type: 'token',
-    scope: SCOPES,
-    prompt: 'none',
-    include_granted_scopes: 'true',
-  });
-  if (state.user?.email) params.set('login_hint', state.user.email);
-  const iframe = document.createElement('iframe');
-  iframe.style.display = 'none';
-  iframe.src = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
-  const _cleanup = () => { try { document.body.removeChild(iframe); } catch(e) {} };
-  iframe.onload = function() {
-    try {
-      const hash = iframe.contentWindow.location.hash;
-      if (hash && hash.includes('access_token=')) {
-        const p = new URLSearchParams(hash.substring(1));
-        const newToken = p.get('access_token');
-        if (newToken) {
-          accessToken = newToken;
-          _scheduleTokenRefresh();
-        }
-      }
-    } catch(e) {
-      // Cross-origin — can't read iframe. Token may have expired.
-      console.warn('Silent refresh failed (cross-origin). User may need to re-auth.');
-    }
-    _cleanup();
-  };
-  setTimeout(_cleanup, 10000); // safety cleanup
-  document.body.appendChild(iframe);
-}
-
 function initGoogle() {
-  // First check if we're returning from an OAuth redirect
-  if (_checkOAuthRedirect()) return;
-
-  try {
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: SCOPES,
-      callback: onTokenReceived,
-    });
-  } catch(e) {
-    console.error('initGoogle error:', e);
-    // In standalone mode this is expected if GIS hasn't loaded — we'll use redirect flow
-    if (!_isStandalone()) {
-      alert('Google init error: ' + e.message);
-    }
-  }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: onTokenReceived,
+  });
 
   // Check for existing session — master ID is hardcoded, just need saved user
   const savedUser = localStorage.getItem('lv_user');
@@ -2005,54 +1761,14 @@ function initGoogle() {
     state.user = JSON.parse(savedUser);
     state.personalSheetId = savedPersonalId;
     showApp();
-    showLoading();
+    showLoading(); // show spinner — onTokenReceived will call loadAllData once token is ready
     const savedEmail = state.user?.email || '';
-    _authStatus('Saved user: ' + savedEmail + ' | standalone: ' + _isStandalone() + ' | redirectHandled: ' + _oauthRedirectHandled + ' | hasToken: ' + !!accessToken);
-    if (_isStandalone() && !_oauthRedirectHandled && !accessToken) {
-      _authStatus('→ Redirecting to Google (prompt=none)...');
-      window.location.href = _oauthRedirectUrl('none');
-      return;
-    }
-    if (tokenClient && !accessToken) {
-      _authStatus('→ Requesting token via popup...');
-      tokenClient.requestAccessToken({ prompt: '', login_hint: savedEmail });
-    } else if (accessToken) {
-      _authStatus('→ Already have token, skipping auth');
-    }
+    tokenClient.requestAccessToken({ prompt: '', login_hint: savedEmail });
   }
 }
 
 function handleSignIn() {
-  // In standalone/PWA mode, use redirect flow (popups are blocked)
-  if (_isStandalone()) {
-    window.location.href = _oauthRedirectUrl('consent');
-    return;
-  }
-  // Normal browser mode — use popup flow
-  const btn = document.querySelector('.btn-google');
-  if (btn) btn.textContent = 'Signing in…';
-  try {
-    if (typeof google === 'undefined') {
-      alert('Google sign-in library failed to load. Check your internet connection and try refreshing.');
-      if (btn) btn.textContent = 'Continue with Google';
-      return;
-    }
-    if (!tokenClient) {
-      initGoogle();
-    }
-    if (!tokenClient) {
-      alert('Could not initialize sign-in. Try refreshing the page.');
-      if (btn) btn.textContent = 'Continue with Google';
-      return;
-    }
-    tokenClient.requestAccessToken({ prompt: 'consent' });
-    setTimeout(function() {
-      if (!accessToken && btn) btn.textContent = 'Continue with Google';
-    }, 10000);
-  } catch(e) {
-    alert('Sign-in error: ' + e.message);
-    if (btn) btn.textContent = 'Continue with Google';
-  }
+  tokenClient.requestAccessToken({ prompt: 'consent' });
 }
 
 function onGoogleSignIn(response) {
@@ -2069,25 +1785,27 @@ let _tokenIsInitial = true;
 function onTokenReceived(resp) {
   if (resp.error) {
     console.error('Token error:', resp);
+    // If silent token refresh failed, prompt user to sign in again
     if (resp.error === 'interaction_required' || resp.error === 'login_required') {
-      _tokenIsInitial = true;
-      if (tokenClient) {
-        const hint = state.user?.email || '';
-        tokenClient.requestAccessToken({ prompt: 'consent', login_hint: hint });
-      } else if (_isStandalone()) {
-        window.location.href = _oauthRedirectUrl('consent');
-      }
+      const hint = state.user?.email || '';
+      _tokenIsInitial = true; // next token will be a fresh sign-in
+      tokenClient.requestAccessToken({ prompt: 'consent', login_hint: hint });
     }
     return;
   }
 
   const isInitial = _tokenIsInitial;
-  _tokenIsInitial = false;
+  _tokenIsInitial = false; // all subsequent tokens are background refreshes
 
   accessToken = resp.access_token;
 
-  // Schedule next silent refresh
-  _scheduleTokenRefresh();
+  // Schedule next silent refresh 55 min from now (tokens last 1 hour)
+  setTimeout(() => {
+    if (accessToken) {
+      const hint = state.user?.email || '';
+      tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
+    }
+  }, 55 * 60 * 1000);
 
   // Background refresh — just update the token, don't reload data
   if (!isInitial) {
@@ -2115,15 +1833,41 @@ function onTokenReceived(resp) {
   state.masterSheetId = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
   localStorage.setItem('lv_master_id', state.masterSheetId);
 
-  // Load data via shared helper
-  _finishTokenSetup();
+  // Always sync from Drive config to ensure correct sheet ID across devices
+  driveReadConfig().then(config => {
+    if (config && config.personalSheetId) {
+      // Always use Drive config as source of truth
+      state.personalSheetId = config.personalSheetId;
+      localStorage.setItem('lv_personal_id', config.personalSheetId);
+      if (config.vaultId)      { driveCache.vaultId = config.vaultId;           localStorage.setItem('lv_vault_id', config.vaultId); }
+      if (config.photosId)     { driveCache.photosId = config.photosId;         localStorage.setItem('lv_photos_id', config.photosId); }
+      if (config.soldPhotosId) { driveCache.soldPhotosId = config.soldPhotosId; localStorage.setItem('lv_sold_photos_id', config.soldPhotosId); }
+      loadAllData();
+    } else {
+      // No config yet — check localStorage then create if needed
+      state.personalSheetId = localStorage.getItem('lv_personal_id');
+      if (!state.personalSheetId) {
+        createPersonalSheet().then(loadAllData);
+      } else {
+        driveEnsureSetup().catch(e => console.warn('Drive setup:', e));
+        loadAllData();
+      }
+    }
+  }).catch(() => {
+    // Drive read failed — fall back to localStorage
+    state.personalSheetId = localStorage.getItem('lv_personal_id');
+    if (!state.personalSheetId) {
+      createPersonalSheet().then(loadAllData);
+    } else {
+      loadAllData();
+    }
+  });
 }
 
 function handleSignOut() {
-  try { google.accounts.oauth2.revoke(localStorage.getItem('lv_token'), () => {}); } catch(e) {}
+  google.accounts.oauth2.revoke(localStorage.getItem('lv_token'), () => {});
   localStorage.removeItem('lv_user');
   localStorage.removeItem('lv_token');
-  accessToken = null;
   state.user = null;
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app').classList.remove('active');
@@ -2682,77 +2426,52 @@ async function sheetsGet(spreadsheetId, range) {
   const headers = useApiKey
     ? {}
     : { Authorization: `Bearer ${accessToken}` };
-  // Retry with backoff for 429 rate limit errors
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const res = await fetch(url, { headers });
-    if (res.status === 429 && attempt < 2) {
-      const wait = (attempt + 1) * 2000; // 2s, 4s
-      _authStatus('⏳ Rate limited on ' + range + ', retrying in ' + (wait/1000) + 's...');
-      await new Promise(r => setTimeout(r, wait));
-      continue;
-    }
-    if (!res.ok) {
-      const errText = await res.text().catch(() => '');
-      const errMsg = 'sheetsGet ' + range + ' HTTP ' + res.status + ': ' + errText.substring(0, 200);
-      _authStatus('❌ ' + errMsg);
-      throw new Error(errMsg);
-    }
-    return res.json();
-  }
+  const res = await fetch(url, { headers });
+  return res.json();
 }
 
 // ── Token refresh helper — silently refreshes expired token then retries ──
 // On mobile, tokens expire and the silent refresh sometimes doesn't fire in time.
 // This wraps any fetch so a 401 triggers a fresh token request before retrying once.
 async function _withTokenRetry(fetchFn) {
-  // If no token at all, try to get one
-  if (!accessToken) {
-    if (tokenClient) {
-      await new Promise((resolve, reject) => {
-        const hint = state.user?.email || '';
-        const prev = tokenClient.callback;
-        tokenClient.callback = (resp) => {
-          tokenClient.callback = prev;
-          if (resp.error) { reject(new Error('Token required: ' + resp.error)); return; }
-          accessToken = resp.access_token;
-          resolve();
-        };
-        tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
-        setTimeout(() => reject(new Error('Sign-in timed out')), 10000);
-      });
-    } else if (_isStandalone()) {
-      window.location.href = _oauthRedirectUrl('consent');
-      throw new Error('Redirecting for sign-in...');
-    }
+  // If no token at all, try to get one silently first
+  if (!accessToken && tokenClient) {
+    await new Promise((resolve, reject) => {
+      const hint = state.user?.email || '';
+      const prev = tokenClient.callback;
+      tokenClient.callback = (resp) => {
+        tokenClient.callback = prev;
+        if (resp.error) { reject(new Error('Token required: ' + resp.error)); return; }
+        accessToken = resp.access_token;
+        resolve();
+      };
+      tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
+      setTimeout(() => reject(new Error('Sign-in timed out')), 10000);
+    });
   }
   if (!accessToken) throw new Error('Not signed in — please reload and sign in again');
 
   const res = await fetchFn();
   if (res.status === 401 || res.status === 403) {
-    if (tokenClient) {
-      await new Promise((resolve, reject) => {
-        const hint = state.user?.email || '';
-        const prevCallback = tokenClient.callback;
-        tokenClient.callback = (resp) => {
-          tokenClient.callback = prevCallback;
-          if (resp.error) { reject(new Error('Token refresh failed: ' + resp.error)); return; }
-          accessToken = resp.access_token;
-          resolve();
-        };
-        tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
-        setTimeout(() => reject(new Error('Token refresh timed out')), 8000);
-      });
-      const retryRes = await fetchFn();
-      if (!retryRes.ok) {
-        const errBody = await retryRes.json().catch(() => ({}));
-        throw new Error(`Sheets API error ${retryRes.status}: ${errBody?.error?.message || retryRes.statusText}`);
-      }
-      return retryRes;
-    } else if (_isStandalone()) {
-      window.location.href = _oauthRedirectUrl('consent');
-      throw new Error('Token expired — redirecting for sign-in...');
+    if (!tokenClient) throw new Error('Cannot refresh token — please reload');
+    await new Promise((resolve, reject) => {
+      const hint = state.user?.email || '';
+      const prevCallback = tokenClient.callback;
+      tokenClient.callback = (resp) => {
+        tokenClient.callback = prevCallback;
+        if (resp.error) { reject(new Error('Token refresh failed: ' + resp.error)); return; }
+        accessToken = resp.access_token;
+        resolve();
+      };
+      tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
+      setTimeout(() => reject(new Error('Token refresh timed out')), 8000);
+    });
+    const retryRes = await fetchFn();
+    if (!retryRes.ok) {
+      const errBody = await retryRes.json().catch(() => ({}));
+      throw new Error(`Sheets API error ${retryRes.status}: ${errBody?.error?.message || retryRes.statusText}`);
     }
-    throw new Error('Cannot refresh token — please reload');
+    return retryRes;
   }
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}));
@@ -2889,16 +2608,14 @@ function saveUserDefinedTabs() {
 }
 
 async function loadAllData() {
-  _authStatus('loadAllData started');
   showLoading();
   try {
     loadUserDefinedTabs();
+    // Load master data (uses cache if fresh) and personal data in parallel
     await Promise.all([loadMasterData(), loadPersonalData()]);
-    _authStatus('loadAllData complete. Master: ' + state.masterData.length + ' items. Personal: ' + Object.keys(state.personalData).length + ' items');
     buildApp();
     showOnboarding();
   } catch(e) {
-    _authStatus('❌ loadAllData ERROR: ' + e.message);
     showToast('Load error: ' + e.message);
     const tb = document.getElementById('browse-tbody');
     if (tb) tb.innerHTML = '<tr><td colspan="9" style="padding:2rem;color:var(--red);text-align:center">Error loading data. Please refresh.<br><small>' + e.message + '</small></td></tr>';
@@ -2921,20 +2638,18 @@ async function loadMasterData() {
   if (cached && cacheAge < CACHE_TTL) {
     try {
       state.masterData = JSON.parse(cached);
-      // Refresh in background after delay to avoid rate limiting
-      setTimeout(() => {
-        sheetsGet(state.masterSheetId, 'Master Inventory!A2:P').then(res => {
-          if (!res.values) return sheetsGet(state.masterSheetId, 'Sheet1!A2:P');
-          return res;
-        }).then(res => {
-          if (res && res.values) {
-            parseMasterRows(res.values);
-            localStorage.setItem('lv_master_cache', JSON.stringify(state.masterData));
-            localStorage.setItem('lv_master_cache_ts', Date.now().toString());
-            if (typeof renderBrowse === 'function') renderBrowse();
-          }
-        }).catch(() => {});
-      }, 8000);
+      // Refresh in background without blocking
+      sheetsGet(state.masterSheetId, 'Master Inventory!A2:P').then(res => {
+        if (!res.values) return sheetsGet(state.masterSheetId, 'Sheet1!A2:P');
+        return res;
+      }).then(res => {
+        if (res && res.values) {
+          parseMasterRows(res.values);
+          localStorage.setItem('lv_master_cache', JSON.stringify(state.masterData));
+          localStorage.setItem('lv_master_cache_ts', Date.now().toString());
+          if (typeof renderBrowse === 'function') renderBrowse();
+        }
+      }).catch(() => {});
       return;
     } catch(e) {}
   }
@@ -2982,52 +2697,13 @@ async function loadPersonalData() {
   if (!state.personalSheetId) {
     state.personalSheetId = localStorage.getItem('lv_personal_id');
   }
-  _authStatus('loadPersonalData: sheetId=' + (state.personalSheetId ? state.personalSheetId.substring(0,10) + '...' : 'NULL'));
-  if (!state.personalSheetId) {
-    _authStatus('⚠️ No personal sheet ID — skipping personal data load');
-    return;
-  }
+  if (!state.personalSheetId) return;
 
-  // Quick verification: check if the sheet actually exists (prevents loading from stale/wrong IDs)
-  // Skip if we have valid cached data — no need for extra API call
+  // Use cached personal data for instant load (15 min TTL)
   const _pcache = localStorage.getItem('lv_personal_cache');
   const _ptime  = parseInt(localStorage.getItem('lv_personal_cache_ts') || '0');
   const _PAGE_TTL = 15 * 60 * 1000;
-  const _hasFreshCache = _pcache && (Date.now() - _ptime) < _PAGE_TTL;
-  if (!_hasFreshCache) {
-    try {
-      const checkRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=spreadsheetId', {
-        headers: { Authorization: 'Bearer ' + accessToken }
-      });
-      if (checkRes.status === 404 || checkRes.status === 403) {
-        _authStatus('⚠️ Personal sheet ' + state.personalSheetId.substring(0,10) + '... returned ' + checkRes.status + '. Searching Drive for real sheet...');
-        localStorage.removeItem('lv_personal_id');
-        localStorage.removeItem('lv_personal_cache');
-        localStorage.removeItem('lv_personal_cache_ts');
-        state.personalSheetId = null;
-        const foundId = await _findPersonalSheetByName();
-        if (foundId) {
-          _authStatus('✅ Found real personal sheet: ' + foundId.substring(0,10) + '...');
-          state.personalSheetId = foundId;
-          localStorage.setItem('lv_personal_id', foundId);
-          driveWriteConfig({ personalSheetId: foundId }).catch(() => {});
-        } else {
-          _authStatus('→ No existing sheet found. Creating new one...');
-          await createPersonalSheet();
-        }
-      }
-    } catch(e) {
-      _authStatus('Sheet verification error: ' + e.message);
-    }
-  }
-
-  if (!state.personalSheetId) {
-    _authStatus('⚠️ Still no personal sheet ID after recovery');
-    return;
-  }
-
-  // Use cached personal data for instant load (15 min TTL)
-  if (_hasFreshCache) {
+  if (_pcache && (Date.now() - _ptime) < _PAGE_TTL) {
     try {
       const _pd = JSON.parse(_pcache);
       state.personalData  = _pd.personalData  || {};
@@ -3036,14 +2712,12 @@ async function loadPersonalData() {
       state.wantData      = _pd.wantData      || {};
       state.isData        = _pd.isData        || {};
       state.ephemeraData  = _pd.ephemeraData  || { catalogs:{}, paper:{}, mockups:{}, other:{} };
-      // Refresh in background after a delay to avoid rate limiting
-      setTimeout(() => {
-        _loadPersonalFromSheets(state.personalSheetId).then(() => {
-          _cachePersonalData();
-          buildDashboard();
-          renderBrowse();
-        }).catch(() => {});
-      }, 5000);
+      // Refresh in background
+      _loadPersonalFromSheets(state.personalSheetId).then(() => {
+        _cachePersonalData();
+        buildDashboard();
+        renderBrowse();
+      }).catch(() => {});
       return;
     } catch(e) {}
   }
@@ -3079,48 +2753,19 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   const newEphemera = { catalogs:{}, paper:{}, mockups:{}, other:{} };
   const newForSale = {};
 
-  // Fetch all tabs in a SINGLE batchGet request (1 API call instead of 9)
-  const ranges = [
-    'My Collection!A3:W', 'Sold!A3:H', 'For Sale!A3:H', 'Want List!A3:E',
-    'Catalogs!A3:I', 'Paper Items!A3:J', 'Mock-Ups!A3:O', 'Other Lionel!A3:J',
-    'Instruction Sheets!A3:H'
-  ];
-  const rangeParams = ranges.map(r => 'ranges=' + _encodeRange(r)).join('&');
-  let batchResults;
-  try {
-    const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchGet?${rangeParams}`;
-    const batchRes = await fetch(batchUrl, { headers: { Authorization: 'Bearer ' + accessToken } });
-    if (!batchRes.ok) {
-      const errText = await batchRes.text().catch(() => '');
-      _authStatus('❌ batchGet HTTP ' + batchRes.status + ': ' + errText.substring(0, 200));
-      throw new Error('batchGet failed: HTTP ' + batchRes.status);
-    }
-    const batchData = await batchRes.json();
-    batchResults = batchData.valueRanges || [];
-  } catch(e) {
-    _authStatus('⚠️ batchGet failed: ' + e.message + '. Falling back to individual fetches...');
-    // Fallback: fetch individually with small delays
-    batchResults = [];
-    for (const range of ranges) {
-      try {
-        const r = await sheetsGet(sheetId, range);
-        batchResults.push(r);
-      } catch(e2) {
-        _authStatus('⚠️ Fetch ' + range + ' FAILED: ' + e2.message);
-        batchResults.push({values:[]});
-      }
-    }
-  }
-  const collRes    = batchResults[0] || {values:[]};
-  const soldRes    = batchResults[1] || {values:[]};
-  const forSaleRes = batchResults[2] || {values:[]};
-  const wantRes    = batchResults[3] || {values:[]};
-  const catRes     = batchResults[4] || {values:[]};
-  const paperRes   = batchResults[5] || {values:[]};
-  const mockRes    = batchResults[6] || {values:[]};
-  const otherRes   = batchResults[7] || {values:[]};
-  const isRes      = batchResults[8] || {values:[]};
-  _authStatus('Collection rows: ' + (collRes.values||[]).length + ' | Want: ' + (wantRes.values||[]).length + ' | Sold: ' + (soldRes.values||[]).length);
+  // Fetch all tabs in parallel
+  const [collRes, soldRes, forSaleRes, wantRes,
+         catRes, paperRes, mockRes, otherRes, isRes] = await Promise.all([
+    sheetsGet(sheetId, 'My Collection!A3:W').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Sold!A3:H').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'For Sale!A3:H').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Want List!A3:E').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Catalogs!A3:I').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Paper Items!A3:J').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Mock-Ups!A3:O').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Other Lionel!A3:J').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Instruction Sheets!A3:H').catch(() => ({values:[]})),
+  ]);
 
   // My Collection
   (collRes.values || []).forEach((r, idx) => {
@@ -3307,6 +2952,38 @@ function showLoading() {
 }
 
 // ── DASHBOARD ───────────────────────────────────────────────────
+
+async function forceRefreshData() {
+  const btn  = document.getElementById('refresh-btn');
+  const icon = document.getElementById('refresh-icon');
+  if (btn) btn.disabled = true;
+  if (icon) icon.style.animation = 'spin 0.8s linear infinite';
+  try {
+    localStorage.removeItem('lv_personal_cache');
+    localStorage.removeItem('lv_personal_cache_ts');
+    // Wipe state completely so merge logic can't keep stale optimistic items
+    state.personalData = {};
+    state.soldData = {};
+    state.forSaleData = {};
+    state.wantData = {};
+    await _loadPersonalFromSheets(state.personalSheetId, true);
+    _cachePersonalData();
+    resetFilters();
+    buildDashboard();
+    buildSoldPage();
+    buildForSalePage();
+    buildWantPage();
+    renderBrowse();
+    buildQuickEntryList && buildQuickEntryList();
+    showToast('✓ Synced from Google Sheet');
+  } catch(e) {
+    console.error('Sync error:', e);
+    showToast('Sync failed: ' + e.message, 5000, true);
+  } finally {
+    if (btn)  btn.disabled = false;
+    if (icon) icon.style.animation = '';
+  }
+}
 
 function buildDashboard() {
   const total = state.masterData.length;
@@ -4146,7 +3823,7 @@ function showCollectionDetail(idx) {
   box.innerHTML = '<div style="padding:1.25rem 1.5rem;border-bottom:2px solid var(--accent);display:flex;align-items:center;justify-content:space-between">'
     + '<div><div style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent);letter-spacing:0.04em">No. ' + it.itemNum + '</div>'
     + '<div style="font-size:0.82rem;color:var(--text-mid);margin-top:2px">' + (it.roadName || it.itemType || '') + '</div></div>'
-    + '<button onclick="this.closest(\x27[style*=fixed]\x27).remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer">✕</button>'
+    + '<button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer">✕</button>'
     + '</div>'
     + '<div style="padding:1rem 1.5rem">'
     + rows.map(r => '<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border)">'
@@ -4155,7 +3832,7 @@ function showCollectionDetail(idx) {
       + '</div>').join('')
     + groupHtml
     + '<div style="margin-top:1rem;text-align:center">'
-    + '<button onclick="this.closest(\x27[style*=fixed]\x27).remove();browseRowClick(null,' + idx + ')" style="padding:0.5rem 1.2rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;font-weight:600">Edit Item</button>'
+    + '<button onclick="this.closest('[style*=fixed]').remove();browseRowClick(null,' + idx + ')" style="padding:0.5rem 1.2rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;font-weight:600">Edit Item</button>'
     + '</div>'
     + '</div>';
 
@@ -5609,19 +5286,28 @@ function buildWantPage() {
       const name = master ? (master.roadName || master.description || master.itemType || '') : '';
       const pColor = priorityColor[w.priority] || 'var(--text-dim)';
       const masterIdx2 = master ? state.masterData.indexOf(master) : -1;
-      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;display:flex;align-items:center;gap:0.75rem">
-        <div style="flex:1;min-width:0" onclick="${masterIdx2>=0?`openItem(${masterIdx2})`:''}" style="cursor:pointer">
-          <div style="display:flex;align-items:center;gap:0.5rem">
-            <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${w.itemNum}</span>
-            ${w.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${w.variation}</span>` : ''}
-            <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${w.priority || 'Medium'}</span>
+      const escVar = (w.variation||'').replace(/'/g,"\\'");
+      const escName = (name||'').replace(/'/g,"\\'");
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">
+        <div style="display:flex;align-items:center;gap:0.75rem;cursor:pointer" ${masterIdx2>=0?`onclick="openItem(${masterIdx2})"`:''}>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${w.itemNum}</span>
+              ${w.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${w.variation}</span>` : ''}
+              <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${w.priority || 'Medium'}</span>
+            </div>
+            ${name ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.15rem">${name}</div>` : ''}
+            ${w.notes ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${w.notes}</div>` : ''}
           </div>
-          ${name ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.15rem">${name}</div>` : ''}
-          ${w.notes ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${w.notes}</div>` : ''}
+          <div style="text-align:right;flex-shrink:0">
+            ${w.expectedPrice ? `<div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.9rem">$${parseFloat(w.expectedPrice).toLocaleString()}</div>` : ''}
+          </div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;flex-shrink:0">
-          ${w.expectedPrice ? `<div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.9rem">$${parseFloat(w.expectedPrice).toLocaleString()}</div>` : ''}
-          <button onclick="event.stopPropagation();moveWantToCollection('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}')" style="font-size:0.68rem;padding:0.25rem 0.5rem;border-radius:5px;border:1.5px solid var(--accent);background:rgba(232,64,28,0.1);color:var(--accent);font-weight:600;cursor:pointer;white-space:nowrap;font-family:var(--font-body)">+ Collection</button>
+        <div style="display:flex;gap:0.35rem;margin-top:0.6rem;flex-wrap:wrap">
+          <button onclick="event.stopPropagation();moveWantToCollection('${w.itemNum}','${escVar}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">+ Collection</button>
+          <button onclick="event.stopPropagation();wantFindOnEbay('${w.itemNum}','${escName}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);font-weight:600">eBay</button>
+          <button onclick="event.stopPropagation();wantSearchOtherSites('${w.itemNum}','${escName}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600">Search</button>
+          <button onclick="event.stopPropagation();removeWantItem('${w.itemNum}','${escVar}',${w.row})" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
         </div>
       </div>`;
     }).join('');
@@ -5648,7 +5334,12 @@ function buildWantPage() {
         <td>${varCell}</td>
         <td><span style="color:${pColor};font-weight:500">${w.priority || 'Medium'}</span></td>
         <td class="market-val">${w.expectedPrice ? '$' + parseFloat(w.expectedPrice).toLocaleString() : '<span class="text-dim">—</span>'}</td>
-        <td><button onclick="moveWantToCollection('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}')" style="font-size:0.72rem;padding:0.3rem 0.6rem;border-radius:6px;border:1.5px solid var(--accent);background:rgba(232,64,28,0.1);color:var(--accent);font-weight:600;cursor:pointer;white-space:nowrap;font-family:var(--font-body)">+ Collection</button></td>
+        <td style="white-space:nowrap">
+          <button onclick="moveWantToCollection('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.25rem" title="Add to My Collection">+ Collection</button>
+          <button onclick="wantFindOnEbay('${w.itemNum}','${(roadName||'').replace(/'/g,"\\'")}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);margin-right:0.25rem" title="Search eBay">eBay</button>
+          <button onclick="wantSearchOtherSites('${w.itemNum}','${(roadName||'').replace(/'/g,"\\'")}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);margin-right:0.25rem" title="Search other auction sites">Search</button>
+          <button onclick="removeWantItem('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}',${w.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)" title="Remove from Want List">Remove</button>
+        </td>
       </tr>`;
     }).join('') || '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-dim)">No items on want list</td></tr>';
   }
@@ -5716,58 +5407,57 @@ function showWantDesc(idx) {
   document.body.appendChild(overlay);
 }
 
-// Move a want list item to the collection — launches collection wizard pre-filled
+// ── Want List Actions ──────────────────────────────────────────
+async function removeWantItem(itemNum, variation, row) {
+  if (!confirm('Remove this item from your Want List?')) return;
+  const key = `${itemNum}|${variation}`;
+  if (row) {
+    await sheetsUpdate(state.personalSheetId, `Want List!A${row}:E${row}`, [['','','','','']]);
+  }
+  delete state.wantData[key];
+  localStorage.removeItem('lv_personal_cache');
+  localStorage.removeItem('lv_personal_cache_ts');
+  buildWantPage();
+  buildDashboard();
+  showToast('✓ Removed from Want List');
+}
+
 function moveWantToCollection(itemNum, variation) {
-  // Find the master data match
-  const master = state.masterData.find(m =>
-    m.itemNum === itemNum && (!variation || m.variation === variation)
-  );
-
-  // Open collection wizard pre-filled with this item
-  wizard = {
-    step: 0,
-    tab: 'collection',
-    data: {
-      tab: 'collection',
-      itemCategory: 'lionel',
-      itemNum: itemNum,
-      variation: variation || '',
-      _fromWantList: true,
-      _fromWantKey: `${itemNum}|${variation || ''}`,
-    },
-    steps: getSteps('collection'),
-    matchedItem: master || null,
-  };
-
-  document.getElementById('wizard-modal').classList.add('open');
-  document.body.style.overflow = 'hidden';
-
-  // Skip category picker, item number entry, item picker — jump past variation
-  let startStep = 0;
-  for (let i = 0; i < wizard.steps.length; i++) {
-    const sid = wizard.steps[i].id;
-    if (sid === 'itemCategory' || sid === 'itemNumGrouping' || sid === 'itemPicker') {
-      startStep = i + 1;
-      continue;
-    }
-    if (sid === 'variation') {
-      if (variation) {
-        startStep = i + 1;  // already know variation, skip it
-      } else {
-        startStep = i;      // let user pick variation
+  // Open collection wizard pre-filled from want list item
+  openWizard('collection');
+  // Short delay to let wizard initialize
+  setTimeout(function() {
+    if (!window.wizard) return;
+    wizard.data._fromWantList = true;
+    wizard.data._fromWantKey = `${itemNum}|${variation}`;
+    wizard.data._rawItemNum = itemNum;
+    // Try to find master match
+    const master = state.masterData.find(m => m.itemNum === itemNum && (!variation || m.variation === variation));
+    if (master) {
+      wizard.data.matchedItem = master;
+      wizard.data.itemNum = itemNum;
+      wizard.data.variation = variation || '';
+      // Skip to condition step (past identification steps)
+      const steps = getSteps('collection');
+      const condIdx = steps.findIndex(s => s.id === 'condition');
+      if (condIdx >= 0) {
+        wizard.step = condIdx;
+        renderWizardStep();
       }
-      break;
     }
-  }
-  wizard.step = startStep;
+  }, 150);
+}
 
-  // Set matched item data for variation step
-  if (master) {
-    wizard.data.matchedItem = master;
-    wizard.data._itemGrouping = master.itemNum;
-  }
+function wantFindOnEbay(itemNum, roadName) {
+  const query = ['lionel', itemNum, roadName || ''].filter(Boolean).join(' ').trim();
+  const url = 'https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(query) + '&_sacat=180250';
+  window.open(url, '_blank');
+}
 
-  renderWizardStep();
+function wantSearchOtherSites(itemNum, roadName) {
+  const query = ['lionel', itemNum, roadName || '', 'for sale'].filter(Boolean).join(' ').trim();
+  const url = 'https://www.google.com/search?q=' + encodeURIComponent(query);
+  window.open(url, '_blank');
 }
 
 function toggleSoldSummary() {
@@ -6019,17 +5709,12 @@ function parseJwt(token) {
 
 // ── INIT ────────────────────────────────────────────────────────
 window.onload = () => {
-  _authStatus('Page loaded. Hash: ' + (window.location.hash ? window.location.hash.substring(0,50) + '...' : '(none)'));
-  // Check for OAuth redirect token first (standalone/PWA mode)
-  if (_checkOAuthRedirect()) return;
-  // Normal flow — initialize via Google Identity Services
   if (typeof google !== 'undefined') initGoogle();
-  else _authStatus('⚠️ GIS not loaded yet (async)');
 };
 </script>
 
 <!-- Google Identity Services -->
-<script src="https://accounts.google.com/gsi/client" async defer onload="if(!tokenClient)initGoogle();"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://apis.google.com/js/api.js"></script>
 <script>
 // Picker state — declared at top so available to all onclick handlers
@@ -6563,18 +6248,6 @@ function _confirmEdit(key) {
       h2 += '<button onclick="_confirmPickOpt(\'' + key + '\',\'' + o + '\')" style="padding:0.25rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.78rem;font-family:var(--font-body);margin-right:0.2rem;border:1.5px solid ' + (sel2 ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel2 ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel2 ? 'var(--accent)' : 'var(--text-mid)') + '">' + o + '</button>';
     });
     valEl.innerHTML = h2;
-    btnEl.style.display = 'none';
-    return;
-  }
-  // Choice3 fields (e.g. priority: High/Medium/Low)
-  if (window._cfChoice3 && window._cfChoice3[key]) {
-    var opts3 = window._cfChoice3[key];
-    var h3 = '';
-    opts3.forEach(function(o) {
-      var sel3 = curVal === o;
-      h3 += '<button onclick="_confirmPickOpt(\'' + key + '\',\'' + o + '\')" style="padding:0.25rem 0.6rem;border-radius:5px;cursor:pointer;font-size:0.8rem;font-family:var(--font-body);margin-right:0.3rem;border:1.5px solid ' + (sel3 ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel3 ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel3 ? 'var(--accent)' : 'var(--text-mid)') + '">' + o + '</button>';
-    });
-    valEl.innerHTML = h3;
     btnEl.style.display = 'none';
     return;
   }
@@ -8203,17 +7876,6 @@ function renderWizardStep() {
     window._cfSlider = _sliderKeys;
     window._cfMoney = _moneyKeys;
     window._cfDate = _dateKeys;
-
-    // Build choice3 map from wizard steps (for fields like priority with custom choices)
-    window._cfChoice3 = {};
-    (wizard.steps || []).forEach(function(st) {
-      if (st.type === 'choice3' && st.choices && st.choices.length > 0) {
-        // Skip if already handled by YesNo or YesNoUnk
-        if (_yesNoKeys.indexOf(st.id) < 0 && _yesNoUnkKeys.indexOf(st.id) < 0) {
-          window._cfChoice3[st.id] = st.choices;
-        }
-      }
-    });
 
     let confirmHtml = '<div style="padding-top:0.5rem">';
     if (!_isEph && item) {
@@ -9949,16 +9611,14 @@ async function saveWizardItem() {
 
     closeWizard();
 
-    // ── If this came from the want list, remove it from want list ──
-    if (d._fromWantList && d._fromWantKey) {
+    // ── If this came from the Want List, clean up the want entry ──
+    if (d._fromWantList && d._fromWantKey && tab === 'collection') {
       const wantEntry = state.wantData[d._fromWantKey];
-      if (wantEntry && wantEntry.row && wantEntry.row !== 99999) {
-        // Delete the row from the Want List sheet by clearing it
-        try {
-          await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:E${wantEntry.row}`, [['','','','','']]);
-        } catch(e) { console.warn('Want list removal failed:', e); }
+      if (wantEntry && wantEntry.row) {
+        sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:E${wantEntry.row}`, [['','','','','']]).catch(e => console.warn('Want cleanup error:', e));
       }
       delete state.wantData[d._fromWantKey];
+      buildWantPage();
     }
 
     // ── Optimistic update: inject directly into state so item appears immediately ──
@@ -10003,7 +9663,6 @@ async function saveWizardItem() {
     buildDashboard();
     buildSoldPage();
     buildForSalePage();
-    buildWantPage();
     renderBrowse();
     showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'forsale' ? 'For Sale' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
 
@@ -10019,7 +9678,6 @@ async function saveWizardItem() {
         buildDashboard();
         buildSoldPage();
         buildForSalePage();
-        buildWantPage();
         renderBrowse();
       } catch(e) { console.warn('Background sync after save:', e); }
     }, _syncDelay);
