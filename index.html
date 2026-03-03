@@ -5431,19 +5431,20 @@ function moveWantToCollection(itemNum, variation) {
     wizard.data._fromWantList = true;
     wizard.data._fromWantKey = `${itemNum}|${variation}`;
     wizard.data._rawItemNum = itemNum;
+    wizard.data.itemNum = itemNum;
+    if (variation) wizard.data.variation = variation;
     // Try to find master match
     const master = state.masterData.find(m => m.itemNum === itemNum && (!variation || m.variation === variation));
     if (master) {
       wizard.data.matchedItem = master;
-      wizard.data.itemNum = itemNum;
-      wizard.data.variation = variation || '';
-      // Skip to condition step (past identification steps)
-      const steps = getSteps('collection');
-      const condIdx = steps.findIndex(s => s.id === 'condition');
-      if (condIdx >= 0) {
-        wizard.step = condIdx;
-        renderWizardStep();
-      }
+    }
+    // Land on itemNumGrouping step so the user sees grouping buttons
+    // (AA/AB/ABA for F3/Alco, engine+tender for steamers, single for freight)
+    const steps = getSteps('collection');
+    const groupIdx = steps.findIndex(s => s.id === 'itemNumGrouping');
+    if (groupIdx >= 0) {
+      wizard.step = groupIdx;
+      renderWizardStep();
     }
   }, 150);
 }
