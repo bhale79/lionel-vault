@@ -1746,6 +1746,7 @@ let state = {
   soldData: {},        // keyed by "itemNum|variation" -> sold row
   forSaleData: {},     // keyed by "itemNum|variation" -> for sale row
   wantData: {},        // keyed by "itemNum|variation" -> want list row
+  setData: [],         // all rows from Master Set list (read-only reference)
   filteredData: [],
   currentPage: 1,
   pageSize: 50,
@@ -2761,7 +2762,7 @@ async function loadAllData() {
   try {
     loadUserDefinedTabs();
     // Load master data (uses cache if fresh) and personal data in parallel
-    await Promise.all([loadMasterData(), loadPersonalData()]);
+    await Promise.all([loadMasterData(), loadPersonalData(), loadSetData()]);
     buildApp();
     showOnboarding();
   } catch(e) {
@@ -2835,6 +2836,72 @@ function parseMasterRows(rows) {
     seen.add(key);
     return true;
   });
+}
+
+async function loadSetData() {
+  try {
+    const cached = localStorage.getItem('lv_set_cache');
+    const cachedAt = parseInt(localStorage.getItem('lv_set_cache_ts') || '0');
+    if (cached && (Date.now() - cachedAt) < 24*60*60*1000) {
+      state.setData = JSON.parse(cached);
+      // Background refresh
+      sheetsGet(state.masterSheetId, 'Master Set list!A2:U').then(res => {
+        if (res && res.values) {
+          parseSetRows(res.values);
+          localStorage.setItem('lv_set_cache', JSON.stringify(state.setData));
+          localStorage.setItem('lv_set_cache_ts', Date.now().toString());
+        }
+      }).catch(() => {});
+      return;
+    }
+    const res = await sheetsGet(state.masterSheetId, 'Master Set list!A2:U');
+    parseSetRows((res && res.values) || []);
+    localStorage.setItem('lv_set_cache', JSON.stringify(state.setData));
+    localStorage.setItem('lv_set_cache_ts', Date.now().toString());
+  } catch(e) { console.warn('loadSetData:', e); state.setData = []; }
+}
+
+function parseSetRows(rows) {
+  state.setData = rows
+    .filter(r => r[0])
+    .map(r => ({
+      setNum:   (r[0]  || '').trim(),
+      setName:  (r[1]  || '').trim(),
+      year:     (r[2]  || '').trim(),
+      gauge:    (r[3]  || '').trim(),
+      price:    (r[4]  || '').trim(),
+      items:    [r[5],r[6],r[7],r[8],r[9],r[10],r[11],r[12],r[13],r[14],r[15]]
+                  .map(v => (v||'').trim()).filter(Boolean),
+      alts:     [r[16],r[17],r[18],r[19]]
+                  .map(v => (v||'').trim()).filter(Boolean),
+      notes:    (r[20] || '').trim(),
+    }));
+}
+
+// Find sets that match a list of item numbers (for set suggestion)
+function suggestSets(enteredItems) {
+  if (!enteredItems.length) return [];
+  const norm = n => normalizeItemNum((n||'').trim());
+  return state.setData
+    .map(s => {
+      const allItems = s.items;
+      const allAlts  = s.alts;
+      let primaryMatches = 0, altMatches = 0, matchedAlts = [];
+      enteredItems.forEach(ei => {
+        const en = norm(ei);
+        if (allItems.some(si => norm(si) === en)) {
+          primaryMatches++;
+        } else if (allAlts.some(ai => norm(ai) === en)) {
+          altMatches++;
+          matchedAlts.push(ei);
+        }
+      });
+      const total = primaryMatches + altMatches;
+      return { ...s, primaryMatches, altMatches, matchedAlts, total };
+    })
+    .filter(s => s.total >= 2)
+    .sort((a, b) => b.total - a.total || b.primaryMatches - a.primaryMatches)
+    .slice(0, 5);
 }
 
 async function loadPersonalData() {
@@ -4450,13 +4517,63 @@ function showOwnedItemMenu(idx, pdKey) {
 function collectionActionForSale(globalIdx, itemNum, variation) {
   var pdKey = findPDKey(itemNum, variation);
   if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
-  listForSaleFromCollection(globalIdx, pdKey);
+  _checkSetBeforeAction(pdKey, () => listForSaleFromCollection(globalIdx, pdKey));
 }
 
 function collectionActionSold(globalIdx, itemNum, variation) {
   var pdKey = findPDKey(itemNum, variation);
   if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
-  sellFromCollection(globalIdx, pdKey);
+  _checkSetBeforeAction(pdKey, () => sellFromCollection(globalIdx, pdKey));
+}
+
+function _checkSetBeforeAction(pdKey, proceed) {
+  const pd = state.personalData[pdKey] || {};
+  if (!pd.groupId) { proceed(); return; }
+  // Check if this groupId has other members
+  const siblings = Object.entries(state.personalData)
+    .filter(([k, p]) => k !== pdKey && p.groupId === pd.groupId);
+  if (!siblings.length) { proceed(); return; }
+  // Show set breakup modal
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border-radius:16px;padding:1.5rem;max-width:380px;width:100%;border:1px solid var(--border)">
+      <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.4rem">This item is part of a set</div>
+      <div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:1.25rem">
+        ${pd.setNum ? 'Set ' + pd.setNum + ' · ' : ''}${siblings.length + 1} items share this group.
+        What would you like to do?
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.5rem">
+        <button id="_setaction-proceed" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #27ae60;background:rgba(39,174,96,0.1);color:#27ae60;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
+          Continue — list as incomplete set<br>
+          <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">Other set items keep their group ID</span>
+        </button>
+        <button id="_setaction-break" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid var(--accent);background:rgba(232,64,28,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
+          Break up the set<br>
+          <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">Removes group from all ${siblings.length + 1} items</span>
+        </button>
+        <button id="_setaction-cancel" style="padding:0.75rem;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('_setaction-proceed').onclick = () => { overlay.remove(); proceed(); };
+  document.getElementById('_setaction-cancel').onclick  = () => overlay.remove();
+  document.getElementById('_setaction-break').onclick   = async () => {
+    overlay.remove();
+    // Clear groupId from all siblings in state and sheet
+    const allGroup = [[pdKey, pd], ...siblings];
+    for (const [k, p] of allGroup) {
+      state.personalData[k] = { ...p, groupId: '' };
+      if (p.row) {
+        // Group ID is column V (index 22, col 22)
+        sheetsUpdate(state.personalSheetId, 'My Collection!V' + p.row, [['']])
+          .catch(e => console.warn('Clear groupId row', p.row, e));
+      }
+    }
+    localStorage.removeItem('lv_personal_cache');
+    showToast('Set broken up — items are now individual');
+    proceed();
+  };
 }
 
 async function removeCollectionItem(itemNum, variation, row) {
@@ -6408,6 +6525,63 @@ function getSteps(tab) {
       ];
     }
 
+    // ── Set / Outfit flow ──
+    if (tab === 'set') {
+      return [
+        { id: 'set_knowsNum',
+          title: 'Do you know the set number?',
+          type: 'choice2', choices: ['Yes','No'] },
+
+        // YES path — enter set number
+        { id: 'set_num',
+          title: 'Enter the set number',
+          type: 'text', placeholder: 'e.g. 1467W, 2190W',
+          skipIf: d => d.set_knowsNum !== 'Yes' },
+
+        // NO path — enter loco first
+        { id: 'set_loco',
+          title: 'What is the locomotive item number?',
+          type: 'text', placeholder: 'e.g. 736, 2383P, 2023',
+          skipIf: d => d.set_knowsNum !== 'No' },
+
+        // Set box
+        { id: 'set_hasBox',
+          title: 'Does it have the original set box?',
+          type: 'choice2', choices: ['Yes','No'] },
+        { id: 'set_boxCond',
+          title: 'Set box condition (1–10)',
+          type: 'slider', min:1, max:10,
+          skipIf: d => d.set_hasBox !== 'Yes' },
+        { id: 'set_boxPhotos',
+          title: 'Add photos of the set box',
+          type: 'drivePhotos', label: 'SETBOX',
+          views: [
+            { key: 'SETBOX-TOP',    label: 'Top',    abbr: 'Top'    },
+            { key: 'SETBOX-SIDE',   label: 'Side',   abbr: 'Side'   },
+            { key: 'SETBOX-DETAIL', label: 'Detail', abbr: 'Detail' },
+          ], optional: true,
+          skipIf: d => d.set_hasBox !== 'Yes' },
+
+        // Component walkthrough — dynamic, rendered via 'setComponents' custom type
+        { id: 'set_components',
+          title: 'Now let\'s go through the pieces',
+          type: 'setComponents' },
+
+        // Notes
+        { id: 'set_notes',
+          title: 'Any notes about this set?',
+          type: 'textarea', optional: true,
+          placeholder: 'e.g. Track included (027 curve, 027 straight), transformer cord frayed' },
+
+        { id: 'set_confirm',
+          title: d => {
+            const count = Object.values(d.set_componentData||{}).filter(c=>c.have).length;
+            return `Ready to save — ${count} item${count!==1?'s':''} will be added to your collection`;
+          },
+          type: 'confirm' },
+      ];
+    }
+
     // ── Paper Items flow ──
     if (tab === 'paper') {
       // If user chose Instruction Sheet, redirect to IS flow
@@ -7157,6 +7331,7 @@ function renderWizardStep() {
     const _userTabs = state.userDefinedTabs || [];
     const _cats = [
       { id: 'lionel',   label: 'Lionel Item #',  desc: 'Train, car, accessory with a Lionel catalog number', emoji: '🚂', color: 'var(--accent)' },
+      { id: 'set',      label: 'Complete Set',   desc: 'Outfit box with loco, cars & accessories grouped together', emoji: '🎁', color: '#e67e22' },
       { id: 'paper',    label: 'Paper Item',       desc: 'Catalog, ad, flyer, instruction sheet, article, box insert', emoji: '📄', color: '#3498db' },
       { id: 'mockups',  label: 'Mock-Up',          desc: 'Pre-production prototype',                          emoji: '🔩', color: '#9b59b6' },
       { id: 'other',    label: 'Other Item',       desc: 'Accessory, display, anything else',                 emoji: '📦', color: '#27ae60' },
@@ -7809,6 +7984,190 @@ function renderWizardStep() {
 
     body.innerHTML = '';
     body.appendChild(tmContainer);
+
+  } else if (s.type === 'setComponents') {
+    // Resolve which set we're working with
+    const _setNum = wizard.data.set_num || '';
+    const _setLoco = (wizard.data.set_loco || '').trim();
+    const _compData = wizard.data.set_componentData || {};
+    let _resolvedSet = wizard.data._resolvedSet || null;
+    let _enteredItems = Object.keys(_compData);
+    if (_setLoco && !_enteredItems.includes(_setLoco)) _enteredItems = [_setLoco, ..._enteredItems];
+
+    // Find set by number if known
+    if (_setNum && !_resolvedSet) {
+      _resolvedSet = state.setData.find(s => normalizeItemNum(s.setNum) === normalizeItemNum(_setNum)) || null;
+      if (_resolvedSet) wizard.data._resolvedSet = _resolvedSet;
+    }
+
+    // Suggestions from entered items
+    const _suggestions = _enteredItems.length >= 1 ? suggestSets(_enteredItems) : [];
+    const _topSuggestion = !_resolvedSet && _suggestions[0] && _suggestions[0].total >= 2 ? _suggestions[0] : null;
+
+    // Build component list from resolved set or blank
+    const _setItems = _resolvedSet ? _resolvedSet.items : (_setLoco ? [_setLoco] : []);
+    const _setAlts  = _resolvedSet ? _resolvedSet.alts  : [];
+
+    body.innerHTML = '';
+
+    // Suggestion banner
+    if (!_resolvedSet && _topSuggestion) {
+      const banner = document.createElement('div');
+      banner.style.cssText = 'background:rgba(230,126,34,0.12);border:1.5px solid #e67e22;border-radius:10px;padding:0.75rem 1rem;margin-bottom:0.75rem';
+      banner.innerHTML = `
+        <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#e67e22;margin-bottom:0.3rem">🎁 Possible Set Match</div>
+        <div style="font-size:0.9rem;color:var(--text);font-weight:600">${_topSuggestion.setNum}${_topSuggestion.setName ? ' — ' + _topSuggestion.setName : ''}</div>
+        <div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.15rem">${_topSuggestion.total}/${_topSuggestion.items.length} items match${_topSuggestion.altMatches ? ' · includes alternate items' : ''} · ${_topSuggestion.year||'year unknown'}</div>
+        ${_topSuggestion.matchedAlts.length ? `<div style="font-size:0.72rem;color:#e67e22;margin-top:0.25rem">⚠ Alternate items matched: ${_topSuggestion.matchedAlts.join(', ')}</div>` : ''}
+        <div style="display:flex;gap:0.5rem;margin-top:0.6rem">
+          <button onclick="window._confirmSetMatch('${_topSuggestion.setNum}')" style="flex:1;padding:0.5rem;border-radius:8px;border:1.5px solid #e67e22;background:#e67e2222;color:#e67e22;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Yes, this is my set</button>
+          <button onclick="window._dismissSetMatch()" style="padding:0.5rem 0.75rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">Not this one</button>
+        </div>`;
+      body.appendChild(banner);
+    }
+
+    // Resolved set header
+    if (_resolvedSet) {
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'background:rgba(39,174,96,0.1);border:1.5px solid #27ae60;border-radius:10px;padding:0.6rem 1rem;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between';
+      hdr.innerHTML = `<div>
+        <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#27ae60">Set Identified</div>
+        <div style="font-size:0.9rem;color:var(--text);font-weight:600">${_resolvedSet.setNum}${_resolvedSet.setName ? ' — ' + _resolvedSet.setName : ''}</div>
+        <div style="font-size:0.75rem;color:var(--text-dim)">${_resolvedSet.year||''} ${_resolvedSet.gauge||''} · ${_resolvedSet.items.length} components</div>
+      </div>
+      <button onclick="wizard.data._resolvedSet=null;wizard.data.set_num='';renderWizardStep()" style="border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:1.1rem" title="Clear">✕</button>`;
+      body.appendChild(hdr);
+    }
+
+    // Known components from set
+    if (_setItems.length) {
+      const compHeader = document.createElement('div');
+      compHeader.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.4rem';
+      compHeader.textContent = _resolvedSet ? 'Known components — do you have each?' : 'Items entered so far';
+      body.appendChild(compHeader);
+
+      _setItems.forEach(itemNum => {
+        const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum));
+        const comp = _compData[itemNum] || {};
+        const isAlt = _setAlts.includes(itemNum);
+
+        const row = document.createElement('div');
+        row.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.85rem;margin-bottom:0.4rem';
+        row.innerHTML = `
+          <div style="display:flex;align-items:center;gap:0.6rem">
+            <span style="font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:var(--accent);min-width:60px">${itemNum}</span>
+            <span style="font-size:0.78rem;color:var(--text-mid);flex:1">${master ? (master.roadName ? master.roadName + ' ' : '') + master.description : (master ? master.itemType : '')}</span>
+            ${isAlt ? '<span style="font-size:0.62rem;background:#e67e2222;color:#e67e22;border-radius:4px;padding:1px 5px;font-weight:700">ALT</span>' : ''}
+            <div style="display:flex;gap:0.35rem">
+              <button onclick="window._setCompToggle('${itemNum}',true)" style="padding:0.3rem 0.6rem;border-radius:7px;border:1.5px solid ${comp.have===true?'#27ae60':'var(--border)'};background:${comp.have===true?'rgba(39,174,96,0.18)':'var(--surface)'};color:${comp.have===true?'#27ae60':'var(--text-dim)'};font-size:0.78rem;cursor:pointer">✓ Have</button>
+              <button onclick="window._setCompToggle('${itemNum}',false)" style="padding:0.3rem 0.6rem;border-radius:7px;border:1.5px solid ${comp.have===false?'var(--accent)':'var(--border)'};background:${comp.have===false?'rgba(232,64,28,0.12)':'var(--surface)'};color:${comp.have===false?'var(--accent)':'var(--text-dim)'};font-size:0.78rem;cursor:pointer">✗ No</button>
+            </div>
+          </div>
+          ${comp.have === true ? `
+          <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+            <span style="font-size:0.72rem;color:var(--text-dim)">Condition:</span>
+            ${[...Array(10)].map((_,i)=>`<button onclick="window._setCompCond('${itemNum}',${i+1})" style="width:26px;height:26px;border-radius:5px;border:1.5px solid ${(comp.condition||0)===i+1?'var(--accent)':'var(--border)'};background:${(comp.condition||0)===i+1?'rgba(232,64,28,0.2)':'var(--surface)'};font-size:0.72rem;cursor:pointer;color:${(comp.condition||0)===i+1?'var(--accent)':'var(--text-dim)'}">${i+1}</button>`).join('')}
+            <button onclick="window._setCompBoxToggle('${itemNum}')" style="margin-left:0.5rem;padding:0.25rem 0.6rem;border-radius:7px;border:1.5px solid ${comp.hasBox?'#3498db':'var(--border)'};background:${comp.hasBox?'rgba(52,152,219,0.15)':'var(--surface)'};color:${comp.hasBox?'#3498db':'var(--text-dim)'};font-size:0.72rem;cursor:pointer">📦 Has Box</button>
+            ${comp.hasBox ? `<input type="number" min="1" max="10" value="${comp.boxCond||''}" placeholder="Box cond." oninput="window._setCompBoxCond('${itemNum}',this.value)" style="width:70px;padding:0.2rem 0.4rem;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.75rem;font-family:var(--font-body)">` : ''}
+          </div>` : ''}`;
+        body.appendChild(row);
+      });
+    }
+
+    // Alt items not yet in list
+    if (_resolvedSet && _setAlts.length) {
+      const altHdr = document.createElement('div');
+      altHdr.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#e67e22;margin:0.75rem 0 0.4rem';
+      altHdr.textContent = '⚠ Known alternates for this set';
+      body.appendChild(altHdr);
+      _setAlts.forEach(itemNum => {
+        if (_setItems.includes(itemNum)) return;
+        const comp = _compData[itemNum] || {};
+        const altRow = document.createElement('div');
+        altRow.style.cssText = 'background:rgba(230,126,34,0.06);border:1px solid rgba(230,126,34,0.3);border-radius:10px;padding:0.55rem 0.85rem;margin-bottom:0.4rem;display:flex;align-items:center;gap:0.6rem';
+        altRow.innerHTML = `
+          <span style="font-family:var(--font-mono);font-size:0.88rem;font-weight:700;color:#e67e22;min-width:60px">${itemNum}</span>
+          <span style="font-size:0.75rem;color:var(--text-dim);flex:1">Alternate item for this set</span>
+          <button onclick="window._setCompToggle('${itemNum}',true)" style="padding:0.3rem 0.6rem;border-radius:7px;border:1.5px solid ${comp.have===true?'#27ae60':'var(--border)'};background:${comp.have===true?'rgba(39,174,96,0.18)':'var(--surface)'};color:${comp.have===true?'#27ae60':'var(--text-dim)'};font-size:0.78rem;cursor:pointer">✓ Have</button>`;
+        body.appendChild(altRow);
+      });
+    }
+
+    // Add item manually
+    const addRow = document.createElement('div');
+    addRow.style.cssText = 'display:flex;gap:0.5rem;margin-top:0.75rem';
+    addRow.innerHTML = `
+      <input id="set-comp-input" type="text" placeholder="Add item # (e.g. 6357, 1033)" autocomplete="off"
+        style="flex:1;padding:0.6rem 0.85rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.9rem"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();window._setCompAdd();}">
+      <button onclick="window._setCompAdd()" style="padding:0.6rem 1rem;border-radius:9px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-weight:600;cursor:pointer">Add</button>`;
+    body.appendChild(addRow);
+
+    // Suggestion list (multiple candidates)
+    if (!_resolvedSet && _suggestions.length > 1) {
+      const sugHdr = document.createElement('div');
+      sugHdr.style.cssText = 'font-size:0.72rem;color:var(--text-dim);margin-top:0.75rem;margin-bottom:0.3rem;font-weight:600;text-transform:uppercase;letter-spacing:0.07em';
+      sugHdr.textContent = 'Other possible sets:';
+      body.appendChild(sugHdr);
+      _suggestions.slice(1,4).forEach(sg => {
+        const sgRow = document.createElement('div');
+        sgRow.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0.75rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);margin-bottom:0.3rem;cursor:pointer';
+        sgRow.onclick = () => window._confirmSetMatch(sg.setNum);
+        sgRow.innerHTML = `
+          <span style="font-family:var(--font-mono);font-size:0.82rem;color:var(--accent);font-weight:700">${sg.setNum}</span>
+          <span style="font-size:0.78rem;color:var(--text-mid);flex:1">${sg.setName||''} (${sg.year||'?'})</span>
+          <span style="font-size:0.72rem;color:var(--text-dim)">${sg.total}/${sg.items.length}</span>
+          ${sg.matchedAlts.length ? '<span style="font-size:0.65rem;background:#e67e2222;color:#e67e22;border-radius:4px;padding:1px 5px">has alt</span>' : ''}`;
+        body.appendChild(sgRow);
+      });
+    }
+
+    // Wire up JS callbacks
+    window._setCompToggle = (itemNum, have) => {
+      if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
+      const ex = wizard.data.set_componentData[itemNum] || {};
+      wizard.data.set_componentData[itemNum] = { ...ex, have };
+      renderWizardStep();
+    };
+    window._setCompCond = (itemNum, val) => {
+      if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
+      const ex = wizard.data.set_componentData[itemNum] || {};
+      wizard.data.set_componentData[itemNum] = { ...ex, condition: parseInt(val) };
+    };
+    window._setCompBoxToggle = (itemNum) => {
+      if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
+      const ex = wizard.data.set_componentData[itemNum] || {};
+      wizard.data.set_componentData[itemNum] = { ...ex, hasBox: !ex.hasBox };
+      renderWizardStep();
+    };
+    window._setCompBoxCond = (itemNum, val) => {
+      if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
+      const ex = wizard.data.set_componentData[itemNum] || {};
+      wizard.data.set_componentData[itemNum] = { ...ex, boxCond: parseInt(val) };
+    };
+    window._setCompAdd = () => {
+      const inp = document.getElementById('set-comp-input');
+      const val = (inp ? inp.value : '').trim();
+      if (!val) return;
+      if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
+      if (!wizard.data.set_componentData[val]) wizard.data.set_componentData[val] = {};
+      // Re-run suggestions with new item added
+      renderWizardStep();
+    };
+    window._confirmSetMatch = (setNum) => {
+      const found = state.setData.find(s => s.setNum === setNum);
+      if (found) { wizard.data._resolvedSet = found; wizard.data.set_num = found.setNum; }
+      renderWizardStep();
+    };
+    window._dismissSetMatch = () => {
+      // Mark this suggestion as dismissed so it doesn't keep appearing
+      const top = suggestSets(Object.keys(wizard.data.set_componentData||{})).find(s=>s.total>=2);
+      if (top) {
+        if (!wizard.data._dismissedSets) wizard.data._dismissedSets = [];
+        wizard.data._dismissedSets.push(top.setNum);
+      }
+      renderWizardStep();
+    };
 
   } else if (s.type === 'drivePhotos') {
     const views = s.views ? s.views : s.label === 'Box' ? BOX_VIEWS : s.label === 'Error' ? ERROR_VIEWS : ITEM_VIEWS;
@@ -9565,6 +9924,14 @@ async function _wizardNextCore() {
     return;
   }
 
+  // Set confirm
+  if (s.id === 'set_confirm') {
+    if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
+    try { await saveSet(); } catch(e) { showToast('Error: ' + e.message); }
+    if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
+    return;
+  }
+
   // Instruction Sheet confirm
   if (s.id === 'is_confirm') {
     if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
@@ -9656,6 +10023,99 @@ function generatePaperItemNum(paperType, itemRef) {
   const base = itemRef ? itemRef.replace(/[^A-Za-z0-9]/g, '').toUpperCase() : 'PAP';
   const uid = Date.now().toString(36).slice(-4).toUpperCase();
   return base + '-' + typeCode + '-' + uid;
+}
+
+async function saveSet() {
+  const d = wizard.data;
+  const resolvedSet = d._resolvedSet;
+  const setNum = (d.set_num || (resolvedSet && resolvedSet.setNum) || '').trim();
+  const compData = d.set_componentData || {};
+
+  const ownedItems = Object.entries(compData).filter(([,c]) => c.have === true);
+  if (!ownedItems.length) { showToast('Mark at least one item as owned', 3000, true); return; }
+
+  // Generate shared group ID
+  const groupId = 'SET-' + (setNum || 'UNK') + '-' + Date.now();
+
+  // Handle set box photo upload
+  let setBoxPhotoLink = '';
+  if (d.set_hasBox === 'Yes') {
+    const photoObj = d.set_boxPhotos || {};
+    if (Object.keys(photoObj).some(k => photoObj[k]?.file)) {
+      try {
+        await driveEnsureSetup();
+        if (!driveCache.vaultId) await driveFindOrCreateFolder('Lionel Vault', null);
+        const setFolderName = setNum || groupId;
+        const setFolderId = await driveFindOrCreateFolder(setFolderName, driveCache.vaultId);
+        setBoxPhotoLink = 'https://drive.google.com/drive/folders/' + setFolderId;
+        for (const [viewKey, fileObj] of Object.entries(photoObj)) {
+          if (!fileObj?.file) continue;
+          const fname = setFolderName + ' ' + viewKey + '.' + (fileObj.file.name.split('.').pop() || 'jpg');
+          await driveUploadPhoto(fileObj.file, fname, setFolderId).catch(e => console.warn(e));
+        }
+      } catch(e) { console.warn('Set box photos:', e); }
+    }
+  }
+
+  // Save each owned component as a My Collection row
+  const savedItems = [];
+  for (const [itemNum, comp] of ownedItems) {
+    const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum));
+    const invId = nextInventoryId();
+    const notes = [
+      setNum ? 'From set ' + setNum : '',
+      resolvedSet && resolvedSet.alts && resolvedSet.alts.includes(itemNum) ? 'Alternate item' : '',
+      d.set_notes || '',
+    ].filter(Boolean).join(' · ');
+
+    const row = [
+      itemNum,                         // A: Item #
+      '',                              // B: Variation
+      master ? master.itemType : '',   // C: Type
+      master ? master.roadName : '',   // D: Road
+      master ? master.yearProd : '',   // E: Year
+      comp.condition || '',            // F: Condition
+      comp.hasBox ? 'Yes' : 'No',     // G: Has Box
+      comp.boxCond || '',              // H: Box Condition
+      '',                              // I: Price Paid
+      '',                              // J: Photo Link
+      notes,                           // K: Notes
+      '',                              // L: Date Acquired
+      '',                              // M: User Est. Worth
+      '',                              // N: For Sale
+      '',                              // O: Sale Price
+      '',                              // P: Sale Date
+      '',                              // Q: Buyer
+      '',                              // R: Year Made (user)
+      setNum,                          // S: Set #
+      '',                              // T: placeholder
+      invId,                           // U: Inventory ID
+      groupId,                         // V: Group ID
+    ];
+
+    try {
+      await ensureCollectionSheet();
+      const appendRes = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
+      const newRow = appendRes?.updates?.updatedRange?.match(/\d+$/)?.[0];
+      const newKey = itemNum + '|' + '|' + (newRow || Date.now());
+      state.personalData[newKey] = {
+        row: newRow, itemNum, variation: '',
+        itemType: master ? master.itemType : '', roadName: master ? master.roadName : '',
+        condition: comp.condition || '', hasBox: comp.hasBox ? 'Yes' : 'No',
+        boxCond: comp.boxCond || '', priceItem: '', photoItem: '',
+        notes, yearMade: master ? master.yearProd : '',
+        setNum, inventoryId: invId, groupId,
+      };
+      savedItems.push(itemNum);
+    } catch(e) { console.warn('Save set item ' + itemNum + ':', e); }
+  }
+
+  localStorage.removeItem('lv_personal_cache');
+  localStorage.removeItem('lv_personal_cache_ts');
+  showToast('✓ Set saved — ' + savedItems.length + ' items added to your collection!');
+  closeWizard();
+  buildDashboard();
+  renderBrowse();
 }
 
 async function saveInstructionSheet() {
