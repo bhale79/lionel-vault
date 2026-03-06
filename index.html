@@ -7854,23 +7854,24 @@ function getSteps(tab) {
     if (isMockup) steps.push(
       { id: 'eph_itemNumRef', title: 'Related item number (if known)', type: 'text', placeholder: 'e.g. 2344', optional: true },
       { id: 'eph_productionStatus', title: 'Production status', type: 'choice3', choices: ['Produced as shown','Modified before production','Never produced'] },
-      { id: 'eph_material', title: 'Material', type: 'choice3', choices: ['Wood','Clay/Plaster','Metal','Mixed','Unknown'] },
-      { id: 'eph_dimensions', title: 'Dimensions (optional)', type: 'text', placeholder: 'e.g. 12" x 4" x 3"', optional: true },
       { id: 'eph_provenance', title: 'Provenance / history (optional)', type: 'textarea', optional: true },
-      { id: 'eph_lionelVerified', title: 'Lionel factory verified?', type: 'choice3', choices: ['Yes','No','Unknown'] },
     );
     steps.push(
       { id: 'eph_description', title: 'Description (optional)', type: 'textarea', optional: true, placeholder: isMockup ? 'e.g. Pre-production body in unpainted wood, hand-lettered' : 'e.g. First edition with red cover, 48 pages' },
       { id: 'eph_year', title: 'Year', type: 'text', placeholder: 'e.g. 1957', optional: true },
       { id: 'eph_condition', title: 'Condition (1-10)', type: 'slider', min:1, max:10 },
     );
-    if (!isMockup) steps.push(
-      { id: 'eph_quantity', title: 'How many copies?', type: 'text', placeholder: '1', optional: true },
-    );
     steps.push(
       { id: 'eph_estValue', title: 'Estimated value', type: 'money', placeholder: '0.00', optional: true },
       { id: 'eph_dateAcquired', title: 'Date acquired', type: 'date', optional: true },
       { id: 'eph_notes', title: 'Notes (optional)', type: 'textarea', optional: true },
+      { id: 'eph_photos', title: 'Add photos (optional)', type: 'drivePhotos', label: 'EPH',
+        views: [
+          { key: 'PHOTO-1', label: 'Photo',   abbr: 'Photo'  },
+          { key: 'PHOTO-2', label: 'Detail',  abbr: 'Detail' },
+          { key: 'PHOTO-3', label: 'Other',   abbr: 'Other'  },
+        ],
+        optional: true },
       { id: 'eph_confirm', title: (d) => 'Looking good! Ready to save your ' + getItemLabel(d) + '?', type: 'confirm' },
     );
     return steps;
@@ -7944,7 +7945,7 @@ function getSteps(tab) {
 
       // ── Entry Mode (Full/Quick) ──
       { id: 'entryMode', title: (d) => 'How would you like to add this ' + getItemLabel(d) + '?',
-        type: 'entryMode', skipIf: (d) => d._completingQuickEntry },
+        type: 'entryMode', skipIf: (d) => d._completingQuickEntry || !!d._setMode },
 
       // ── SCREEN 3: Condition & Details (multi-column) ──
       { id: 'conditionDetails', title: 'Condition & Details', type: 'conditionDetails' },
@@ -8673,7 +8674,7 @@ function renderWizardStep() {
           style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
           padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none"
           autocomplete="off"
-          oninput="wizard.data['${s.id}']=this.value; if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='itemNum') updateItemSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='set_num') updateSetSuggestions(this.value); ${_showCollPicker ? '_filterCollPicker(this.value)' : ''}"
+          oninput="wizard.data['${s.id}']=this.value; if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='itemNum') updateItemSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='set_num') updateSetSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='eph_itemNumRef') updateMockupRefSuggestions(this.value); ${_showCollPicker ? '_filterCollPicker(this.value)' : ''}"
           onkeydown="handleSuggestionKey(event)">
         <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>
         ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
@@ -11098,6 +11099,69 @@ function selectSuggestion(num) {
   setTimeout(() => wizardNext(), 120);
 }
 
+// ── Mockup reference item number suggestions ──────────────────────────────
+function updateMockupRefSuggestions(query) {
+  const el = document.getElementById('wiz-suggestions');
+  if (!el) return;
+  const q = (query || '').trim().toLowerCase();
+  if (q.length < 1) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+  const seen = new Set();
+  const candidates = [];
+  state.masterData.forEach(m => {
+    if (!m.itemNum.toLowerCase().includes(q)) return;
+    if (!seen.has(m.itemNum)) {
+      seen.add(m.itemNum);
+      candidates.push({ num: m.itemNum, sub: (m.roadName || m.description || '').substring(0, 50) });
+    }
+  });
+
+  candidates.sort((a, b) => {
+    const aS = a.num.toLowerCase().startsWith(q);
+    const bS = b.num.toLowerCase().startsWith(q);
+    if (aS && !bS) return -1;
+    if (!aS && bS) return 1;
+    return a.num.localeCompare(b.num);
+  });
+
+  if (candidates.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+  _suggestionIndex = -1;
+  el.innerHTML = '';
+  const countBar = document.createElement('div');
+  countBar.style.cssText = 'padding:0.3rem 0.75rem 0.4rem;font-size:0.72rem;color:var(--text-dim);border-bottom:1px solid var(--border);margin-bottom:2px';
+  countBar.textContent = candidates.length + ' match' + (candidates.length !== 1 ? 'es' : '') + ' — tap to select';
+  el.appendChild(countBar);
+
+  candidates.forEach(function(c, i) {
+    const btn = document.createElement('button');
+    btn.dataset.idx = i;
+    btn.style.cssText = 'text-align:left;width:100%;padding:0.65rem 0.75rem;border:none;background:transparent;border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);display:flex;align-items:baseline;gap:0.5rem;min-height:44px';
+    btn.onmouseenter = function() { highlightSuggestion(i); };
+    btn.onclick = function() { selectMockupRef(c.num); };
+    const numSpan = document.createElement('span');
+    numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:600;color:var(--accent2);font-size:0.95rem';
+    numSpan.textContent = c.num;
+    btn.appendChild(numSpan);
+    if (c.sub) {
+      const subSpan = document.createElement('span');
+      subSpan.style.cssText = 'font-size:0.8rem;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      subSpan.textContent = c.sub;
+      btn.appendChild(subSpan);
+    }
+    el.appendChild(btn);
+  });
+  el.style.display = 'flex';
+}
+
+function selectMockupRef(num) {
+  wizard.data.eph_itemNumRef = num;
+  const inp = document.getElementById('wiz-input');
+  if (inp) inp.value = num;
+  const el = document.getElementById('wiz-suggestions');
+  if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+}
+
 function handleSuggestionKey(e) {
   const el = document.getElementById('wiz-suggestions');
   const btns = el ? el.querySelectorAll('button') : [];
@@ -11202,6 +11266,15 @@ function wizardBack() {
     // Skip back over skipIf steps
     while (wizard.step > 0 && wizard.steps[wizard.step].skipIf && wizard.steps[wizard.step].skipIf(wizard.data)) {
       wizard.step--;
+    }
+    // In set mode, the first visible step is 'variation' — don't go further back
+    // into steps that were fast-forwarded (itemCategory, itemNumGrouping, etc.)
+    if (wizard.data._setMode) {
+      const _setFwdSkip = new Set(['itemCategory', 'itemNumGrouping', 'itemPicker', 'entryMode']);
+      while (wizard.step > 0 && _setFwdSkip.has(wizard.steps[wizard.step].id)) {
+        wizard.step++;
+        break;
+      }
     }
     renderWizardStep();
   }
@@ -11790,7 +11863,7 @@ async function saveCatalogItem() {
 async function saveEphemeraItem() {
   const d = wizard.data;
   const tab = wizard.tab;
-  const tabNames = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };
+  const tabNames = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };\
   const _userTab = (state.userDefinedTabs||[]).find(t => t.id === tab);
   const sheetName = tabNames[tab] || (_userTab && _userTab.label) || null;
   if (!sheetName) { closeWizard(); return; }
@@ -11798,6 +11871,29 @@ async function saveEphemeraItem() {
   const ephItemNum = tab === 'paper'
     ? generatePaperItemNum(d.eph_paperType || '', d.eph_itemNumRef || '')
     : generateEphemeraItemNum(tab, d.eph_year || '', '');
+
+  // Upload photos if any
+  let photoFolderLink = '';
+  const photoObj = d.eph_photos || {};
+  const hasPhotos = Object.values(photoObj).some(v => v && v.file);
+  if (hasPhotos) {
+    try {
+      await driveEnsureSetup();
+      if (!driveCache.ephPhotosId) {
+        driveCache.ephPhotosId = await driveFindOrCreateFolder('Ephemera Photos', driveCache.vaultId);
+      }
+      const folderTitle = (d.eph_title || ephItemNum).substring(0, 60);
+      const itemFolderId = await driveFindOrCreateFolder(folderTitle, driveCache.ephPhotosId);
+      photoFolderLink = 'https://drive.google.com/drive/folders/' + itemFolderId;
+      for (const [viewKey, fileObj] of Object.entries(photoObj)) {
+        if (!fileObj || !fileObj.file) continue;
+        try {
+          const ext = fileObj.file.name.split('.').pop() || 'jpg';
+          await driveUploadPhoto(fileObj.file, folderTitle + ' ' + viewKey + '.' + ext, itemFolderId);
+        } catch(e) { console.warn('Photo upload:', e); }
+      }
+    } catch(e) { console.warn('Drive folder:', e); }
+  }
 
   let row;
   if (tab === 'mockups') {
@@ -11807,7 +11903,7 @@ async function saveEphemeraItem() {
       d.eph_year||'', d.eph_manufacturer||'Lionel', d.eph_condition||'',
       d.eph_productionStatus||'', d.eph_material||'', d.eph_dimensions||'',
       d.eph_provenance||'', d.eph_lionelVerified||'', d.eph_estValue||'',
-      '', // photo link
+      photoFolderLink,
       d.eph_notes||'', d.eph_dateAcquired||'',
     ];
   } else {
@@ -11816,7 +11912,7 @@ async function saveEphemeraItem() {
       d.eph_title||'', d.eph_description||'', d.eph_year||'',
       d.eph_manufacturer||'Lionel', d.eph_condition||'',
       d.eph_quantity||'1', d.eph_estValue||'',
-      '', // photo link
+      photoFolderLink,
       d.eph_notes||'', d.eph_dateAcquired||'',
     ];
   }
@@ -11834,22 +11930,20 @@ async function saveEphemeraItem() {
         productionStatus: d.eph_productionStatus||'', material: d.eph_material||'',
         dimensions: d.eph_dimensions||'', provenance: d.eph_provenance||'',
         lionelVerified: d.eph_lionelVerified||'', estValue: d.eph_estValue||'',
-        photoLink: '', notes: d.eph_notes||'', dateAcquired: d.eph_dateAcquired||'',
+        photoLink: photoFolderLink, notes: d.eph_notes||'', dateAcquired: d.eph_dateAcquired||'',
       };
     } else {
       bucket[newKey] = {
         row: newKey, itemNum: ephItemNum, title: d.eph_title||'', description: d.eph_description||'',
         year: d.eph_year||'', manufacturer: d.eph_manufacturer||'Lionel',
         condition: d.eph_condition||'', quantity: d.eph_quantity||'1',
-        estValue: d.eph_estValue||'', photoLink: '', notes: d.eph_notes||'',
+        estValue: d.eph_estValue||'', photoLink: photoFolderLink, notes: d.eph_notes||'',
         dateAcquired: d.eph_dateAcquired||'',
       };
     }
     state.ephemeraData[tab] = bucket;
     showToast('✓ ' + (d.eph_title||'Item') + ' saved!');
     closeWizard();
-    // Refresh ephemera page if visible
-    // Ephemera integrated into My Collection — refresh browse if active
     if (state.filters.owned) renderBrowse();
   } catch(e) {
     showToast('Error saving: ' + e.message);
