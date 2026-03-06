@@ -1024,17 +1024,17 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <div class="stat-card" style="--card-accent: var(--green-light,#3aad70)">
             <div class="stat-label">Items I Own</div>
             <div class="stat-value" id="stat-owned">—</div>
-            <div class="stat-sub" id="stat-owned-pct">— of catalog</div>
+            <div class="stat-sub" id="stat-owned-sub">including variations</div>
           </div>
           <div class="stat-card" style="--card-accent: var(--gold,#c9922a)">
             <div class="stat-label">Collection Value</div>
             <div class="stat-value" id="stat-value">—</div>
             <div class="stat-sub">per user</div>
           </div>
-          <div class="stat-card" style="--card-accent: #8b5cf6">
-            <div class="stat-label">Est. Market Value</div>
-            <div class="stat-value" id="stat-market-value">—</div>
-            <div class="stat-sub">est. value mined from auction sites</div>
+          <div class="stat-card" style="--card-accent: #3498db">
+            <div class="stat-label">Catalog Items I Own</div>
+            <div class="stat-value" id="stat-catalog-coverage">—</div>
+            <div class="stat-sub" id="stat-catalog-pct">— % of all Lionel items cataloged</div>
           </div>
         </div>
 
@@ -3239,21 +3239,25 @@ function buildDashboard() {
 
   const totalOwned = owned + ephemeraCount;
   document.getElementById('stat-owned').textContent = totalOwned.toLocaleString();
-  document.getElementById('stat-owned-pct').textContent = `${pct}% of catalog${ephemeraCount > 0 ? ' + ' + ephemeraCount + ' other' : ''}`;
+  document.getElementById('stat-owned-sub').textContent = ephemeraCount > 0
+    ? 'incl. ' + ephemeraCount + ' other items'
+    : 'including variations';
   document.getElementById('stat-value').textContent = totalValue > 0 ? `$${Math.round(totalValue).toLocaleString()}` : '—';
 
-  // Market value — sum from master sheet marketVal for all owned items
-  let totalMarketVal = 0;
-  allOwnedEntries.forEach(function(pd) {
-    const masterItem = state.masterData.find(function(m) {
-      return m.itemNum === pd.itemNum && (!pd.variation || m.variation === pd.variation);
-    }) || state.masterData.find(function(m) { return m.itemNum === pd.itemNum; });
-    if (masterItem && masterItem.marketVal) {
-      totalMarketVal += parseFloat(masterItem.marketVal) || 0;
-    }
-  });
-  const mvEl = document.getElementById('stat-market-value');
-  if (mvEl) mvEl.textContent = totalMarketVal > 0 ? '$' + Math.round(totalMarketVal).toLocaleString() : '—';
+  // Catalog coverage — unique item numbers owned vs unique item numbers in master catalog
+  const _catalogItemNums = new Set(state.masterData.map(m => normalizeItemNum(m.itemNum)));
+  const _ownedItemNums   = new Set(
+    Object.values(state.personalData)
+      .filter(pd => pd.owned)
+      .map(pd => normalizeItemNum(pd.itemNum))
+  );
+  const _uniqueOwned  = [..._ownedItemNums].filter(n => _catalogItemNums.has(n)).length;
+  const _totalCatalog = _catalogItemNums.size;
+  const _coveragePct  = _totalCatalog > 0 ? (_uniqueOwned / _totalCatalog * 100).toFixed(1) : 0;
+  const _covEl    = document.getElementById('stat-catalog-coverage');
+  const _covPctEl = document.getElementById('stat-catalog-pct');
+  if (_covEl)    _covEl.textContent    = _uniqueOwned.toLocaleString();
+  if (_covPctEl) _covPctEl.textContent = _coveragePct + '% of all Lionel items cataloged';
 
   const soldCount = Object.keys(state.soldData).length;
   const wantCount = total - owned - soldCount;
