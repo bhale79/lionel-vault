@@ -4561,19 +4561,162 @@ function _checkSetBeforeAction(pdKey, proceed) {
   document.getElementById('_setaction-cancel').onclick  = () => overlay.remove();
   document.getElementById('_setaction-break').onclick   = async () => {
     overlay.remove();
-    // Clear groupId from all siblings in state and sheet
     const allGroup = [[pdKey, pd], ...siblings];
-    for (const [k, p] of allGroup) {
-      state.personalData[k] = { ...p, groupId: '' };
-      if (p.row) {
-        // Group ID is column V (index 22, col 22)
-        sheetsUpdate(state.personalSheetId, 'My Collection!V' + p.row, [['']])
-          .catch(e => console.warn('Clear groupId row', p.row, e));
+
+    // Check if any item has a purchase price (stored on loco)
+    const _priceItem = allGroup.find(([,p]) => p.priceItem && parseFloat(p.priceItem) > 0);
+    const _worthItem = allGroup.find(([,p]) => p.userEstWorth && parseFloat(p.userEstWorth) > 0);
+    const _hasMoney  = _priceItem || _worthItem;
+
+    if (_hasMoney) {
+      const _locoNum   = (_priceItem || _worthItem)[1].itemNum;
+      const _price     = _priceItem ? parseFloat(_priceItem[1].priceItem) : 0;
+      const _worth     = _worthItem ? parseFloat(_worthItem[1].userEstWorth) : 0;
+      const _count     = allGroup.length;
+      const _perPrice  = _price  ? '$' + (_price  / _count).toFixed(2) : null;
+      const _perWorth  = _worth  ? '$' + (_worth  / _count).toFixed(2) : null;
+
+      // Show price-split modal
+      const o2 = document.createElement('div');
+      o2.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+      o2.innerHTML = `
+        <div style="background:var(--surface);border-radius:16px;padding:1.5rem;max-width:380px;width:100%;border:1px solid var(--border)">
+          <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.4rem">What about the price?</div>
+          <div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:1.1rem">
+            ${_price ? 'Purchase price of <strong style="color:var(--text)">$' + _price.toFixed(2) + '</strong>' : ''}
+            ${_price && _worth ? ' and ' : ''}
+            ${_worth ? 'estimated value of <strong style="color:var(--text)">$' + _worth.toFixed(2) + '</strong>' : ''}
+            ${_price || _worth ? ' is stored on the locomotive <span style="font-family:var(--font-mono);color:var(--accent);font-weight:600">' + _locoNum + '</span>.' : ''}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:0.5rem">
+            <button id="_split-even" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #27ae60;background:rgba(39,174,96,0.1);color:#27ae60;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
+              Split evenly across all ${_count} items<br>
+              <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">${[_perPrice ? _perPrice + ' per item (price)' : '', _perWorth ? _perWorth + ' per item (value)' : ''].filter(Boolean).join(' · ')}</span>
+            </button>
+            <button id="_split-assign" style="padding:0.8rem 1rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
+              Assign value to each item<br>
+              <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">Enter price &amp; value individually for each piece</span>
+            </button>
+            <button id="_split-clear" style="padding:0.8rem 1rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;text-align:left">
+              Clear it<br>
+              <span style="font-weight:400;font-size:0.78rem">Remove price &amp; value from all items</span>
+            </button>
+          </div>
+        </div>`;
+      document.body.appendChild(o2);
+
+      const _doBreak = async (splitMode, customValues) => {
+        o2.remove();
+        for (const [k, p] of allGroup) {
+          let newPrice, newWorth;
+          if (splitMode === 'even') {
+            newPrice = _price ? (_price / _count).toFixed(2) : '';
+            newWorth = _worth ? (_worth / _count).toFixed(2) : '';
+          } else if (splitMode === 'clear') {
+            newPrice = '';
+            newWorth = '';
+          } else if (splitMode === 'assign' && customValues) {
+            newPrice = customValues[k]?.price ?? '';
+            newWorth = customValues[k]?.worth ?? '';
+          } else {
+            newPrice = p.priceItem || '';
+            newWorth = p.userEstWorth || '';
+          }
+          state.personalData[k] = { ...p, groupId: '', priceItem: newPrice, userEstWorth: newWorth };
+          if (p.row) {
+            sheetsUpdate(state.personalSheetId, 'My Collection!E' + p.row, [[newPrice]])
+              .catch(e => console.warn('price split row', p.row, e));
+            sheetsUpdate(state.personalSheetId, 'My Collection!N' + p.row, [[newWorth]])
+              .catch(e => console.warn('worth split row', p.row, e));
+            sheetsUpdate(state.personalSheetId, 'My Collection!V' + p.row, [['']])
+              .catch(e => console.warn('clear groupId row', p.row, e));
+          }
+        }
+        localStorage.removeItem('lv_personal_cache');
+        const _msg = splitMode === 'even'
+          ? 'Set broken up — price split evenly across ' + _count + ' items'
+          : splitMode === 'clear'
+          ? 'Set broken up — price & value cleared'
+          : splitMode === 'assign'
+          ? 'Set broken up — values assigned per item'
+          : 'Set broken up';
+        showToast(_msg);
+        proceed();
+      };
+
+      // Assign individually — show per-item input screen
+      document.getElementById('_split-assign').onclick = () => {
+        o2.remove();
+        const perEven = { price: _price ? (_price/_count).toFixed(2) : '', worth: _worth ? (_worth/_count).toFixed(2) : '' };
+
+        const o3 = document.createElement('div');
+        o3.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
+        const sheet = document.createElement('div');
+        sheet.style.cssText = 'background:var(--surface);border-radius:16px 16px 0 0;padding:1.25rem;width:100%;max-width:520px;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch';
+
+        let html = `<div style="font-family:var(--font-head);font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);text-align:center;margin-bottom:0.85rem">Assign Price &amp; Value per Item</div>`;
+        html += `<div style="display:grid;grid-template-columns:1fr 90px 90px;gap:0.3rem;margin-bottom:0.4rem;padding:0 0.1rem">
+          <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)">Item</div>
+          <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);text-align:center">Paid ($)</div>
+          <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);text-align:center">Worth ($)</div>
+        </div>`;
+
+        allGroup.forEach(([k, p], i) => {
+          const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(p.itemNum));
+          const desc = master ? (master.roadName || master.description || '') : '';
+          const safeKey = 'assign_' + i;
+          html += `<div style="display:grid;grid-template-columns:1fr 90px 90px;gap:0.3rem;align-items:center;margin-bottom:0.45rem;padding:0.4rem 0.5rem;background:var(--surface2);border-radius:8px">
+            <div>
+              <div style="font-family:var(--font-mono);font-size:0.85rem;font-weight:700;color:var(--accent)">${p.itemNum}</div>
+              ${desc ? `<div style="font-size:0.7rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${desc}</div>` : ''}
+            </div>
+            <input type="number" id="${safeKey}_price" value="${perEven.price}" min="0" step="0.01" placeholder="0.00"
+              style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.5rem;color:var(--text);font-family:var(--font-mono);font-size:0.85rem;text-align:right;outline:none;box-sizing:border-box">
+            <input type="number" id="${safeKey}_worth" value="${perEven.worth}" min="0" step="0.01" placeholder="0.00"
+              style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.5rem;color:var(--text);font-family:var(--font-mono);font-size:0.85rem;text-align:right;outline:none;box-sizing:border-box">
+          </div>`;
+        });
+
+        html += `<div style="display:flex;gap:0.6rem;margin-top:0.75rem;padding-bottom:0.25rem">
+          <button id="_assign-cancel" style="flex:1;padding:0.7rem;border-radius:9px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.88rem;cursor:pointer">Cancel</button>
+          <button id="_assign-save" style="flex:2;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer">Save &amp; Break Up</button>
+        </div>`;
+
+        sheet.innerHTML = html;
+        o3.appendChild(sheet);
+        document.body.appendChild(o3);
+
+        document.getElementById('_assign-cancel').onclick = () => o3.remove();
+        document.getElementById('_assign-save').onclick = () => {
+          const customValues = {};
+          allGroup.forEach(([k], i) => {
+            const safeKey = 'assign_' + i;
+            customValues[k] = {
+              price: document.getElementById(safeKey + '_price')?.value || '',
+              worth: document.getElementById(safeKey + '_worth')?.value || '',
+            };
+          });
+          o3.remove();
+          _doBreak('assign', customValues);
+        };
+      };
+
+      document.getElementById('_split-even').onclick  = () => _doBreak('even');
+      document.getElementById('_split-clear').onclick = () => _doBreak('clear');
+
+    } else {
+      // No price data — just clear group IDs
+      for (const [k, p] of allGroup) {
+        state.personalData[k] = { ...p, groupId: '' };
+        if (p.row) {
+          sheetsUpdate(state.personalSheetId, 'My Collection!V' + p.row, [['']])
+            .catch(e => console.warn('Clear groupId row', p.row, e));
+        }
       }
+      localStorage.removeItem('lv_personal_cache');
+      showToast('Set broken up — items are now individual');
+      proceed();
     }
-    localStorage.removeItem('lv_personal_cache');
-    showToast('Set broken up — items are now individual');
-    proceed();
   };
 }
 
