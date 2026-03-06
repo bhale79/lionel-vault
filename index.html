@@ -6865,7 +6865,10 @@ function getSteps(tab) {
       { id: 'confirm',      title: 'Ready to save!',                       type: 'confirm' },
     ];
   } else { // want
-    return [...base,
+    return [
+      { id: 'itemCategory', title: 'What would you like to add?', type: 'itemCategory',
+        skipIf: (d) => !!d.itemCategory },
+      ...base,
       { id: 'priority',      title: 'How high is your priority for this item?', type: 'choice3', choices: ['High','Medium','Low'] },
       { id: 'expectedPrice', title: 'What do you expect to pay?',               type: 'money',   placeholder: '0.00', optional: true },
       { id: 'notes',         title: "Any notes about what you're looking for?", type: 'textarea', optional: true },
