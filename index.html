@@ -540,6 +540,31 @@
   .report-table td { padding: 0.65rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.83rem; }
   .report-table tr:last-child td { border-bottom: none; }
 
+  /* ── Report Builder ─────────────────────────────────────────── */
+  .rb-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.62);z-index:9990;display:flex;align-items:flex-end;justify-content:center; }
+  .rb-sheet { background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden; }
+  .rb-tabs { display:flex;border-bottom:1px solid var(--border); }
+  .rb-tab { flex:1;padding:0.55rem 0.5rem;border:none;border-bottom:2px solid transparent;background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.84rem;font-weight:600;cursor:pointer;transition:all 0.15s; }
+  .rb-tab.active { color:var(--accent2);border-bottom-color:var(--accent2); }
+  .rb-col-item { display:flex;align-items:center;gap:0.6rem;padding:0.48rem 0.6rem;border-radius:8px;border:1px solid var(--border);margin-bottom:0.32rem;background:var(--surface2);transition:background 0.1s,border-color 0.1s; }
+  .rb-col-item.drag-over { border-color:var(--accent2);background:rgba(180,140,60,0.1); }
+  .rb-col-item.dragging { opacity:0.35; }
+  .rb-drag-handle { color:var(--text-dim);font-size:1rem;cursor:grab;user-select:none;flex-shrink:0;padding:0 2px;line-height:1; }
+  .rb-drag-handle:active { cursor:grabbing; }
+  .rb-col-item input[type=checkbox] { accent-color:var(--accent2);width:15px;height:15px;cursor:pointer;flex-shrink:0; }
+  .rb-col-item label { font-size:0.85rem;color:var(--text);cursor:pointer;flex:1;user-select:none; }
+  .rb-filter-row { margin-bottom:1rem; }
+  .rb-filter-label { font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--text-dim);margin-bottom:0.35rem; }
+  .rb-filter-chips { display:flex;flex-wrap:wrap;gap:0.3rem; }
+  .rb-chip { padding:0.28rem 0.65rem;border-radius:20px;border:1px solid var(--border);background:var(--surface);font-size:0.78rem;cursor:pointer;color:var(--text-mid);transition:all 0.12s;user-select:none; }
+  .rb-chip.selected { border-color:var(--accent2);background:rgba(180,140,60,0.13);color:var(--accent2);font-weight:600; }
+  .rb-range { display:flex;align-items:center;gap:0.5rem; }
+  .rb-range input { flex:1;padding:0.38rem 0.55rem;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:0.85rem;outline:none;min-width:0; }
+  .rb-range input:focus { border-color:var(--accent2); }
+  .rb-sort-dir { padding:0.42rem 0.65rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-size:0.8rem;cursor:pointer;font-family:var(--font-body);white-space:nowrap;flex-shrink:0; }
+  .rb-sort-dir.asc  { border-color:#27ae60;color:#27ae60; }
+  .rb-sort-dir.desc { border-color:var(--accent);color:var(--accent); }
+
   /* ── Insurance Report ──────────────────────────────────────── */
   .ins-report-header { padding: 1.25rem 0 1rem; border-bottom: 2px solid var(--border); margin-bottom: 1rem; }
   .ins-report-title { font-family: var(--font-head); font-size: 1.3rem; font-weight: 800; color: var(--text); margin-bottom: 0.2rem; }
@@ -1319,13 +1344,22 @@ document.addEventListener('touchmove', function(){}, {passive: true});
         <div class="page-title">Reports</div>
 
         <div class="report-controls">
-          <select class="filter-select" id="report-type" onchange="buildReport()">
+        <div class="report-controls">
+          <select class="filter-select" id="report-type" onchange="buildReport();_rbUpdateCustomControls()">
             <option value="insurance">Insurance Report</option>
             <option value="wantlist">Want List</option>
             <option value="collection">Full Collection</option>
             <option value="value">Value Summary by Category</option>
             <option value="missing-box">Owned — Missing Box</option>
           </select>
+          <button onclick="openReportBuilder(null)" style="display:flex;align-items:center;gap:0.4rem;padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(180,140,60,0.08);color:var(--accent2);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Build a Report
+          </button>
+          <span id="rb-custom-controls" style="display:none;gap:0.35rem;align-items:center">
+            <button id="rb-edit-btn" onclick="_rbEditSelected()" style="padding:0.45rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">Edit</button>
+            <button id="rb-del-btn"  onclick="_rbDeleteSelected()" style="padding:0.45rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--accent);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">Delete</button>
+          </span>
           <button class="btn-export" onclick="exportReport()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Export CSV
@@ -1334,6 +1368,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 6,2 18,2 18,9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             Print
           </button>
+        </div>
         </div>
 
         <div class="table-wrap" style="margin-top:0">
@@ -3180,6 +3215,7 @@ function buildApp() {
     sheetLink.href = 'https://docs.google.com/spreadsheets/d/' + state.personalSheetId;
   }
   buildReport();
+  loadSavedReports();
   buildQuickEntryList();
   // Initialize location preference toggle
   const _locToggle = document.getElementById('pref-location-toggle');
@@ -5839,6 +5875,15 @@ async function saveItem() {
 // ── REPORTS ─────────────────────────────────────────────────────
 function buildReport() {
   const type = document.getElementById('report-type')?.value || 'insurance';
+
+  // Custom saved report
+  if (type.startsWith('custom:')) {
+    const id = type.replace('custom:','');
+    const def = (state.savedReports||[]).find(r=>r.id===id);
+    if (def) buildCustomReport(def);
+    else { document.getElementById('report-tbody').innerHTML='<tr><td style="text-align:center;padding:2rem;color:var(--text-dim)">Report not found</td></tr>'; }
+    return;
+  }
   const thead = document.getElementById('report-thead');
   const tbody = document.getElementById('report-tbody');
   if (!thead || !tbody) return;
@@ -6037,6 +6082,13 @@ function buildReport() {
 function exportReport() {
   const type = document.getElementById('report-type')?.value || '';
 
+  if (type.startsWith('custom:')) {
+    const id = type.replace('custom:','');
+    const def = (state.savedReports||[]).find(r=>r.id===id);
+    if (def) exportCustomReport(def);
+    return;
+  }
+
   if (type === 'insurance') {
     const headers = ['Item #','Description','Type','Year','Variation','Condition','All Original','Has Box','Box Condition','Est. Worth','Amount Paid','Notes','Photo Folder Link'];
     const ownedItems = Object.values(state.personalData).filter(pd => {
@@ -6084,6 +6136,443 @@ function exportReport() {
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = 'lionel-report.csv'; a.click();
+}
+
+// ── REPORT BUILDER ───────────────────────────────────────────────
+
+const REPORT_COLS = [
+  { key:'itemNum',       label:'Item #'          },
+  { key:'description',   label:'Description'     },
+  { key:'itemType',      label:'Type'            },
+  { key:'yearMade',      label:'Year Made'       },
+  { key:'variation',     label:'Variation #'     },
+  { key:'varDesc',       label:'Variation Desc.' },
+  { key:'condition',     label:'Condition'       },
+  { key:'allOriginal',   label:'All Original'    },
+  { key:'hasBox',        label:'Has Box'         },
+  { key:'boxCond',       label:'Box Condition'   },
+  { key:'priceItem',     label:'Amount Paid'     },
+  { key:'userEstWorth',  label:'Est. Worth'      },
+  { key:'datePurchased', label:'Date Acquired'   },
+  { key:'location',      label:'Location'        },
+  { key:'notes',         label:'Notes'           },
+  { key:'hasPhoto',      label:'Has Photo'       },
+  { key:'groupId',       label:'Set/Group ID'    },
+  { key:'isError',       label:'Error Variation' },
+];
+
+let _rbState  = null;
+let _rbActiveTab = 'columns';
+
+function openReportBuilder(editId) {
+  const existing = editId ? (state.savedReports||[]).find(r=>r.id===editId) : null;
+  _rbState = existing ? JSON.parse(JSON.stringify(existing)) : {
+    id: null, name: '',
+    colOrder:   REPORT_COLS.map(c=>c.key),
+    colEnabled: Object.fromEntries(REPORT_COLS.map(c=>[c.key,
+      ['itemNum','description','itemType','yearMade','condition','hasBox','priceItem','userEstWorth'].includes(c.key)
+    ])),
+    filters: {},
+    sort: [{ field:'itemType', dir:'asc' },{ field:'itemNum', dir:'asc' }],
+  };
+  _rbActiveTab = 'columns';
+
+  const ov = document.createElement('div');
+  ov.className = 'rb-overlay'; ov.id = 'rb-overlay';
+  ov.innerHTML = `
+    <div class="rb-sheet">
+      <div style="padding:1rem 1.25rem 0;flex-shrink:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem">
+          <div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700">${existing?'Edit Report':'Build a Report'}</div>
+          <button onclick="document.getElementById('rb-overlay').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;padding:0.2rem 0.5rem;border-radius:6px">✕</button>
+        </div>
+        <input type="text" id="rb-name" value="${(_rbState.name||'').replace(/"/g,'&quot;')}"
+          placeholder="Report name (e.g. Unboxed Locomotives)…"
+          style="width:100%;padding:0.55rem 0.75rem;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box"
+          oninput="_rbState.name=this.value">
+        <div class="rb-tabs" style="margin-top:0.75rem">
+          <button class="rb-tab" id="rbtab-columns" onclick="_rbShowTab('columns')">Columns</button>
+          <button class="rb-tab" id="rbtab-filters" onclick="_rbShowTab('filters')">Filters</button>
+          <button class="rb-tab" id="rbtab-sort"    onclick="_rbShowTab('sort')">Sort</button>
+        </div>
+      </div>
+      <div class="rb-body" id="rb-body" style="flex:1;overflow-y:auto;padding:1rem 1.25rem;-webkit-overflow-scrolling:touch"></div>
+      <div style="padding:0.85rem 1.25rem;border-top:1px solid var(--border);display:flex;gap:0.6rem;flex-shrink:0">
+        <button onclick="document.getElementById('rb-overlay').remove()"
+          style="flex:1;padding:0.7rem;border-radius:9px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.88rem;cursor:pointer">Cancel</button>
+        <button onclick="_rbSave()"
+          style="flex:2;padding:0.7rem;border-radius:9px;border:none;background:var(--accent2);color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer">Save Report</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  _rbShowTab('columns');
+}
+
+function _rbShowTab(tab) {
+  _rbActiveTab = tab;
+  const nameEl = document.getElementById('rb-name');
+  if (nameEl) _rbState.name = nameEl.value;
+  ['columns','filters','sort'].forEach(t => {
+    document.getElementById('rbtab-'+t)?.classList.toggle('active', t===tab);
+  });
+  const body = document.getElementById('rb-body');
+  if (!body) return;
+  if (tab==='columns') { body.innerHTML = _rbColumnsHTML(); _rbAttachDrag(); }
+  else if (tab==='filters') body.innerHTML = _rbFiltersHTML();
+  else if (tab==='sort')    body.innerHTML = _rbSortHTML();
+}
+
+// ── Columns tab ──────────────────────────────────────────────────
+function _rbColumnsHTML() {
+  return '<div style="font-size:0.74rem;color:var(--text-dim);margin-bottom:0.75rem">Check columns to include · Drag <strong>⠿</strong> to reorder</div>'
+    + '<div id="rb-col-list">'
+    + _rbState.colOrder.map((key,idx) => {
+        const col = REPORT_COLS.find(c=>c.key===key); if (!col) return '';
+        const on = !!_rbState.colEnabled[key];
+        return `<div class="rb-col-item" draggable="true" data-key="${key}" data-idx="${idx}">
+          <span class="rb-drag-handle" title="Drag to reorder">⠿</span>
+          <input type="checkbox" id="rbcol-${key}" ${on?'checked':''} onchange="_rbToggleCol('${key}',this.checked)">
+          <label for="rbcol-${key}" style="${on?'':'color:var(--text-dim)'}">${col.label}</label>
+        </div>`;
+      }).join('')
+    + '</div>';
+}
+
+function _rbAttachDrag() {
+  const list = document.getElementById('rb-col-list');
+  if (!list) return;
+  let src = null;
+  list.addEventListener('dragstart', e => {
+    const el = e.target.closest('.rb-col-item'); if (!el) return;
+    src = parseInt(el.dataset.idx);
+    setTimeout(()=>el.classList.add('dragging'),0);
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  list.addEventListener('dragend', e => {
+    e.target.closest('.rb-col-item')?.classList.remove('dragging');
+    list.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  });
+  list.addEventListener('dragover', e => {
+    e.preventDefault();
+    const el = e.target.closest('.rb-col-item'); if (!el) return;
+    list.querySelectorAll('.drag-over').forEach(x=>x.classList.remove('drag-over'));
+    el.classList.add('drag-over');
+    e.dataTransfer.dropEffect = 'move';
+  });
+  list.addEventListener('drop', e => {
+    e.preventDefault();
+    const el = e.target.closest('.rb-col-item'); if (!el) return;
+    const dest = parseInt(el.dataset.idx);
+    if (src===null || src===dest) return;
+    const ord = [..._rbState.colOrder];
+    const [moved] = ord.splice(src,1);
+    ord.splice(dest,0,moved);
+    _rbState.colOrder = ord; src = null;
+    document.getElementById('rb-body').innerHTML = _rbColumnsHTML();
+    _rbAttachDrag();
+  });
+}
+
+window._rbToggleCol = (key, checked) => { _rbState.colEnabled[key]=checked; };
+
+// ── Filters tab ──────────────────────────────────────────────────
+function _rbFiltersHTML() {
+  const f = _rbState.filters || {};
+  const types = [...new Set(state.masterData.map(m=>m.itemType).filter(Boolean))].sort();
+  const selTypes = f.itemType || [];
+
+  const typeChips = types.map(t=>`<span class="rb-chip${selTypes.includes(t)?' selected':''}"
+    onclick="_rbToggleType('${t.replace(/'/g,"\\'")}',this)">${t}</span>`).join('');
+
+  const yneChips = (key) => ['Either','Yes','No'].map(v=>`<span class="rb-chip${
+    (!f[key]&&v==='Either')||(f[key]===v)?' selected':''}" onclick="_rbSetF('${key}','${v}',this)">${v}</span>`).join('');
+
+  const fld = (placeholder,stateKey,extra='') =>
+    `<input type="number" value="${f[stateKey]||''}" placeholder="${placeholder}" ${extra}
+      style="flex:1;padding:0.38rem 0.55rem;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:0.85rem;outline:none;min-width:0"
+      oninput="_rbState.filters['${stateKey}']=this.value">`;
+
+  return `
+    <div class="rb-filter-row"><div class="rb-filter-label">Item Type (select any)</div>
+      <div class="rb-filter-chips">${typeChips}</div></div>
+    <div class="rb-filter-row"><div class="rb-filter-label">Has Box</div>
+      <div class="rb-filter-chips">${yneChips('hasBox')}</div></div>
+    <div class="rb-filter-row"><div class="rb-filter-label">All Original</div>
+      <div class="rb-filter-chips">${yneChips('allOriginal')}</div></div>
+    <div class="rb-filter-row"><div class="rb-filter-label">Has Photo</div>
+      <div class="rb-filter-chips">${yneChips('hasPhoto')}</div></div>
+    <div class="rb-filter-row"><div class="rb-filter-label">Quick Entry Items</div>
+      <div class="rb-filter-chips">${['Include','Exclude','Only'].map(v=>`<span class="rb-chip${
+        (!f.quickEntry&&v==='Include')||(f.quickEntry===v)?' selected':''}" onclick="_rbSetF('quickEntry','${v}',this)">${v}</span>`).join('')}</div></div>
+    <div class="rb-filter-row"><div class="rb-filter-label">Condition (1–10)</div>
+      <div class="rb-range">${fld('Min','condMin','min="1" max="10"')} <span style="color:var(--text-dim);font-size:0.85rem">to</span> ${fld('Max','condMax','min="1" max="10"')}</div></div>
+    <div class="rb-filter-row"><div class="rb-filter-label">Year Made</div>
+      <div class="rb-range">${fld('1945','yearMin','min="1945" max="1969"')} <span style="color:var(--text-dim);font-size:0.85rem">to</span> ${fld('1969','yearMax','min="1945" max="1969"')}</div></div>
+    <div class="rb-filter-row"><div class="rb-filter-label">Est. Worth ($)</div>
+      <div class="rb-range">${fld('Min','worthMin','min="0"')} <span style="color:var(--text-dim);font-size:0.85rem">to</span> ${fld('Max','worthMax','min="0"')}</div></div>
+    <div class="rb-filter-row"><div class="rb-filter-label">Amount Paid ($)</div>
+      <div class="rb-range">${fld('Min','paidMin','min="0"')} <span style="color:var(--text-dim);font-size:0.85rem">to</span> ${fld('Max','paidMax','min="0"')}</div></div>
+    <div class="rb-filter-row"><div class="rb-filter-label">Location (contains)</div>
+      <input type="text" value="${(f.location||'').replace(/"/g,'&quot;')}" placeholder="e.g. Basement Shelf A"
+        style="width:100%;padding:0.4rem 0.6rem;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box"
+        oninput="_rbState.filters.location=this.value"></div>`;
+}
+
+window._rbToggleType = (type, el) => {
+  if (!_rbState.filters.itemType) _rbState.filters.itemType=[];
+  const arr=_rbState.filters.itemType, idx=arr.indexOf(type);
+  if (idx>=0){arr.splice(idx,1);el.classList.remove('selected');}
+  else{arr.push(type);el.classList.add('selected');}
+};
+window._rbSetF = (key, val, el) => {
+  _rbState.filters[key]=val;
+  el.closest('.rb-filter-chips')?.querySelectorAll('.rb-chip').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+};
+
+// ── Sort tab ─────────────────────────────────────────────────────
+function _rbSortHTML() {
+  const sort = _rbState.sort || [];
+  while (sort.length<2) sort.push({field:'',dir:'asc'});
+  const opts = (sel) => '<option value="">— None —</option>'
+    + REPORT_COLS.map(c=>`<option value="${c.key}"${sel===c.key?' selected':''}>${c.label}</option>`).join('');
+  const row = (s,i) => `
+    <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.7rem">
+      <div style="font-size:0.7rem;color:var(--text-dim);width:30px;flex-shrink:0;text-align:right">${i===0?'1st':'2nd'}</div>
+      <select onchange="_rbState.sort[${i}].field=this.value"
+        style="flex:1;padding:0.45rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none">
+        ${opts(s.field)}
+      </select>
+      <button class="rb-sort-dir ${s.dir}" onclick="_rbFlipDir(${i},this)">
+        ${s.dir==='asc'?'A → Z':'Z → A'}
+      </button>
+    </div>`;
+  return '<div style="font-size:0.74rem;color:var(--text-dim);margin-bottom:0.85rem">First sort takes priority.</div>'
+    + sort.map((s,i)=>row(s,i)).join('');
+}
+window._rbFlipDir = (idx, btn) => {
+  const s = _rbState.sort[idx];
+  s.dir = s.dir==='asc'?'desc':'asc';
+  btn.textContent = s.dir==='asc'?'A → Z':'Z → A';
+  btn.className = 'rb-sort-dir ' + s.dir;
+};
+
+// ── Save / Load ──────────────────────────────────────────────────
+function _rbSave() {
+  const nameEl = document.getElementById('rb-name');
+  if (nameEl) _rbState.name = nameEl.value.trim();
+  if (!_rbState.name) {
+    if (nameEl) { nameEl.style.borderColor='var(--accent)'; nameEl.focus(); }
+    showToast('Give your report a name first', 2500, true); return;
+  }
+  if (!Object.values(_rbState.colEnabled).some(Boolean)) {
+    showToast('Select at least one column', 2500, true); return;
+  }
+  if (!_rbState.id) _rbState.id = 'rpt_' + Date.now().toString(36);
+  if (!state.savedReports) state.savedReports = [];
+  const idx = state.savedReports.findIndex(r=>r.id===_rbState.id);
+  if (idx>=0) state.savedReports[idx] = _rbState;
+  else state.savedReports.push(_rbState);
+  localStorage.setItem('lv_saved_reports', JSON.stringify(state.savedReports));
+  _rbRefreshDropdown();
+  document.getElementById('rb-overlay')?.remove();
+  const sel = document.getElementById('report-type');
+  if (sel) { sel.value = 'custom:'+_rbState.id; buildReport(); _rbUpdateCustomControls(); }
+  showToast('✓ Report "'+_rbState.name+'" saved');
+}
+
+function _rbRefreshDropdown() {
+  const sel = document.getElementById('report-type');
+  if (!sel) return;
+  sel.querySelectorAll('option[data-custom],optgroup[data-custom-grp]').forEach(o=>o.remove());
+  const saved = state.savedReports || [];
+  if (!saved.length) return;
+  const grp = document.createElement('optgroup');
+  grp.label = 'My Saved Reports';
+  grp.dataset.customGrp = '1';
+  saved.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = 'custom:'+r.id; opt.dataset.custom=r.id; opt.textContent=r.name;
+    grp.appendChild(opt);
+  });
+  sel.appendChild(grp);
+}
+
+function loadSavedReports() {
+  try { state.savedReports = JSON.parse(localStorage.getItem('lv_saved_reports')||'[]'); }
+  catch(e) { state.savedReports=[]; }
+  _rbRefreshDropdown();
+}
+
+function _rbUpdateCustomControls() {
+  const sel = document.getElementById('report-type');
+  const ctrl = document.getElementById('rb-custom-controls');
+  if (!ctrl) return;
+  const isCustom = sel?.value?.startsWith('custom:');
+  ctrl.style.display = isCustom ? 'flex' : 'none';
+}
+
+function _rbEditSelected() {
+  const sel = document.getElementById('report-type');
+  if (!sel?.value?.startsWith('custom:')) return;
+  openReportBuilder(sel.value.replace('custom:',''));
+}
+
+function _rbDeleteSelected() {
+  const sel = document.getElementById('report-type');
+  if (!sel?.value?.startsWith('custom:')) return;
+  const id  = sel.value.replace('custom:','');
+  const rpt = (state.savedReports||[]).find(r=>r.id===id);
+  if (!confirm('Delete report "' + (rpt?.name||'this report') + '"?')) return;
+  state.savedReports = (state.savedReports||[]).filter(r=>r.id!==id);
+  localStorage.setItem('lv_saved_reports', JSON.stringify(state.savedReports));
+  _rbRefreshDropdown();
+  sel.value = 'insurance';
+  buildReport();
+  _rbUpdateCustomControls();
+  showToast('Report deleted');
+}
+
+// ── Run a custom report ──────────────────────────────────────────
+function _rbCellVal(key, pd, master) {
+  switch(key) {
+    case 'itemNum':       return pd.itemNum || '';
+    case 'description':   return master.roadName || master.description || '';
+    case 'itemType':      return master.itemType || '';
+    case 'yearMade':      return pd.yearMade || master.yearProd || '';
+    case 'variation':     return pd.variation || '';
+    case 'varDesc':       return master.varDesc || master.variationDesc || '';
+    case 'condition':     return pd.condition || '';
+    case 'allOriginal':   return pd.allOriginal || '';
+    case 'hasBox':        return pd.hasBox || '';
+    case 'boxCond':       return pd.boxCond || '';
+    case 'priceItem':     return pd.priceComplete || pd.priceItem || '';
+    case 'userEstWorth':  return pd.userEstWorth || '';
+    case 'datePurchased': return pd.datePurchased || '';
+    case 'location':      return pd.location || '';
+    case 'notes':         return pd.notes || '';
+    case 'hasPhoto':      return pd.photoItem ? 'Yes' : 'No';
+    case 'groupId':       return pd.groupId || '';
+    case 'isError':       return pd.isError || '';
+    default: return '';
+  }
+}
+
+function _rbCellHTML(key, val) {
+  if (!val || val==='—') {
+    if (['priceItem','userEstWorth'].includes(key)) return '—';
+    return '<span class="text-dim">—</span>';
+  }
+  switch(key) {
+    case 'itemNum':      return `<span class="item-num">${val}</span>`;
+    case 'itemType':     return `<span class="tag">${val}</span>`;
+    case 'priceItem':
+    case 'userEstWorth': return `<span style="font-family:var(--font-mono);color:var(--accent2)">$${parseFloat(val).toLocaleString()}</span>`;
+    case 'hasPhoto':     return val==='Yes' ? '<span style="color:#27ae60">✓</span>' : '<span class="text-dim">—</span>';
+    default:             return val;
+  }
+}
+
+function _rbGetItems(def) {
+  const f = def.filters || {};
+  let items = Object.values(state.personalData).filter(pd => {
+    if (!pd.owned) return false;
+    const condVal = pd.condition?.toString().trim(), priceVal = pd.priceItem?.toString().trim();
+    const noC = !condVal||condVal===''||condVal==='N/A', noP = !priceVal||priceVal===''||priceVal==='N/A';
+    return !(pd.hasBox==='Yes' && noC && noP);
+  }).map(pd => ({
+    pd,
+    master: state.masterData.find(m=>normalizeItemNum(m.itemNum)===normalizeItemNum(pd.itemNum)) || {}
+  }));
+
+  // Apply filters
+  items = items.filter(({pd,master}) => {
+    if (f.itemType?.length && !f.itemType.includes(master.itemType||'')) return false;
+    if (f.hasBox && f.hasBox!=='Either' && pd.hasBox!==f.hasBox) return false;
+    if (f.allOriginal && f.allOriginal!=='Either' && pd.allOriginal!==f.allOriginal) return false;
+    if (f.hasPhoto && f.hasPhoto!=='Either') { const h=!!pd.photoItem; if(f.hasPhoto==='Yes'&&!h) return false; if(f.hasPhoto==='No'&&h) return false; }
+    if (f.quickEntry && f.quickEntry!=='Include') { const q=!!pd.quickEntry; if(f.quickEntry==='Exclude'&&q) return false; if(f.quickEntry==='Only'&&!q) return false; }
+    const rng = (fMin,fMax,getVal,numeric=true) => {
+      if (!fMin&&!fMax) return true;
+      const v = numeric ? parseFloat(getVal()) : getVal();
+      if (fMin!==''&&fMin!==undefined) { const mn=parseFloat(fMin); if(isNaN(v)||v<mn) return false; }
+      if (fMax!==''&&fMax!==undefined) { const mx=parseFloat(fMax); if(isNaN(v)||v>mx) return false; }
+      return true;
+    };
+    if (!rng(f.condMin,  f.condMax,  ()=>parseInt(pd.condition))) return false;
+    if (!rng(f.yearMin,  f.yearMax,  ()=>parseInt(pd.yearMade||master.yearProd))) return false;
+    if (!rng(f.worthMin, f.worthMax, ()=>parseFloat(pd.userEstWorth))) return false;
+    if (!rng(f.paidMin,  f.paidMax,  ()=>parseFloat(pd.priceComplete||pd.priceItem))) return false;
+    if (f.location?.trim() && !(pd.location||'').toLowerCase().includes(f.location.toLowerCase())) return false;
+    return true;
+  });
+
+  // Apply sort
+  const sorts = (def.sort||[]).filter(s=>s.field);
+  const numKeys = new Set(['condition','priceItem','userEstWorth','yearMade','boxCond']);
+  if (sorts.length) {
+    items.sort((a,b) => {
+      for (const s of sorts) {
+        const va=_rbCellVal(s.field,a.pd,a.master), vb=_rbCellVal(s.field,b.pd,b.master);
+        const cmp = numKeys.has(s.field) ? (parseFloat(va)||0)-(parseFloat(vb)||0) : va.localeCompare(vb,undefined,{numeric:true});
+        if (cmp!==0) return s.dir==='desc'?-cmp:cmp;
+      }
+      return 0;
+    });
+  }
+  return items;
+}
+
+function buildCustomReport(def) {
+  const thead = document.getElementById('report-thead');
+  const tbody = document.getElementById('report-tbody');
+  if (!thead||!tbody) return;
+  const _insHdr = document.getElementById('ins-report-hdr');
+  if (_insHdr) _insHdr.style.display='none';
+
+  const cols = (def.colOrder||REPORT_COLS.map(c=>c.key))
+    .filter(k=>def.colEnabled?.[k])
+    .map(k=>REPORT_COLS.find(c=>c.key===k)).filter(Boolean);
+
+  if (!cols.length) { tbody.innerHTML=`<tr><td style="text-align:center;padding:2rem;color:var(--text-dim)">No columns selected — click Edit to configure</td></tr>`; return; }
+
+  thead.innerHTML = '<tr>' + cols.map(c=>`<th>${c.label}</th>`).join('') + '</tr>';
+  const items = _rbGetItems(def);
+  if (!items.length) {
+    tbody.innerHTML=`<tr><td colspan="${cols.length}" style="text-align:center;padding:2rem;color:var(--text-dim)">No items match these filters</td></tr>`; return;
+  }
+
+  tbody.innerHTML = items.map(({pd,master}) =>
+    '<tr>'+cols.map(c=>`<td>${_rbCellHTML(c.key,_rbCellVal(c.key,pd,master))}</td>`).join('')+'</tr>'
+  ).join('');
+
+  // Totals row for money columns
+  const moneyCols = cols.filter(c=>['priceItem','userEstWorth'].includes(c.key));
+  if (moneyCols.length) {
+    const totals = Object.fromEntries(moneyCols.map(c=>[c.key, items.reduce((s,{pd,master})=>s+(parseFloat(_rbCellVal(c.key,pd,master))||0),0)]));
+    tbody.innerHTML += '<tr style="border-top:2px solid var(--border);font-weight:700">'
+      + cols.map(c=>{
+          if (c.key==='itemNum') return `<td style="color:var(--text-dim);font-size:0.78rem">${items.length.toLocaleString()} items</td>`;
+          if (totals[c.key]!==undefined) return `<td style="font-family:var(--font-mono);color:var(--accent2)">$${Math.round(totals[c.key]).toLocaleString()}</td>`;
+          return '<td></td>';
+        }).join('') + '</tr>';
+  }
+}
+
+function exportCustomReport(def) {
+  const cols = (def.colOrder||REPORT_COLS.map(c=>c.key))
+    .filter(k=>def.colEnabled?.[k])
+    .map(k=>REPORT_COLS.find(c=>c.key===k)).filter(Boolean);
+  const items = _rbGetItems(def);
+  const esc = v => `"${(v||'').toString().replace(/"/g,'""')}"`;
+  const header = cols.map(c=>esc(c.label)).join(',');
+  const rows = items.map(({pd,master})=>cols.map(c=>esc(_rbCellVal(c.key,pd,master))).join(','));
+  const csv = header + '\n' + rows.join('\n');
+  const dateTag = new Date().toISOString().slice(0,10);
+  const safeName = (def.name||'report').replace(/[^a-z0-9]/gi,'-').toLowerCase();
+  const blob = new Blob([csv],{type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=`${safeName}-${dateTag}.csv`; a.click();
 }
 
 // ── NAVIGATION ──────────────────────────────────────────────────
