@@ -1175,7 +1175,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <span style="margin-left:auto;font-size:0.8rem;color:var(--text-dim)" id="result-count"></span>
         </div>
 
-        <div class="table-wrap" style="max-height:calc(100vh - 220px);overflow-y:auto">
+        <div class="table-wrap browse-table-wrap" style="max-height:calc(100vh - 220px);overflow-y:auto">
           <table class="item-table">
             <thead>
               <tr>
@@ -12753,7 +12753,8 @@ function _sheetLinkClick(e) {
   if (localStorage.getItem('lv_sheet_warn_ack') === 'true') return true;
 
   e.preventDefault();
-  const href = document.getElementById('nav-sheet-link').href;
+  // Read href from the clicked element directly (sidebar element was removed)
+  const href = (e.currentTarget || e.target).href || ('https://docs.google.com/spreadsheets/d/' + (state.personalSheetId || ''));
 
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.25rem';
