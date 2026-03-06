@@ -1386,9 +1386,6 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <select class="filter-select" id="report-type" onchange="buildReport();_rbUpdateCustomControls()">
             <option value="insurance">Insurance Report</option>
             <option value="wantlist">Want List</option>
-            <option value="collection">Full Collection</option>
-            <option value="value">Value Summary by Category</option>
-            <option value="missing-box">Owned — Missing Box</option>
           </select>
           <button onclick="openReportBuilder(null)" style="display:flex;align-items:center;gap:0.4rem;padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(180,140,60,0.08);color:var(--accent2);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -5877,10 +5874,9 @@ function buildReport() {
       return (a.itemNum || '').localeCompare(b.itemNum || '', undefined, { numeric: true });
     });
 
-    let totalWorth = 0, totalPaid = 0;
+    let totalWorth = 0;
     ownedItems.forEach(pd => {
       totalWorth += parseFloat(pd.userEstWorth || 0);
-      totalPaid  += parseFloat(pd.priceComplete || pd.priceItem || 0);
     });
 
     // Inject header above table
@@ -5903,7 +5899,6 @@ function buildReport() {
       </div>
       <div class="ins-report-totals">
         ${totalWorth > 0 ? `<span>Total Est. Worth: <strong>$${Math.round(totalWorth).toLocaleString()}</strong></span>` : ''}
-        ${totalPaid  > 0 ? `<span>Total Amount Paid: <strong>$${Math.round(totalPaid).toLocaleString()}</strong></span>` : ''}
         <span style="color:var(--text-dim);font-size:0.78rem">Est. Worth = user-entered value for insurance purposes</span>
       </div>`;
 
@@ -5911,15 +5906,12 @@ function buildReport() {
       <th>Photo</th>
       <th>Item #</th>
       <th>Description</th>
-      <th>Type</th>
-      <th>Year</th>
       <th>Variation</th>
       <th>Cond.</th>
       <th>All Orig.</th>
       <th>Box</th>
       <th>Box Cond.</th>
       <th>Est. Worth</th>
-      <th>Amt. Paid</th>
       <th>Notes</th>
     </tr>`;
 
@@ -5928,24 +5920,20 @@ function buildReport() {
       const desc   = master.roadName || master.description || master.itemType || '—';
       const year   = pd.yearMade || master.yearProd || '—';
       const worth  = pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : '—';
-      const paid   = (pd.priceComplete || pd.priceItem) ? '$' + parseFloat(pd.priceComplete || pd.priceItem).toLocaleString() : '—';
       const photoId = 'ins-photo-' + idx;
       return `<tr>
         <td><div id="${photoId}" class="ins-photo-placeholder" style="font-size:0.6rem;line-height:1.3">No<br>Photo</div></td>
         <td><span class="item-num">${pd.itemNum}</span></td>
         <td>${desc}</td>
-        <td><span class="tag">${master.itemType || '—'}</span></td>
-        <td>${year}</td>
         <td style="font-size:0.78rem;color:var(--text-dim)">${pd.variation || '—'}</td>
         <td style="text-align:center">${pd.condition || '—'}</td>
         <td style="text-align:center">${pd.allOriginal || '—'}</td>
         <td style="text-align:center">${pd.hasBox || '—'}</td>
         <td style="text-align:center">${pd.boxCond || '—'}</td>
         <td style="font-family:var(--font-mono);color:var(--accent2)">${worth}</td>
-        <td style="font-family:var(--font-mono)">${paid}</td>
         <td style="font-size:0.77rem;color:var(--text-dim);max-width:160px">${pd.notes || ''}</td>
       </tr>`;
-    }).join('') || '<tr><td colspan="13" class="ui-empty">No owned items yet</td></tr>';
+    }).join('') || '<tr><td colspan="10" class="ui-empty">No owned items yet</td></tr>';
 
     // Async: load first photo for each item
     ownedItems.forEach((pd, idx) => {
@@ -5971,18 +5959,16 @@ function buildReport() {
   if (_insHdr) _insHdr.style.display = 'none';
 
   if (type === 'wantlist') {
-    thead.innerHTML = '<tr><th>Item #</th><th>Type</th><th>Road Name</th><th>Year</th><th>Variation</th><th>Est. Market Value</th><th>COTT Link</th></tr>';
+    thead.innerHTML = '<tr><th>Item #</th><th>Type</th><th>Description</th><th>Variation Description</th><th>Est. Market Value</th></tr>';
     const wants = state.masterData.filter(i => !state.personalData[`${i.itemNum}|${i.variation}`]?.owned);
     tbody.innerHTML = wants.map(i => `
       <tr>
         <td><span class="item-num">${i.itemNum}</span></td>
         <td><span class="tag">${i.itemType || '—'}</span></td>
-        <td>${i.roadName || '—'}</td>
-        <td>${i.yearProd || '—'}</td>
-        <td>${i.variation || '—'}</td>
+        <td>${i.roadName || i.description || '—'}</td>
+        <td>${i.varDesc || i.variation || '—'}</td>
         <td class="market-val">${i.marketVal ? '$'+parseFloat(i.marketVal).toLocaleString() : '—'}</td>
-        <td>${i.refLink ? `<a href="${i.refLink}" target="_blank" style="color:var(--accent2)">View ↗</a>` : '—'}</td>
-      </tr>`).join('') || '<tr><td colspan="7" class="ui-empty">All items owned! 🎉</td></tr>';
+      </tr>`).join('') || '<tr><td colspan="5" class="ui-empty">All items owned! 🎉</td></tr>';
 
   } else if (type === 'collection') {
     thead.innerHTML = '<tr><th>Item #</th><th>Type</th><th>Road Name</th><th>Variation</th><th>Copy #</th><th>Condition</th><th>Has Box</th><th>All Original</th><th>Item Price</th><th>Item+Box</th></tr>';
