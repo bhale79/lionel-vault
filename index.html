@@ -6544,7 +6544,12 @@ function getSteps(tab) {
           type: 'text', placeholder: 'e.g. 736, 2383P, 2023',
           skipIf: d => d.set_knowsNum !== 'No' },
 
-        // Set box
+        // Component walkthrough — dynamic, rendered via 'setComponents' custom type
+        { id: 'set_components',
+          title: 'Now let\'s go through the pieces',
+          type: 'setComponents' },
+
+        // Set box — asked after components so user has context
         { id: 'set_hasBox',
           title: 'Does it have the original set box?',
           type: 'choice2', choices: ['Yes','No'] },
@@ -6561,11 +6566,6 @@ function getSteps(tab) {
             { key: 'SETBOX-DETAIL', label: 'Detail', abbr: 'Detail' },
           ], optional: true,
           skipIf: d => d.set_hasBox !== 'Yes' },
-
-        // Component walkthrough — dynamic, rendered via 'setComponents' custom type
-        { id: 'set_components',
-          title: 'Now let\'s go through the pieces',
-          type: 'setComponents' },
 
         // Notes
         { id: 'set_notes',
@@ -8093,6 +8093,39 @@ function renderWizardStep() {
       });
     }
 
+    // Manually added items not in the known set list
+    const _knownAll = [..._setItems, ..._setAlts];
+    const _manualItems = Object.keys(_compData).filter(k => !_knownAll.some(si => normalizeItemNum(si) === normalizeItemNum(k)));
+    if (_manualItems.length) {
+      const manHdr = document.createElement('div');
+      manHdr.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin:0.75rem 0 0.4rem';
+      manHdr.textContent = 'Items you added';
+      body.appendChild(manHdr);
+      _manualItems.forEach(itemNum => {
+        const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum));
+        const comp = _compData[itemNum] || {};
+        const manRow = document.createElement('div');
+        manRow.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.85rem;margin-bottom:0.4rem';
+        manRow.innerHTML = `
+          <div style="display:flex;align-items:center;gap:0.6rem">
+            <span style="font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:var(--accent);min-width:60px">${itemNum}</span>
+            <span style="font-size:0.78rem;color:var(--text-mid);flex:1">${master ? (master.roadName ? master.roadName + ' ' : '') + master.description : ''}</span>
+            <div style="display:flex;gap:0.35rem">
+              <button onclick="window._setCompToggle('${itemNum}',true)" style="padding:0.3rem 0.6rem;border-radius:7px;border:1.5px solid ${comp.have===true?'#27ae60':'var(--border)'};background:${comp.have===true?'rgba(39,174,96,0.18)':'var(--surface)'};color:${comp.have===true?'#27ae60':'var(--text-dim)'};font-size:0.78rem;cursor:pointer">✓ Have</button>
+              <button onclick="window._setCompRemove('${itemNum}')" style="padding:0.3rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-size:0.78rem;cursor:pointer" title="Remove">✕</button>
+            </div>
+          </div>
+          ${comp.have === true ? `
+          <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+            <span style="font-size:0.72rem;color:var(--text-dim)">Condition:</span>
+            ${[...Array(10)].map((_,i)=>`<button onclick="window._setCompCond('${itemNum}',${i+1})" style="width:26px;height:26px;border-radius:5px;border:1.5px solid ${(comp.condition||0)===i+1?'var(--accent)':'var(--border)'};background:${(comp.condition||0)===i+1?'rgba(232,64,28,0.2)':'var(--surface)'};font-size:0.72rem;cursor:pointer;color:${(comp.condition||0)===i+1?'var(--accent)':'var(--text-dim)'}">${i+1}</button>`).join('')}
+            <button onclick="window._setCompBoxToggle('${itemNum}')" style="margin-left:0.5rem;padding:0.25rem 0.6rem;border-radius:7px;border:1.5px solid ${comp.hasBox?'#3498db':'var(--border)'};background:${comp.hasBox?'rgba(52,152,219,0.15)':'var(--surface)'};color:${comp.hasBox?'#3498db':'var(--text-dim)'};font-size:0.72rem;cursor:pointer">📦 Has Box</button>
+            ${comp.hasBox ? `<input type="number" min="1" max="10" value="${comp.boxCond||''}" placeholder="Box cond." oninput="window._setCompBoxCond('${itemNum}',this.value)" style="width:70px;padding:0.2rem 0.4rem;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.75rem;font-family:var(--font-body)">` : ''}
+          </div>` : ''}`;
+        body.appendChild(manRow);
+      });
+    }
+
     // Add item manually
     const addRow = document.createElement('div');
     addRow.style.cssText = 'display:flex;gap:0.5rem;margin-top:0.75rem';
@@ -8123,6 +8156,10 @@ function renderWizardStep() {
     }
 
     // Wire up JS callbacks
+    window._setCompRemove = (itemNum) => {
+      if (wizard.data.set_componentData) delete wizard.data.set_componentData[itemNum];
+      renderWizardStep();
+    };
     window._setCompToggle = (itemNum, have) => {
       if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
       const ex = wizard.data.set_componentData[itemNum] || {};
@@ -8147,11 +8184,10 @@ function renderWizardStep() {
     };
     window._setCompAdd = () => {
       const inp = document.getElementById('set-comp-input');
-      const val = (inp ? inp.value : '').trim();
+      const val = (inp ? inp.value : '').trim().toUpperCase();
       if (!val) return;
       if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
       if (!wizard.data.set_componentData[val]) wizard.data.set_componentData[val] = {};
-      // Re-run suggestions with new item added
       renderWizardStep();
     };
     window._confirmSetMatch = (setNum) => {
