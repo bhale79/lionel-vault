@@ -326,7 +326,7 @@
   .filter-toggle.on { background: rgba(232,64,28,0.15); border-color: var(--accent); color: var(--accent); }
 
   /* Item table */
-  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; }
   .item-table { width: 100%; border-collapse: collapse; }
   .item-table th {
     background: var(--surface); padding: 0.55rem 0.85rem; text-align: left;
@@ -339,6 +339,18 @@
   }
   .item-table tr:last-child td { border-bottom: none; }
   .item-table tr:hover td { background: var(--surface2); cursor: pointer; }
+  /* Sticky column headers — works on all scrollable table-wraps */
+  .item-table thead th,
+  .report-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--surface3);
+    box-shadow: 0 1px 0 var(--border);
+  }
+  .main .item-table thead th,
+  .main .report-table thead th { background: #f0e6cc; box-shadow: 0 1px 0 #d4c8a8; }
+  @media print { .table-wrap { max-height: none !important; overflow: visible !important; } }
 
   .item-num { font-family: var(--font-mono); font-size: 0.82rem; color: var(--accent2); font-weight: 600; }
   .item-road { color: var(--text-dim); font-size: 0.8rem; }
@@ -1239,7 +1251,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
         <div id="sold-cards" style="display:none;flex-direction:column;gap:0.6rem"></div>
         <div class="table-wrap" id="sold-table-wrap" style="max-height:calc(100vh - 320px);overflow-y:auto">
           <table class="item-table">
-            <thead style="position:sticky;top:0;z-index:2;background:var(--surface)">
+            <thead>
               <tr>
                 <th style="cursor:pointer" onclick="soldSortBy('itemNum')">Item # <span id="sold-sort-i-itemNum"></span></th>
                 <th style="cursor:pointer" onclick="soldSortBy('type')">Type <span id="sold-sort-i-type"></span></th>
@@ -1289,7 +1301,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           </div>
         </div>
         <div id="forsale-cards" style="display:none;flex-direction:column;gap:0.6rem"></div>
-        <div class="table-wrap" id="forsale-table-wrap">
+        <div class="table-wrap" id="forsale-table-wrap" style="max-height:calc(100vh - 280px);overflow-y:auto">
           <table class="item-table">
             <thead>
               <tr>
@@ -1324,7 +1336,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           </div>
         </div>
         <div id="want-cards" style="display:flex;flex-direction:column;gap:0.6rem"></div>
-        <div class="table-wrap" style="margin-top:0">
+        <div class="table-wrap" style="margin-top:0;max-height:calc(100vh - 210px);overflow-y:auto">
           <table class="item-table" id="want-table">
             <thead>
               <tr>
@@ -1389,7 +1401,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
         </div>
         </div>
 
-        <div class="table-wrap" style="margin-top:0">
+        <div class="table-wrap" style="margin-top:0;max-height:calc(100vh - 170px);overflow-y:auto">
           <table class="report-table">
             <thead id="report-thead"></thead>
             <tbody id="report-tbody"></tbody>
