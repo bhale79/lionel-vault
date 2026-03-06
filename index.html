@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-title" content="My Collection App">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0e0f11">
-  <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;My Collection App&quot;,&quot;short_name&quot;:&quot;My Collection&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%230e0f11&quot;,&quot;theme_color&quot;:&quot;%230e0f11&quot;,&quot;icons&quot;:[{&quot;src&quot;:&quot;data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230e0f11'/><text y='0.9em' font-size='80'>🚂</text></svg>&quot;,&quot;sizes&quot;:&quot;any&quot;,&quot;type&quot;:&quot;image/svg+xml&quot;}]}">
+  <link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>My Collection App — Postwar Lionel 1945–1969</title>
 
@@ -13175,4 +13175,12 @@ function pickerHandleFile(inputEl, isCamera) {
 <input type="file" id="picker-input-lib" accept="image/*"
   style="position:fixed;top:-999px;left:-999px;opacity:0"
   onchange="pickerHandleFile(this, false)">
+<script>
+// ── PWA Service Worker Registration ─────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+</script>
 </body>
