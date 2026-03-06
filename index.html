@@ -6487,7 +6487,7 @@ let wizard = {
 // Step definitions per tab
 function getSteps(tab) {
   // User-defined custom tabs — same flow as ephemera
-  const _allEphTabs = ['catalogs','paper','mockups','other','instrsheet',
+  const _allEphTabs = ['catalogs','paper','mockups','other','instrsheet','set',
     ...(state.userDefinedTabs||[]).map(t => t.id)];
   if (tab && _allEphTabs.includes(tab)) {
     const isMockup  = tab === 'mockups';
