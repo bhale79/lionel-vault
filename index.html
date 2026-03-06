@@ -6393,6 +6393,15 @@ function getSteps(tab) {
       return [
         { id: 'is_linkedItem', title: 'What Lionel item # does this sheet go with?', type: 'text',
           placeholder: 'e.g. 726, 2046, 6464-1' },
+        { id: 'is_groupChoice',
+          title: (d) => {
+            const found = _findCollectionItemByNum(d.is_linkedItem);
+            if (!found) return '';
+            if (found.groupId) return 'Found ' + found.itemNum + ' in your collection — it\'s part of a group. Add this instruction sheet to that group?';
+            return 'Found ' + found.itemNum + ' in your collection. Group this instruction sheet with it?';
+          },
+          type: 'choice2', choices: ['Yes','No'],
+          skipIf: (d) => !_findCollectionItemByNum(d.is_linkedItem) },
         { id: 'is_sheetNum',   title: 'What is the instruction sheet number?',       type: 'text',
           placeholder: 'e.g. 924-6, 1-1957, 726-13' },
         { id: 'is_year',       title: 'Year or date printed (if known)',              type: 'text',
@@ -6402,14 +6411,47 @@ function getSteps(tab) {
           placeholder: 'e.g. Early printing, double-sided, staple holes' },
         { id: 'is_photos',     title: 'Add photos of the instruction sheet',         type: 'drivePhotos', label: 'IS',
           views: [
-            { key: 'IS-FRONT', label: 'Front Side',  abbr: 'IS-FRONT' },
-            { key: 'IS-BACK',  label: 'Back Side',   abbr: 'IS-BACK'  },
+            { key: 'IS-FRONT',  label: 'Front Side',  abbr: 'IS-FRONT'  },
+            { key: 'IS-BACK',   label: 'Back Side',   abbr: 'IS-BACK'   },
+            { key: 'IS-DETAIL', label: 'Detail',      abbr: 'IS-DETAIL' },
           ], optional: true },
         { id: 'is_confirm',    title: 'Ready to save the instruction sheet!',        type: 'confirm' },
       ];
     }
 
-    // ── Catalog-specific flow ──
+    // ── Paper Items flow ──
+    if (tab === 'paper') {
+      // If user chose Instruction Sheet, redirect to IS flow
+      if (wizard.data.eph_paperType === 'Instruction Sheet') {
+        wizard.tab = 'instrsheet';
+        return getSteps('instrsheet');
+      }
+      const _paperType = wizard.data.eph_paperType || '';
+      const _needsItemRef = _paperType && !['Manual','Price Guide','Reference'].includes(_paperType);
+      return [
+        { id: 'eph_paperType', title: 'What type of paper item is this?', type: 'choice3',
+          choices: ['Drawing','Advertisement','Instruction Sheet','Manual','Price Guide','Reference','Other'] },
+        { id: 'eph_title',
+          title: (d) => 'What is the title of this ' + (d.eph_paperType || 'item') + '?',
+          type: 'text', placeholder: 'e.g. 1957 Full-Page Ad, 726 Berkshire Drawing' },
+        { id: 'eph_itemNumRef',
+          title: 'Associated Lionel item number (if any)',
+          type: 'text', placeholder: 'e.g. 726, 2046, 6464-1', optional: true,
+          skipIf: (d) => ['Manual','Price Guide','Reference'].includes(d.eph_paperType) },
+        { id: 'eph_year',        title: 'Year (if known)',          type: 'text',     placeholder: 'e.g. 1957', optional: true },
+        { id: 'eph_description', title: 'Description (optional)',   type: 'textarea', optional: true,
+          placeholder: 'e.g. Full-page ad from Model Railroader, June 1957' },
+        { id: 'eph_condition',   title: 'Condition (1-10)',         type: 'slider', min:1, max:10 },
+        { id: 'eph_estValue',    title: 'Estimated value',          type: 'money',    placeholder: '0.00', optional: true },
+        { id: 'eph_dateAcquired',title: 'Date acquired',            type: 'date',     optional: true },
+        { id: 'eph_notes',       title: 'Notes (optional)',         type: 'textarea', optional: true },
+        { id: 'eph_confirm',
+          title: (d) => 'Ready to save your ' + (d.eph_paperType || 'paper item') + '!',
+          type: 'confirm' },
+      ];
+    }
+
+
     if (isCatalog) {
       return [
         { id: 'cat_type',        title: 'What type of catalog is this?',          type: 'choice3',
@@ -6582,8 +6624,9 @@ function getSteps(tab) {
       { id: 'photosIS', title: 'Add photos of the instruction sheet',
         type: 'drivePhotos', label: 'IS',
         views: [
-          { key: 'IS-FRONT', label: 'Front Side', abbr: 'Front' },
-          { key: 'IS-BACK',  label: 'Back Side',  abbr: 'Back'  },
+          { key: 'IS-FRONT',  label: 'Front Side', abbr: 'Front'  },
+          { key: 'IS-BACK',   label: 'Back Side',  abbr: 'Back'   },
+          { key: 'IS-DETAIL', label: 'Detail',     abbr: 'Detail' },
         ],
         photoBanner: { color: '#d4a843', label: (d) => '\u{1F7E8} PHOTOS: Instruction Sheet' + (d.is_sheetNum ? ' #' + d.is_sheetNum : '') },
         optional: true, skipIf: d => d.hasIS !== 'Yes' },
@@ -8711,6 +8754,15 @@ function findPD(itemNum, variation) {
   const k = Object.keys(state.personalData).find(k => k.startsWith(prefix));
   return k ? state.personalData[k] : null;
 }
+// Find a collection item by item number (for IS grouping logic)
+function _findCollectionItemByNum(itemNum) {
+  if (!itemNum) return null;
+  const norm = normalizeItemNum(itemNum.trim());
+  return Object.values(state.personalData).find(p =>
+    normalizeItemNum(p.itemNum || '') === norm
+  ) || null;
+}
+
 function findPDKey(itemNum, variation) {
   const prefix = `${itemNum}|${variation || ''}|`;
   return Object.keys(state.personalData).find(k => k.startsWith(prefix)) || null;
@@ -9602,17 +9654,38 @@ async function saveInstructionSheet() {
   const linkedItem = (d.is_linkedItem || '').trim();
   if (!sheetNum) { showToast('Sheet number is required'); return; }
 
-  // Photo handling
+  // Resolve Group ID — if user opted to group with the collection item
+  let resolvedGroupId = '';
+  if (d.is_groupChoice === 'Yes') {
+    const found = _findCollectionItemByNum(linkedItem);
+    if (found) {
+      resolvedGroupId = found.groupId || ('GRP-' + linkedItem.replace(/[^A-Za-z0-9]/g,'-') + '-' + Date.now());
+    }
+  }
+
+  // Photo handling — use group folder if grouped, otherwise IS Photos folder
   let photoLink = '';
   const photoObj = d.is_photos || {};
   if (Object.keys(photoObj).some(k => photoObj[k]?.file)) {
     try {
       await driveEnsureSetup();
-      if (!driveCache.isPhotosId) {
-        driveCache.isPhotosId = await driveFindOrCreateFolder('Instruction Sheet Photos', driveCache.vaultId);
+      let parentFolderId;
+      if (resolvedGroupId) {
+        // Place photos in the group's Drive folder (same as where train item photos live)
+        const groupFolderName = linkedItem;
+        if (!driveCache.groupFolders) driveCache.groupFolders = {};
+        if (!driveCache.groupFolders[groupFolderName]) {
+          driveCache.groupFolders[groupFolderName] = await driveFindOrCreateFolder(groupFolderName, driveCache.vaultId);
+        }
+        parentFolderId = driveCache.groupFolders[groupFolderName];
+      } else {
+        if (!driveCache.isPhotosId) {
+          driveCache.isPhotosId = await driveFindOrCreateFolder('Instruction Sheet Photos', driveCache.vaultId);
+        }
+        parentFolderId = driveCache.isPhotosId;
       }
       const folderName = linkedItem ? linkedItem + ' - ' + sheetNum : sheetNum;
-      const isFolderId = await driveFindOrCreateFolder(folderName, driveCache.isPhotosId);
+      const isFolderId = await driveFindOrCreateFolder(folderName, parentFolderId);
       photoLink = 'https://drive.google.com/drive/folders/' + isFolderId;
       for (const [viewKey, fileObj] of Object.entries(photoObj)) {
         if (!fileObj?.file) continue;
@@ -9623,7 +9696,7 @@ async function saveInstructionSheet() {
   }
 
   const isStandaloneInvId = nextInventoryId();
-  const row = [sheetNum, linkedItem, d.is_year||'', d.is_condition||'', d.is_notes||'', photoLink, isStandaloneInvId, ''];
+  const row = [sheetNum, linkedItem, d.is_year||'', d.is_condition||'', d.is_notes||'', photoLink, isStandaloneInvId, resolvedGroupId];
   try {
     await ensureEphemeraSheets(state.personalSheetId);
     await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:A', [row]);
@@ -9631,7 +9704,7 @@ async function saveInstructionSheet() {
     state.isData[newKey] = {
       row: newKey, sheetNum, linkedItem, year: d.is_year||'',
       condition: d.is_condition||'', notes: d.is_notes||'', photoLink,
-      inventoryId: isStandaloneInvId, groupId: '',
+      inventoryId: isStandaloneInvId, groupId: resolvedGroupId,
     };
     showToast('✓ Instruction Sheet ' + sheetNum + ' saved!');
     closeWizard();
