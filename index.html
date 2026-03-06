@@ -7458,7 +7458,7 @@ function renderWizardStep() {
           style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
           padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none"
           autocomplete="off"
-          oninput="wizard.data['${s.id}']=this.value; if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='itemNum') updateItemSuggestions(this.value); ${_showCollPicker ? '_filterCollPicker(this.value)' : ''}"
+          oninput="wizard.data['${s.id}']=this.value; if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='itemNum') updateItemSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='set_num') updateSetSuggestions(this.value); ${_showCollPicker ? '_filterCollPicker(this.value)' : ''}"
           onkeydown="handleSuggestionKey(event)">
         <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>
         ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
@@ -8052,6 +8052,7 @@ function renderWizardStep() {
       const _suggestions = _allEntered.length >= 1
         ? suggestSets(_allEntered).filter(sg => !_dismissed.includes(sg.setNum))
         : [];
+      wizard.data._suggestions_cache = _suggestions; // for inline button onclick refs
 
       if (!_resolvedSet && _suggestions.length) {
         const sugHdr = document.createElement('div');
@@ -8061,7 +8062,12 @@ function renderWizardStep() {
         _suggestions.slice(0, 4).forEach((sg, i) => {
           const card = document.createElement('div');
           card.style.cssText = `background:${i===0?'rgba(230,126,34,0.1)':'var(--surface2)'};border:${i===0?'1.5px solid #e67e22':'1px solid var(--border)'};border-radius:10px;padding:0.65rem 0.85rem;margin-bottom:0.4rem;cursor:pointer`;
-          card.onclick = () => window._confirmSetMatch(sg.setNum);
+          // sg is the exact scored variant row — resolve it directly, no disambiguation needed
+          card.onclick = () => {
+            wizard.data._resolvedSet = sg;
+            wizard.data.set_num = sg.setNum;
+            renderWizardStep();
+          };
           card.innerHTML = `
             <div style="display:flex;align-items:flex-start;gap:0.5rem">
               <div style="flex:1">
@@ -8081,7 +8087,7 @@ function renderWizardStep() {
                   }).join('') : ''}
                 </div>
               </div>
-              <button onclick="event.stopPropagation();window._confirmSetMatch('${sg.setNum}')" style="flex-shrink:0;padding:0.35rem 0.75rem;border-radius:8px;border:1.5px solid ${i===0?'#e67e22':'var(--border)'};background:${i===0?'#e67e2222':'var(--surface)'};color:${i===0?'#e67e22':'var(--text-dim)'};font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">This is mine</button>
+              <button onclick="event.stopPropagation();wizard.data._resolvedSet=wizard.data._suggestions_cache?.[${i}];wizard.data.set_num='${sg.setNum}';renderWizardStep();" style="flex-shrink:0;padding:0.35rem 0.75rem;border-radius:8px;border:1.5px solid ${i===0?'#e67e22':'var(--border)'};background:${i===0?'#e67e2222':'var(--surface)'};color:${i===0?'#e67e22':'var(--text-dim)'};font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">This is mine</button>
             </div>`;
           body.appendChild(card);
         });
@@ -8128,10 +8134,63 @@ function renderWizardStep() {
         wizard.data._enteredNums = (wizard.data._enteredNums||[]).filter(x => x !== n);
         renderWizardStep();
       };
-      window._confirmSetMatch = (setNum) => {
-        const found = state.setData.find(s => s.setNum === setNum);
-        if (found) { wizard.data._resolvedSet = found; wizard.data.set_num = found.setNum; }
-        renderWizardStep();
+      window._confirmSetMatch = (setNum, variantIdx) => {
+        const allVariants = state.setData.filter(s => s.setNum === setNum);
+        if (!allVariants.length) return;
+
+        // If a specific variant was passed or only one exists, resolve directly
+        if (variantIdx !== undefined) {
+          const v = allVariants[variantIdx];
+          wizard.data._resolvedSet = v;
+          wizard.data.set_num = v.setNum;
+          renderWizardStep();
+          return;
+        }
+        if (allVariants.length === 1) {
+          wizard.data._resolvedSet = allVariants[0];
+          wizard.data.set_num = allVariants[0].setNum;
+          renderWizardStep();
+          return;
+        }
+
+        // Multiple variants — show disambiguation overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:0';
+        const sheet = document.createElement('div');
+        sheet.style.cssText = 'background:var(--surface);border-radius:16px 16px 0 0;padding:1.25rem;width:100%;max-width:520px;max-height:80vh;overflow-y:auto';
+        sheet.innerHTML = `<div style="font-family:var(--font-head);font-size:0.65rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-dim);text-align:center;margin-bottom:0.75rem">Set ${setNum} — Which version?</div>`;
+
+        const _entered = wizard.data._enteredNums || [];
+        allVariants.forEach((v, vi) => {
+          const btn = document.createElement('button');
+          btn.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;gap:0.3rem;width:100%;padding:0.75rem 0.9rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);margin-bottom:0.4rem;cursor:pointer;text-align:left;font-family:var(--font-body)';
+          btn.onmouseenter = () => btn.style.border = '1px solid #e67e22';
+          btn.onmouseleave = () => btn.style.border = '1px solid var(--border)';
+
+          const chips = v.items.map(n => {
+            const matched = _entered.some(e => normalizeItemNum(e) === normalizeItemNum(n));
+            return `<span style="font-family:var(--font-mono);font-size:0.7rem;padding:1px 6px;border-radius:4px;border:1px solid ${matched?'#27ae60':'var(--border)'};background:${matched?'rgba(39,174,96,0.15)':'var(--surface)'};color:${matched?'#27ae60':'var(--text-dim)'};font-weight:${matched?'700':'400'}">${n}</span>`;
+          }).join('');
+          const altChips = v.alts.length ? v.alts.map(n => {
+            const matched = _entered.some(e => normalizeItemNum(e) === normalizeItemNum(n));
+            return `<span style="font-family:var(--font-mono);font-size:0.7rem;padding:1px 6px;border-radius:4px;border:1px solid ${matched?'#e67e22':'rgba(230,126,34,0.3)'};background:${matched?'rgba(230,126,34,0.12)':'var(--surface)'};color:${matched?'#e67e22':'var(--text-dim)'};font-style:italic">${n}</span>`;
+          }).join('') : '';
+
+          btn.innerHTML = `
+            <div style="font-size:0.78rem;color:var(--text-dim)">${v.year || 'Year unknown'}${v.gauge ? ' · ' + v.gauge : ''}${v.price ? ' · ' + v.price : ''}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.2rem">${chips}${altChips}</div>`;
+          btn.onclick = () => { overlay.remove(); window._confirmSetMatch(setNum, vi); };
+          sheet.appendChild(btn);
+        });
+
+        const cancel = document.createElement('button');
+        cancel.style.cssText = 'width:100%;padding:0.65rem;border-radius:10px;border:none;background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;margin-top:0.25rem';
+        cancel.textContent = 'Cancel';
+        cancel.onclick = () => overlay.remove();
+        sheet.appendChild(cancel);
+        overlay.appendChild(sheet);
+        overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+        document.body.appendChild(overlay);
       };
       window._dismissAllSugg = () => {
         const sug = suggestSets(wizard.data._enteredNums||[]).filter(sg => !(wizard.data._dismissedSets||[]).includes(sg.setNum));
@@ -9550,6 +9609,64 @@ function updateWizardPhoto(field, idx, val) {
 
 let itemLookupTimer;
 let _suggestionIndex = -1;
+
+function updateSetSuggestions(query) {
+  const el = document.getElementById('wiz-suggestions');
+  if (!el) return;
+  const q = (query || '').trim().toUpperCase();
+  if (q.length < 1) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+  // Show every matching row (one per variant), limit to 12
+  const candidates = state.setData
+    .filter(s => s.setNum.toUpperCase().includes(q))
+    .slice(0, 12);
+
+  if (!candidates.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+  el.innerHTML = '';
+  candidates.forEach((s, i) => {
+    const row = document.createElement('button');
+    row.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;gap:0.25rem;padding:0.55rem 0.75rem;border-radius:8px;border:none;background:none;color:var(--text);text-align:left;cursor:pointer;width:100%;font-family:var(--font-body)';
+    row.onmouseenter = () => row.style.background = 'var(--surface2)';
+    row.onmouseleave = () => row.style.background = 'none';
+
+    // Item number chips
+    const chips = s.items.map(n =>
+      `<span style="font-family:var(--font-mono);font-size:0.68rem;padding:1px 5px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim)">${n}</span>`
+    ).join('');
+    const altChips = s.alts.length ? s.alts.map(n =>
+      `<span style="font-family:var(--font-mono);font-size:0.68rem;padding:1px 5px;border-radius:4px;border:1px solid rgba(230,126,34,0.4);background:var(--surface);color:#e67e22;font-style:italic" title="Alternate">${n}</span>`
+    ).join('') : '';
+
+    row.innerHTML = `
+      <div style="display:flex;align-items:center;gap:0.5rem;width:100%">
+        <span style="font-family:var(--font-mono);font-size:0.88rem;font-weight:700;color:var(--accent)">${s.setNum}</span>
+        ${s.setName ? `<span style="font-size:0.78rem;color:var(--text-mid);flex:1">${s.setName}</span>` : '<span style="flex:1"></span>'}
+        <span style="font-size:0.7rem;color:var(--text-dim);white-space:nowrap">${s.year || ''}${s.gauge ? ' · ' + s.gauge : ''}</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:0.2rem;margin-top:0.1rem">${chips}${altChips}</div>`;
+
+    row.onclick = () => {
+      wizard.data.set_num = s.setNum;
+      wizard.data._resolvedSet = s;  // store the exact variant row
+      el.style.display = 'none';
+      el.innerHTML = '';
+      const inp = document.getElementById('wiz-input');
+      if (inp) inp.value = s.setNum;
+      wizardNext();
+    };
+    el.appendChild(row);
+
+    // Divider between different set numbers
+    if (i < candidates.length - 1 && candidates[i+1].setNum !== s.setNum) {
+      const div = document.createElement('div');
+      div.style.cssText = 'height:1px;background:var(--border);margin:2px 0';
+      el.appendChild(div);
+    }
+  });
+  el.style.display = 'flex';
+  el.style.flexDirection = 'column';
+}
 
 function updateUnitNumSuggestions(query, field) {
   const el = document.getElementById('wiz-unit-suggestions');
