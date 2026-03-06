@@ -11874,7 +11874,7 @@ async function saveCatalogItem() {
 async function saveEphemeraItem() {
   const d = wizard.data;
   const tab = wizard.tab;
-  const tabNames = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };\
+  const tabNames = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };
   const _userTab = (state.userDefinedTabs||[]).find(t => t.id === tab);
   const sheetName = tabNames[tab] || (_userTab && _userTab.label) || null;
   if (!sheetName) { closeWizard(); return; }
