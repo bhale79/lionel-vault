@@ -170,36 +170,44 @@
 /* ── Help Widget (conductor + button) ── */
 #tut-help-widget {
   position: fixed;
-  bottom: 80px; left: 12px;
+  top: 10px; right: 160px;
   display: none;
-  align-items: flex-end;
-  gap: 0;
+  align-items: center;
+  gap: 6px;
   z-index: 9000;
   cursor: pointer;
 }
-@media (min-width: 768px) {
-  #tut-help-widget { bottom: 24px; left: 20px; }
+@media (max-width: 767px) {
+  #tut-help-widget { top: 10px; right: 110px; }
+}
+/* "Need Help?" label */
+#tut-help-widget::after {
+  content: 'Need Help?';
+  font-family: var(--font-head, sans-serif);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-mid, #aaa);
+  white-space: nowrap;
+  transition: color 0.2s;
+}
+#tut-help-widget:hover::after {
+  color: var(--text, #eee);
 }
 #tut-help-conductor {
-  height: 90px;
+  height: 40px;
   width: auto;
   display: block;
-  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35));
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
   transition: transform 0.2s;
-  transform-origin: bottom right;
-  margin-right: -4px;
-  position: relative;
-  z-index: 1;
+  transform-origin: bottom center;
 }
 #tut-help-btn {
   display: none;
 }
-#tut-help-widget:hover #tut-help-btn {
-  background: #22527a;
-  box-shadow: 0 6px 24px rgba(0,0,0,0.45), 0 0 0 3px rgba(255,255,255,0.25);
-}
 #tut-help-widget:hover #tut-help-conductor {
-  transform: translateY(-4px) rotate(-3deg);
+  transform: translateY(-3px) rotate(-3deg);
 }
 
 /* ── Help Menu ── */
@@ -220,10 +228,10 @@
   to   { transform: scale(1) translateY(0);     opacity: 1; }
 }
 @media (min-width: 768px) {
-  #tut-help-menu { bottom: 96px; left: 24px; }
+  #tut-help-menu { top: 56px; right: 12px; }
 }
 @media (max-width: 767px) {
-  #tut-help-menu { bottom: 160px; left: 16px; right: 16px; }
+  #tut-help-menu { top: 56px; left: 16px; right: 16px; }
 }
 .tut-menu-header {
   font-family: var(--font-head);
