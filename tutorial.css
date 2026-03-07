@@ -29,7 +29,7 @@
 /* ── Conductor Panel ── */
 #tut-panel {
   position: fixed;
-  z-index: 10002;
+  z-index: 12000;
   display: flex;
   align-items: flex-end;
   gap: 0;
@@ -192,21 +192,7 @@
   z-index: 1;
 }
 #tut-help-btn {
-  width: 58px; height: 58px;
-  border-radius: 50%;
-  border: none;
-  background: #1a3a5c;
-  color: #fff;
-  font-family: var(--font-head, sans-serif);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 3px rgba(255,255,255,0.15);
-  transition: transform 0.2s, box-shadow 0.2s, background 0.15s;
-  flex-shrink: 0;
-  align-self: center;
+  display: none;
 }
 #tut-help-widget:hover #tut-help-btn {
   background: #22527a;
