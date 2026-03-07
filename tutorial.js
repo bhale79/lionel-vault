@@ -75,7 +75,7 @@ const _TUT = (function() {
           msg: 'When you finally get a piece you\'ve been hunting — come back to your Want List. Find the item in the list.'
         },
         {
-          target: () => document.querySelector('#want-cards .btn') || document.querySelector('[onclick*="moveWantToCollection"]'),
+          target: null,
           title: 'Tap + Collection',
           msg: 'Each want item has a green <strong>+ Collection</strong> button. Tap it — the Add Item wizard opens, pre-filled with that item\'s details.'
         },
@@ -102,12 +102,12 @@ const _TUT = (function() {
           msg: 'Go to <strong>My Collection</strong> in the left sidebar. This shows everything you own.'
         },
         {
-          target: () => document.querySelector('.browse-card') || document.querySelector('#browse-tbody tr'),
+          target: null,
           title: 'Tap an Item',
           msg: 'Tap any item in your collection to open its action menu. You\'ll see a row of action buttons appear below it.'
         },
         {
-          target: () => document.querySelector('[onclick*="collectionActionForSale"]') || document.querySelector('[onclick*="listForSale"]'),
+          target: null,
           title: 'Tap 🏷️ For Sale',
           msg: 'Tap the orange <strong>🏷️ For Sale</strong> button. A short wizard opens — enter your asking price and any sale notes.'
         },
@@ -130,7 +130,7 @@ const _TUT = (function() {
           msg: 'When something sells, go to your <strong>For Sale</strong> list. Find the item that sold.'
         },
         {
-          target: () => document.querySelector('[onclick*="markForSaleAsSold"]'),
+          target: null,
           title: 'Tap Mark as Sold',
           msg: 'Each listed item has a green <strong>Mark as Sold</strong> button. Tap it — enter the final sale price and date.'
         },
@@ -153,12 +153,12 @@ const _TUT = (function() {
           msg: 'Go to <strong>My Collection</strong>. Find the item you want to remove.'
         },
         {
-          target: () => document.querySelector('.browse-card') || document.querySelector('#browse-tbody tr'),
+          target: null,
           title: 'Tap the Item',
           msg: 'Tap the item row — action buttons appear below it. You\'ll see For Sale, Sold It, and <strong>Remove</strong> buttons.'
         },
         {
-          target: () => document.querySelector('[onclick*="removeCollectionItem"]'),
+          target: null,
           title: 'Tap Remove',
           msg: 'Tap the gray <strong>Remove</strong> button. A confirmation appears — tap OK. The item is deleted from your collection and Google Sheet permanently.'
         },
@@ -185,12 +185,12 @@ const _TUT = (function() {
           msg: 'Use the dropdown to pick a report type. <strong>Insurance Report</strong> lists every item with estimated values — perfect for your insurance policy.'
         },
         {
-          target: () => document.querySelector('.btn-export'),
+          target: null,
           title: 'Export or Print',
           msg: 'Tap <strong>Export CSV</strong> to download a spreadsheet, or <strong>Print</strong> to print directly. The insurance report is formatted for printing.'
         },
         {
-          target: () => document.querySelector('[onclick*="openReportBuilder"]'),
+          target: null,
           title: 'Build a Custom Report',
           msg: 'Tap <strong>Build a Report</strong> to create a custom filtered report — pick which items, columns, and sort order you want. You can save custom reports and reuse them anytime.'
         }
