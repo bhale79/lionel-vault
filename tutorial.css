@@ -173,33 +173,35 @@
   position: fixed;
   top: 10px; right: 220px;
   display: none;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-end;
+  gap: 0;
   z-index: 9000;
   cursor: pointer;
 }
 @media (max-width: 767px) {
   #tut-help-widget { top: 10px; right: 110px; }
 }
-#tut-help-widget::after {
+/* "Need Help?" text overlaid inside the drawn speech bubble */
+#tut-help-widget::before {
   content: 'Need Help?';
-  font-family: var(--font-head, sans-serif);
-  font-size: 0.72rem;
+  position: absolute;
+  top: 4px; right: -6px;
+  font-family: 'Comic Sans MS', var(--font-head, cursive);
+  font-size: 0.58rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-mid, #aaa);
-  white-space: nowrap;
-  transition: color 0.2s;
-}
-#tut-help-widget:hover::after {
-  color: var(--text, #eee);
+  color: #1a1a1a;
+  text-align: center;
+  line-height: 1.2;
+  width: 52px;
+  pointer-events: none;
+  transform: rotate(-4deg);
+  z-index: 1;
 }
 #tut-help-conductor {
-  height: 40px;
+  height: 90px;
   width: auto;
   display: block;
-  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35));
   transition: transform 0.2s;
   transform-origin: bottom center;
 }
@@ -207,7 +209,7 @@
   display: none;
 }
 #tut-help-widget:hover #tut-help-conductor {
-  transform: translateY(-3px) rotate(-3deg);
+  transform: translateY(-4px) rotate(-3deg);
 }
 
 /* ── Help Menu ── */
