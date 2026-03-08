@@ -17,10 +17,7 @@ const _TUT = (function() {
           hint: 'Tap the orange <strong>+ Add to Collection</strong> button highlighted above. Don\'t worry — anything added during this tour can be deleted afterward!'
         },
         {
-          target: () => {
-            const opts = document.querySelectorAll('.wizard-option, .item-type-card, [class*="option-card"]');
-            return opts[0] || document.querySelector('[onclick*="itemCategory"]');
-          },
+          target: () => document.querySelector('[onclick*="wizardChooseCategory"]'),
           title: 'Choose: Lionel Item #',
           msg: 'The wizard asks what you\'d like to add. Tap <strong>Lionel Item #</strong> — the first option. This covers any train, car, or accessory that has a Lionel catalog number.',
           hint: 'Tap <strong>Lionel Item #</strong> — the first option in the list. That\'s the right choice for most items in your collection.'
