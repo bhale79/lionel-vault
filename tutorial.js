@@ -25,9 +25,16 @@ const _TUT = (function() {
         {
           nav: () => {},
           target: () => document.querySelector('#wiz-input'),
-          title: 'Enter Item Number & Type',
-          msg: 'Type <strong>773</strong> in the search box — the app searches the master catalog as you type. Tap <strong>Next</strong>, then select <strong>Engine + Tender</strong>. The app will walk you through each piece and link them as a matched pair.',
-          hint: 'Type <strong>773</strong>, tap <strong>Next →</strong>, then tap the <strong>Engine + Tender</strong> option highlighted above.'
+          title: 'Enter Item Number',
+          msg: 'Type <strong>773</strong> in the search box — the app searches the master catalog as you type and shows matching results below. When you see it, tap <strong>Next</strong> to continue.',
+          hint: 'Type <strong>773</strong> in the box above, then tap <strong>Next →</strong>.'
+        },
+        {
+          nav: () => {},
+          target: () => document.querySelector('[onclick*="_selectGrouping"]'),
+          title: 'Engine + Tender',
+          msg: 'The 773 comes with a matching tender. Tap <strong>Engine + Tender</strong> to add both pieces together — the app will walk you through each one and link them as a matched pair.',
+          hint: 'Tap the <strong>Engine + Tender</strong> button highlighted above, then tap <strong>Next →</strong>.'
         },
         {
           nav: () => {},
