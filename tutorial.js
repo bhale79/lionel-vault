@@ -23,7 +23,7 @@ const _TUT = (function() {
           hint: 'Tap <strong>Lionel Item #</strong> — the first option in the list. That\'s the right choice for most items in your collection.'
         },
         {
-          target: () => document.querySelector('[onclick*="engineTender"], [onclick*="engine_tender"], [onclick*="loco_tender"]') || document.querySelector('.item-grouping-option, .wizard-option'),
+          target: () => document.querySelector('#wiz-input'),
           title: 'Enter Item Number & Type',
           msg: 'Type <strong>773</strong> in the search box — the app searches the master catalog as you type. Tap <strong>Next</strong>, then select <strong>Engine + Tender</strong>. The app will walk you through each piece and link them as a matched pair.',
           hint: 'Type <strong>773</strong>, tap <strong>Next →</strong>, then tap the <strong>Engine + Tender</strong> option highlighted above.'
