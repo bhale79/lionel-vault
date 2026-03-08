@@ -171,7 +171,7 @@
 /* ── Help Widget (conductor + button) ── */
 #tut-help-widget {
   position: fixed;
-  top: 10px; right: 220px;
+  top: 10px; right: 300px;
   display: none;
   align-items: flex-end;
   gap: 0;
@@ -180,7 +180,7 @@
   background: transparent;
 }
 @media (max-width: 767px) {
-  #tut-help-widget { top: 10px; right: 110px; }
+  #tut-help-widget { top: 10px; right: 180px; }
 }
 #tut-help-label {
   position: absolute;
