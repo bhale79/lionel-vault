@@ -184,17 +184,16 @@
 }
 #tut-help-label {
   position: absolute;
-  top: 1px;
-  right: 2px;
+  top: 50%;
+  left: 44px;
+  transform: translateY(-50%);
   font-family: 'Comic Sans MS', cursive;
-  font-size: 0.48rem;
+  font-size: 0.65rem;
   font-weight: 700;
-  color: #1a1a1a;
-  text-align: center;
-  width: 34px;
-  line-height: 1.15;
+  color: #eee;
+  text-align: left;
+  white-space: nowrap;
   pointer-events: none;
-  transform: rotate(-3deg);
   z-index: 2;
 }
 #tut-help-conductor {
