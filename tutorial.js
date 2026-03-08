@@ -11,29 +11,69 @@ const _TUT = (function() {
       steps: [
         {
           nav: () => { showPage('dashboard', document.querySelector('.nav-item')); },
-          target: () => document.querySelector('#page-dashboard .btn'),
-          title: 'Add an Item',
-          msg: 'From the Dashboard, tap <strong>Add Item</strong> — the red button at the top. This opens the Add Item wizard.'
+          target: () => document.querySelector('#page-dashboard .btn-primary') || document.querySelector('#page-dashboard .btn'),
+          title: 'Add to Collection',
+          msg: 'Let\'s add your first item! Tap the <strong>+ Add to Collection</strong> button at the top of the Dashboard.',
+          hint: 'Tap the orange <strong>+ Add to Collection</strong> button highlighted above. Don\'t worry — anything added during this tour can be deleted afterward!'
+        },
+        {
+          target: () => {
+            const opts = document.querySelectorAll('.wizard-option, .item-type-card, [class*="option-card"]');
+            return opts[0] || document.querySelector('[onclick*="itemCategory"]');
+          },
+          title: 'Choose: Lionel Item #',
+          msg: 'The wizard asks what you\'d like to add. Tap <strong>Lionel Item #</strong> — the first option. This covers any train, car, or accessory that has a Lionel catalog number.',
+          hint: 'Tap <strong>Lionel Item #</strong> — the first option in the list. That\'s the right choice for most items in your collection.'
+        },
+        {
+          target: () => document.querySelector('#wizard-next, [id*="wiz-next"], [onclick*="wizardNext"]'),
+          title: 'Enter Item Number: 773',
+          msg: 'Type <strong>773</strong> in the search box. The app searches the master catalog as you type and shows matching results. When ready, tap <strong>Next</strong>.',
+          hint: 'Type <strong>773</strong> in the box above — matches will appear as you type. Then tap <strong>Next →</strong> to continue.'
+        },
+        {
+          target: () => document.querySelector('[onclick*="engineTender"], [onclick*="engine_tender"], [onclick*="loco_tender"]') || document.querySelector('.item-grouping-option, .wizard-option'),
+          title: 'Engine + Tender',
+          msg: 'The 773 comes with a matching tender. Tap <strong>Engine + Tender</strong> to add both pieces together — the app will walk you through each one and link them as a matched pair.',
+          hint: 'Tap the <strong>Engine + Tender</strong> option highlighted above to add both pieces together.'
+        },
+        {
+          target: () => {
+            const rows = document.querySelectorAll('.variation-row, .var-option, [onclick*="variation"], [onclick*="pickVar"]');
+            return rows[0] || null;
+          },
+          title: 'Select Variation 1',
+          msg: 'Pick <strong>Variation 1</strong> from the list. Each variation includes a description from the Lionel reference catalog. You\'ll also see a <strong>COTT link</strong> — that opens the item on the Collector\'s Old Time Trains site for more detail. You can check that later!',
+          hint: 'Tap <strong>Variation 1</strong> in the list above to select it. You can explore the COTT link another time.'
+        },
+        {
+          target: () => document.querySelector('[onclick*="fullEntry"], [onclick*="full_entry"]') || document.querySelector('.entry-mode-full, .wizard-option'),
+          title: 'Full vs Quick Entry',
+          msg: '<strong>Quick Entry</strong> saves the item immediately with no further questions — great for speed. Items added that way are marked with the ⚡ icon so you can fill in details later. For this tour, tap <strong>Full Entry</strong> so we can walk through all the fields.',
+          hint: 'Tap <strong>Full Entry</strong> to continue the walkthrough with all the detail steps.'
+        },
+        {
+          target: () => document.querySelector('#wizard-next, [id*="wiz-next"], [onclick*="wizardNext"]'),
+          title: 'Condition',
+          msg: 'Rate the condition of your item from <strong>1 to 10</strong> — 10 is mint in the box, 1 is heavily worn. You\'ll rate the engine here, then do the same for the tender on the next screen. When done, tap <strong>Next</strong>.',
+          hint: 'Use the slider to rate the condition, then tap <strong>Next →</strong> to continue.'
+        },
+        {
+          target: () => document.querySelector('#wizard-next, [id*="wiz-next"], [onclick*="wizardNext"]'),
+          title: 'Purchase & Value',
+          msg: 'Enter what you paid and when you bought the item. You can also set your own estimated value. All fields are optional — fill in what you know and tap <strong>Next</strong>.',
+          hint: 'Enter a purchase price if you know it, then tap <strong>Next →</strong>. You can always edit this later.'
+        },
+        {
+          target: () => document.querySelector('#wizard-next, [id*="wiz-next"], [onclick*="wizardNext"]'),
+          title: 'Add Photos',
+          msg: 'You can attach photos of your item here. On a <strong>computer</strong>, click to upload from your files. On the <strong>mobile app</strong>, you can take a photo directly with your camera. You\'ll add photos for both the engine and the tender. Tap <strong>Skip</strong> or <strong>Next</strong> if you\'d like to come back to this later.',
+          hint: 'Tap <strong>Next →</strong> to skip photos for now — you can add them later from the item\'s detail screen.'
         },
         {
           target: null,
-          title: 'Enter the Item Number',
-          msg: 'Type the Lionel item number — like <strong>2343</strong> or <strong>736</strong>. The app searches the master catalog as you type and shows matching items.'
-        },
-        {
-          target: null,
-          title: 'Choose a Variation',
-          msg: 'Select the variation that matches your piece. Each one has a detailed description from the Lionel reference catalog to help you identify it.'
-        },
-        {
-          target: null,
-          title: 'Condition, Price & Photos',
-          msg: 'Rate the condition 1–10, enter what you paid, add a location or notes, and attach photos from your camera if you want.'
-        },
-        {
-          target: null,
-          title: 'Done!',
-          msg: 'Tap <strong>Save</strong> — the item is written to your Google Sheet immediately and shows up in your collection. That\'s it!'
+          title: 'Review & Save',
+          msg: 'This is the confirm screen. Every field is listed here and <strong>any line can be tapped to edit</strong> before saving. Review your entries, make any changes, then tap <strong>Save</strong>. The item is written to your Google Sheet instantly. That\'s it — you\'ve added your first item!'
         }
       ]
     },
@@ -208,6 +248,7 @@ const _TUT = (function() {
   let _resizeTimer = null;
   let _clickTarget = null;
   let _clickHandler = null;
+  let _hintTimer = null;
 
   // ── Spotlight helpers ─────────────────────────────────────────
   function _ensureSpotlight() {
@@ -261,6 +302,20 @@ const _TUT = (function() {
       try { targetEl = step.target(); } catch(e) {}
     }
 
+    // Clear any pending hint timer and hide hint
+    clearTimeout(_hintTimer);
+    _hintTimer = null;
+    let hintMsg = document.getElementById('tut-hint-msg');
+    if (!hintMsg) {
+      hintMsg = document.createElement('div');
+      hintMsg.id = 'tut-hint-msg';
+      hintMsg.style.cssText = 'display:none;font-size:0.8rem;color:#8a5e00;background:rgba(240,180,40,0.15);border-radius:8px;padding:0.4rem 0.65rem;margin-bottom:0.5rem;line-height:1.45;border-left:3px solid rgba(240,180,40,0.7);';
+      const footer = document.querySelector('#tut-bubble .tut-bubble-footer');
+      if (footer) footer.parentNode.insertBefore(hintMsg, footer);
+    }
+    hintMsg.style.display = 'none';
+    hintMsg.innerHTML = '';
+
     // Scroll target into view
     if (targetEl) {
       try { targetEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch(e) {}
@@ -293,12 +348,25 @@ const _TUT = (function() {
       clickHint.style.display = 'block';
       _clickHandler = function(e) {
         // Don't prevent default — let the real action fire
+        clearTimeout(_hintTimer);
+        _hintTimer = null;
         setTimeout(function() { _TUT.next(); }, 80);
         targetEl.removeEventListener('click', _clickHandler, true);
         _clickTarget = null; _clickHandler = null;
       };
       _clickTarget = targetEl;
       targetEl.addEventListener('click', _clickHandler, true);
+      // Show nudge hint after 5 seconds of inactivity
+      if (step.hint) {
+        _hintTimer = setTimeout(function() {
+          if (!_active) return;
+          const hintEl = document.getElementById('tut-hint-msg');
+          if (hintEl) {
+            hintEl.innerHTML = '💡 ' + step.hint;
+            hintEl.style.display = 'block';
+          }
+        }, 5000);
+      }
     } else {
       // No target — show normal Next button
       nextBtn.style.display = '';
@@ -349,11 +417,15 @@ const _TUT = (function() {
   function _finish() {
     _active = false;
     _removeSpotlight();
+    clearTimeout(_hintTimer);
+    _hintTimer = null;
     // Clean up any pending click listener
     if (_clickTarget && _clickHandler) {
       _clickTarget.removeEventListener('click', _clickHandler, true);
       _clickTarget = null; _clickHandler = null;
     }
+    const hintEl = document.getElementById('tut-hint-msg');
+    if (hintEl) hintEl.style.display = 'none';
     document.getElementById('tut-panel').classList.add('tut-hidden');
     document.getElementById('tut-overlay').classList.remove('active');
     document.getElementById('tut-click-hint').style.display = 'none';
