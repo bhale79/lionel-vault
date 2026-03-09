@@ -1867,6 +1867,8 @@ function resetFilters() {
   // Restore table headers to default
   const thead = document.querySelector('#page-browse .item-table thead tr');
   if (thead) thead.innerHTML = '<th>Item #</th><th>Type</th><th>Road / Name</th><th>Var.</th><th>Var. Descr.</th><th>Year</th><th>Owned</th><th>Cond.</th><th>Market Value</th>';
+  var _leg = document.getElementById('collection-icon-legend');
+  if (_leg) _leg.style.display = 'none';
   removeQEFilter();
   state.filters.owned = false;
   state.filters.unowned = false;
@@ -1896,6 +1898,8 @@ function filterOwned(qe) {
   // Update table headers for collection view
   const thead = document.querySelector('#page-browse .item-table thead tr');
   if (thead) thead.innerHTML = '<th>Item #</th><th>Variation</th><th>Description</th><th>Actions</th>';
+  var _leg = document.getElementById('collection-icon-legend');
+  if (_leg) _leg.style.display = 'flex';
   renderBrowse();
   // Show QE filter toggle in filter bar when in My Collection
   setTimeout(function() {
@@ -3365,7 +3369,7 @@ function showItemPanel(idx, pdKey, mode) {
     { label: 'Date Purchased',key: 'datePurchased', val: pd.datePurchased || '—', type: 'date' },
     { label: 'Notes',         key: 'notes',         val: pd.notes || '—',         type: 'text' },
     { label: 'Location',      key: 'location',      val: pd.location || '—',      type: 'text' },
-    ...(item.refLink ? [{ label: 'COTT Reference', key: null, val: item.refLink, type: 'link' }] : []),
+    ...(item.refLink ? [{ label: 'COTT Reference', key: null, val: item.refLink, type: 'readonly' }] : []),
     ...(item.errorDesc || pd.isError ? [{ label: 'Error', key: null, val: pd.errorDesc || '—', type: 'readonly' }] : []),
   ];
 
