@@ -196,6 +196,10 @@ document.addEventListener('touchmove', function(){}, {passive: true});
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem">
           <div class="page-title"><span id="dash-greeting"></span></div>
           <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+            <button id="dash-btn-browse-col" class="btn" onclick="showPage('browse', document.querySelector('.nav-item[onclick*=filterOwned]')); filterOwned();" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #9b59b6;color:#9b59b6;background:rgba(155,89,182,0.12);font-weight:600">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              Browse My Collection
+            </button>
             <button class="btn" onclick="startWizardFor('collection')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid var(--accent);color:var(--accent);background:rgba(232,64,28,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add to Collection
@@ -211,10 +215,6 @@ document.addEventListener('touchmove', function(){}, {passive: true});
             <button class="btn" onclick="startWizardFor('sold')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #2ecc71;color:#2ecc71;background:rgba(46,204,113,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               Sell Item
-            </button>
-            <button id="dash-btn-browse-col" class="btn" onclick="showPage('browse', document.querySelector('.nav-item[onclick*=filterOwned]')); filterOwned();" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #9b59b6;color:#9b59b6;background:rgba(155,89,182,0.12);font-weight:600">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-              Browse My Collection
             </button>
 
           </div>
