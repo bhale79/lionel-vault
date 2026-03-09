@@ -1936,11 +1936,13 @@ function buildDashboard() {
       var panelDef = PANEL_CATALOG.find(function(p) { return p.id === (panels[i] ? panels[i].id : (i === 0 ? 'recent' : 'wants')); })
                   || PANEL_CATALOG[i] || PANEL_CATALOG[0];
 
-      // Update header: title + pencil icon
+      // Update header: title (clickable if panel has navFn) + pencil icon
       var headerEl = document.getElementById('dash-panel-header-' + i);
       if (headerEl) {
-        headerEl.innerHTML =
-          '<span>' + panelDef.icon + ' ' + panelDef.label + '</span>'
+        var titleHtml = panelDef.navFn
+          ? '<span style="cursor:pointer;text-decoration:none" onclick="' + panelDef.navFn + '" title="Go to ' + panelDef.label + '">' + panelDef.icon + ' ' + panelDef.label + ' <span style="font-size:0.65rem;opacity:0.5">›</span></span>'
+          : '<span>' + panelDef.icon + ' ' + panelDef.label + '</span>';
+        headerEl.innerHTML = titleHtml
           + '<button onclick="_openPanelPopup(' + i + ')" title="Change panel" '
           + 'style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:0.75rem;padding:0.1rem 0.3rem;border-radius:4px;opacity:0.55;line-height:1" '
           + 'onmouseover="this.style.opacity=\'1\'" onmouseout="this.style.opacity=\'0.55\'">✎</button>';
@@ -1966,6 +1968,7 @@ const PANEL_CATALOG = [
     id: 'recent',
     label: 'Recent Additions',
     icon: '🕐',
+    navFn: "showPage('browse', document.querySelector('.nav-item[onclick*=\'renderBrowse\']')); resetFilters(); renderBrowse();",
     render: function(state) {
       const trains = Object.values(state.personalData).filter(pd => pd.owned)
         .map(pd => ({ ...pd, _src: 'train' }));
@@ -2004,6 +2007,7 @@ const PANEL_CATALOG = [
     id: 'wants',
     label: 'Top Want List Items',
     icon: '⭐',
+    navFn: "goToWantList();",
     render: function(state) {
       const priOrder = { High: 0, Medium: 1, Low: 2 };
       const priColor = { High: 'var(--accent)', Medium: 'var(--accent2,#8b5cf6)', Low: 'var(--text-dim)' };
@@ -2027,6 +2031,7 @@ const PANEL_CATALOG = [
     id: 'forsale',
     label: 'For Sale',
     icon: '🏷️',
+    navFn: "showPage('forsale', document.querySelector('.nav-item[onclick*=\'buildForSalePage\']')); buildForSalePage();",
     render: function(state) {
       return Object.values(state.forSaleData)
         .sort((a, b) => (parseFloat(b.askingPrice) || 0) - (parseFloat(a.askingPrice) || 0))
@@ -2049,6 +2054,7 @@ const PANEL_CATALOG = [
     id: 'value',
     label: 'Highest Value Items',
     icon: '💰',
+    navFn: "showPage('browse', document.querySelector('.nav-item[onclick*=\'filterOwned\']')); filterOwned();",
     render: function(state) {
       return Object.values(state.personalData)
         .filter(pd => pd.owned && (pd.priceComplete || pd.priceItem))
@@ -6630,6 +6636,7 @@ function addSetToWantList(setNum, setName) {
   // Open the want wizard pre-filled as a set
   const _activePg = document.querySelector('.page.active');
   const _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'sets';
+  // Set data FIRST so getSteps('want') sees itemCategory:'set' when it branches
   wizard = {
     step: 0, tab: 'want',
     data: {
@@ -6640,9 +6647,10 @@ function addSetToWantList(setNum, setName) {
       _resolvedSet: state.setData.find(s => s.setNum === setNum) || null,
       _returnPage: _returnPage
     },
-    steps: getSteps('want'),
+    steps: [],
     matchedItem: null
   };
+  wizard.steps = getSteps('want'); // called AFTER wizard.data is set so branching works
   // Skip past itemCategory + want_set_knowsNum + want_set_num steps (already filled)
   const autoSkip = new Set(['itemCategory','want_set_knowsNum','want_set_num','want_set_identify']);
   while (wizard.step < wizard.steps.length) {
