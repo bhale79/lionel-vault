@@ -362,7 +362,7 @@ function showApp() {
   if (typeof tutShowHelpBtn === 'function') tutShowHelpBtn();
   const hr = new Date().getHours();
   const _greet = hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening';
-  const _name = (state.userName || '').split(' ')[0] || 'Collector';
+  const _name = (state.user?.name || '').split(' ')[0] || 'Collector';
   document.getElementById('dash-greeting').innerHTML = _greet + ', <span style="color:var(--accent)">' + _name + '</span>';
 }
 
