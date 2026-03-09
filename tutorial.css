@@ -172,7 +172,8 @@
   position: fixed;
   top: 10px; right: 300px;
   display: none;
-  align-items: flex-end;
+  flex-direction: column;
+  align-items: center;
   gap: 0;
   z-index: 9000;
   cursor: pointer;
@@ -182,10 +183,8 @@
   #tut-help-widget { top: 10px; right: 180px; }
 }
 #tut-help-label {
-  position: absolute;
-  top: 50%;
-  left: 58px;
-  transform: translateY(-50%);
+  display: block;
+  text-align: center;
   font-family: 'Comic Sans MS', cursive;
   font-size: 0.7rem;
   font-weight: 700;
@@ -193,30 +192,31 @@
   background: #fff176;
   border: 2px solid #1a1a1a;
   border-radius: 10px;
-  padding: 0.28rem 0.55rem;
+  padding: 0.25rem 0.5rem;
   white-space: nowrap;
   z-index: 2;
   box-shadow: 1px 2px 0 #1a1a1a;
   line-height: 1.2;
+  margin-bottom: 4px;
 }
-/* Comic bubble tail — points left toward conductor */
+/* Comic bubble tail — points down toward conductor */
 #tut-help-label::before {
   content: '';
   position: absolute;
-  top: 50%;
-  left: -10px;
-  transform: translateY(-50%);
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
   border: 5px solid transparent;
-  border-right-color: #1a1a1a;
+  border-top-color: #1a1a1a;
 }
 #tut-help-label::after {
   content: '';
   position: absolute;
-  top: 50%;
-  left: -7px;
-  transform: translateY(-50%);
+  bottom: -17px;
+  left: 50%;
+  transform: translateX(-50%);
   border: 4px solid transparent;
-  border-right-color: #fff176;
+  border-top-color: #fff176;
   z-index: 1;
 }
 #tut-help-conductor {
