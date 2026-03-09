@@ -113,40 +113,40 @@
 
       <div class="nav-section">
         <div class="nav-label">Overview</div>
-        <button class="nav-item active" onclick="showPage('dashboard', this)" data-ctip="This will take you to the main page so you can navigate to where you want to go!">
+        <button class="nav-item active" onclick="showPage('dashboard', this)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
           Dashboard
         </button>
       </div>
       <div class="nav-section">
         <div class="nav-label">Inventory</div>
-        <button class="nav-item" onclick="showPage('browse', this); resetFilters(); renderBrowse();" data-ctip="Opens the master list of Postwar Items. Here you can view and then add to your inventory, want, or for sale list.">
+        <button class="nav-item" onclick="showPage('browse', this); resetFilters(); renderBrowse();">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
           Postwar Item List
           <span class="nav-badge" id="nav-total">—</span>
         </button>
-        <button class="nav-item" onclick="showPage('browse', this); filterOwned()" data-ctip="This is your inventory list. All the items you own are viewed here. From here you can also add items to your collection, transfer items to the sale list, or delete them from the list.">
+        <button class="nav-item" onclick="showPage('browse', this); filterOwned()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
           My Collection
           <span class="nav-badge green" id="nav-owned">—</span>
         </button>
-        <button class="nav-item" id="nav-quickentry-btn" onclick="showPage('quickentry', this); buildQuickEntryList();" data-ctip="This shows you the items you quickly uploaded so you can add the item details when you have the time.">
+        <button class="nav-item" id="nav-quickentry-btn" onclick="showPage('quickentry', this); buildQuickEntryList();">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           Quick Entry List
           <span class="nav-badge" id="nav-qe-count" style="background:#27ae60">—</span>
         </button>
 
-        <button class="nav-item" onclick="showPage('want', this); buildWantPage();" data-ctip="This is the list you want to take to the next train show. Add what you are looking for and keep notes to make sure you buy what you need. When you do buy it, transfer it quickly to your collection from here.">
+        <button class="nav-item" onclick="showPage('want', this); buildWantPage();">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
           Want List
           <span class="nav-badge" id="nav-wanted2" style="background:var(--accent2);color:#000">—</span>
         </button>
-        <button class="nav-item" onclick="showPage('forsale', this); buildForSalePage();" data-ctip="This is the list of the things you have for sale. It keeps track of items, their notes, and what you want for them. Once sold, transfer to your sold list — or change your mind and put them back in your collection.">
+        <button class="nav-item" onclick="showPage('forsale', this); buildForSalePage();">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
           For Sale
           <span class="nav-badge" id="nav-forsale" style="background:#e67e22;color:#fff">—</span>
         </button>
-        <button class="nav-item" onclick="showPage('sold', this)" data-ctip="This is the list of the items you have sold and what you sold them for. Don't look too long as you might wish you had some of these back.">
+        <button class="nav-item" onclick="showPage('sold', this)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           Sold Items
           <span class="nav-badge" id="nav-sold" style="background:#9b59b6">—</span>
@@ -154,31 +154,23 @@
       </div>
       <div class="nav-section">
         <div class="nav-label">Reports</div>
-        <button class="nav-item" onclick="showPage('reports', this)" data-ctip="This will be handy when you want to give your insurance a list of your collection, make a print out of your want list or for sale items. You can customize your reports as well.">
+        <button class="nav-item" onclick="showPage('reports', this)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           Reports
         </button>
-        <button class="nav-item" onclick="showPage('prefs', this); buildPrefsPage()" data-ctip="This will let you customize this site to your liking.">
+        <button class="nav-item" onclick="showPage('prefs', this); buildPrefsPage()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           Preferences
         </button>
       </div>
       <div class="nav-section" style="padding-top:0.75rem;border-top:1px solid var(--border)">
-        <button id="refresh-btn" onclick="forceRefreshData()" data-ctip="Sometimes the internet is just slow and your collection doesn't look right after you entered something. Hit this and it will load your information straight from your sheet."
+        <button id="refresh-btn" onclick="forceRefreshData()"
           style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;border-radius:7px;color:var(--text-dim);font-size:0.82rem;background:none;border:none;width:100%;cursor:pointer;text-align:left;font-family:var(--font-body)"
           onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='var(--text)'"
           onmouseout="this.style.background='none';this.style.color='var(--text-dim)'">
           <svg id="refresh-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           Sync from Sheet
         </button>
-        <!-- Help widget — inline in sidebar, desktop only -->
-        <div id="tut-help-widget" onclick="tutToggleMenu()" title="Help &amp; Tutorials" role="button" tabindex="0"
-          style="display:none;align-items:center;gap:0.5rem;padding:0.5rem 0.75rem;border-radius:7px;cursor:pointer;width:100%;margin-top:0.25rem"
-          onmouseover="this.style.background='rgba(255,255,255,0.06)'"
-          onmouseout="this.style.background='none'">
-          <img id="tut-help-conductor" src="./conductor.png" style="height:28px;width:auto;flex-shrink:0">
-          <span id="tut-help-label" style="font-family:var(--font-body);font-size:0.82rem;color:var(--text-dim)">Need Help?</span>
-        </div>
       </div>
     </nav>
 
@@ -196,23 +188,19 @@ document.addEventListener('touchmove', function(){}, {passive: true});
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem">
           <div class="page-title"><span id="dash-greeting"></span></div>
           <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-            <button id="dash-btn-browse-col" class="btn" data-ctip="This is your inventory list. All the items you own are viewed here. From here you can also add items to your collection, transfer items to the sale list, or delete them from the list." onclick="showPage('browse', document.querySelector('.nav-item[onclick*=filterOwned]')); filterOwned();" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #9b59b6;color:#9b59b6;background:rgba(155,89,182,0.12);font-weight:600">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-              Browse My Collection
-            </button>
-            <button class="btn" onclick="startWizardFor('collection')" data-ctip="This will take you through the steps on adding items to your collection." style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid var(--accent);color:var(--accent);background:rgba(232,64,28,0.12);font-weight:600">
+            <button class="btn" onclick="startWizardFor('collection')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid var(--accent);color:var(--accent);background:rgba(232,64,28,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add to Collection
             </button>
-            <button class="btn" onclick="startWizardFor('want')" data-ctip="This will take you through the steps on adding items to your want list." style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #2980b9;color:#2980b9;background:rgba(41,128,185,0.12);font-weight:600">
+            <button class="btn" onclick="startWizardFor('want')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #2980b9;color:#2980b9;background:rgba(41,128,185,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
               Want List
             </button>
-            <button class="btn" onclick="startWizardFor('forsale')" data-ctip="This will take you through the steps on adding items to your for sale list." style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.12);font-weight:600">
+            <button class="btn" onclick="startWizardFor('forsale')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
               For Sale
             </button>
-            <button class="btn" onclick="startWizardFor('sold')" data-ctip="This will take you to where you can record an item as sold." style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #2ecc71;color:#2ecc71;background:rgba(46,204,113,0.12);font-weight:600">
+            <button class="btn" onclick="startWizardFor('sold')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #2ecc71;color:#2ecc71;background:rgba(46,204,113,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               Sell Item
             </button>
@@ -220,18 +208,38 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           </div>
         </div>
 
-        <div class="stats-grid" id="stats-grid"></div>
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card" style="--card-accent: var(--green-light,#3aad70)">
+            <div class="stat-label">Items I Own</div>
+            <div class="stat-value" id="stat-owned">—</div>
+            <div class="stat-sub" id="stat-owned-sub">including variations</div>
+          </div>
+          <div class="stat-card" style="--card-accent: var(--gold,#c9922a)">
+            <div class="stat-label">Collection Value</div>
+            <div class="stat-value" id="stat-value">—</div>
+            <div class="stat-sub">per user</div>
+          </div>
+          <div class="stat-card" style="--card-accent: #3498db">
+            <div class="stat-label">Catalog Items I Own</div>
+            <div class="stat-value" id="stat-catalog-coverage">—</div>
+            <div class="stat-sub" id="stat-catalog-pct">— % of all Lionel items cataloged</div>
+          </div>
+        </div>
 
         <div class="two-col">
           <div class="panel">
-            <div class="section-title">Recent Additions</div>
-            <div id="recent-list">
+            <div class="section-title" id="dash-panel-header-0" style="display:flex;align-items:center;justify-content:space-between">
+              <span>🕐 Recent Additions</span>
+            </div>
+            <div id="dash-panel-body-0" style="overflow-y:auto;max-height:320px;padding-right:2px">
               <div style="padding:1rem 0"><div style="font-size:2rem;margin-bottom:0.5rem">👋</div><div style="font-weight:600;font-size:0.95rem;margin-bottom:0.4rem">Welcome to My Collection App!</div><div style="font-size:0.82rem;color:var(--text-dim);line-height:1.6;margin-bottom:1rem">Start building your collection record. Tap Add Item to log your first piece.</div><button onclick="startWizardFor('collection')" style="width:100%;padding:0.75rem;border-radius:10px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.95rem;font-weight:600;cursor:pointer">+ Add My First Item</button></div>
             </div>
           </div>
           <div class="panel">
-            <div class="section-title">Top Want List Items</div>
-            <div id="want-preview">
+            <div class="section-title" id="dash-panel-header-1" style="display:flex;align-items:center;justify-content:space-between">
+              <span>⭐ Top Want List Items</span>
+            </div>
+            <div id="dash-panel-body-1" style="overflow-y:auto;max-height:320px;padding-right:2px">
               <div class="loading"><div class="spinner"></div></div>
             </div>
           </div>
@@ -271,53 +279,19 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           </div>
         </div>
 
-        <!-- Search bar — full width, directly under title -->
-        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
-          <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.75rem;flex:1">
+        <div class="filter-bar">
+          <select class="filter-select" id="filter-type" onchange="applyFilters()">
+            <option value="">All Types</option>
+          </select>
+
+          <select class="filter-select" id="filter-road" onchange="applyFilters()">
+            <option value="">All Roads</option>
+          </select>
+          <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.35rem 0.65rem;flex:1;max-width:320px">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <input id="browse-search" type="text" placeholder="Search item #, road, description…" oninput="onPageSearch(this.value,'browse')" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:16px;outline:none;width:100%">
+            <input id="browse-search" type="text" placeholder="Search item #, road, description…" oninput="onPageSearch(this.value,'browse')" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:100%">
           </div>
-          <!-- Filter button -->
-          <div style="position:relative">
-            <button id="browse-filter-btn" onclick="toggleBrowseFilterPanel()" style="display:flex;align-items:center;gap:0.4rem;padding:0.45rem 0.85rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text-mid);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;transition:all 0.15s;white-space:nowrap">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
-              Filters <span id="browse-filter-badge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;font-size:0.65rem;padding:0 5px;font-weight:700;line-height:1.6">0</span>
-            </button>
-            <!-- Filter popup panel -->
-            <div id="browse-filter-panel" style="display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:800;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem;box-shadow:0 8px 32px rgba(0,0,0,0.4);min-width:240px">
-              <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.6rem">Filter By</div>
-              <div style="display:flex;flex-direction:column;gap:0.5rem">
-                <select class="filter-select" id="filter-type" onchange="applyFilters();updateFilterBadge()" style="width:100%">
-                  <option value="">All Types</option>
-                </select>
-                <select class="filter-select" id="filter-road" onchange="applyFilters();updateFilterBadge()" style="width:100%">
-                  <option value="">All Roads</option>
-                </select>
-              </div>
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">
-                <span style="font-size:0.8rem;color:var(--text-dim)" id="result-count"></span>
-                <button onclick="clearBrowseFilters()" style="font-size:0.75rem;color:var(--accent);background:none;border:none;cursor:pointer;font-family:var(--font-body);padding:0">Clear filters</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Hidden selects kept for JS compatibility (filter-type, filter-road already in panel above) -->
-        <div class="filter-bar" style="display:none">
-          <select id="filter-type-dup" style="display:none"></select>
-        </div>
-
-        <!-- Icon legend — shows only when in My Collection view -->
-        <div id="collection-icon-legend" style="display:none;align-items:center;gap:1rem;padding:0.35rem 0.5rem 0.5rem;flex-wrap:wrap">
-          <span style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.07em;font-weight:700">Icon Key:</span>
-          <span data-ctip="A Group means this item has another item associated with it — like a tender that goes with an engine, or a car that goes with a set." style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--text-mid);cursor:default">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-            Group
-          </span>
-          <span data-ctip="This item was added using Quick Entry. It still needs its full details filled in — click the ⚡ badge on the item to complete it." style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--text-mid);cursor:default">
-            <span style="font-size:0.72rem;background:#27ae60;color:#fff;border-radius:4px;padding:1px 5px;font-weight:700">⚡</span>
-            Quick Entry
-          </span>
+          <span style="margin-left:auto;font-size:0.8rem;color:var(--text-dim)" id="result-count"></span>
         </div>
 
         <div class="table-wrap browse-table-wrap" style="max-height:calc(100vh - 220px);overflow-y:auto">
@@ -573,9 +547,9 @@ document.addEventListener('touchmove', function(){}, {passive: true});
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
         Want List
       </button>
-      <button class="mobile-nav-item" id="mnav-help" onclick="tutToggleMenu()">
-        <img src="./conductor.png" style="height:28px;width:auto;display:block;margin:0 auto 2px;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.4))">
-        Need Help?
+      <button class="mobile-nav-item" id="mnav-sold" onclick="showPage('sold', this)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Sold
       </button>
     </div>
   </nav>
@@ -818,6 +792,12 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 
 <!-- ══ SCRIPTS ══════════════════════════════════════════════════ -->
 
+<!-- Help Widget -->
+<div id="tut-help-widget" onclick="tutToggleMenu()" title="Help &amp; Tutorials" role="button" tabindex="0">
+  <img id="tut-help-conductor" src="./conductor.png">
+  <span id="tut-help-label">Need Help?</span>
+  <button id="tut-help-btn" onclick="void(0)">Help</button>
+</div>
 
 <!-- Help Menu -->
 <div id="tut-help-menu">
@@ -830,61 +810,26 @@ document.addEventListener('touchmove', function(){}, {passive: true});
     <div class="tut-menu-icon" style="background:rgba(41,128,185,0.15)">⭐</div>
     How to add a want list item
   </button>
+  <button class="tut-menu-item" onclick="tutStart('want-to-collection')">
+    <div class="tut-menu-icon" style="background:rgba(46,204,113,0.15)">✅</div>
+    Move a want item to your collection
+  </button>
   <button class="tut-menu-item" onclick="tutStart('list-for-sale')">
     <div class="tut-menu-icon" style="background:rgba(230,126,34,0.15)">🏷️</div>
-    How to list an item for sale
+    List an item for sale
   </button>
-  <button class="tut-menu-item" onclick="tutStart('delete-item')">
+  <button class="tut-menu-item" onclick="tutStart('mark-sold')">
+    <div class="tut-menu-icon" style="background:rgba(46,204,113,0.15)">💰</div>
+    Mark an item as sold
+  </button>
+  <button class="tut-menu-item" onclick="tutStart('remove-item')">
     <div class="tut-menu-icon" style="background:rgba(150,150,150,0.15)">🗑️</div>
-    How to delete an item
+    Remove / delete an item
   </button>
-</div>
-
-<!-- ── Photo Source Picker (camera vs library) ── -->
-<div id="photo-picker-sheet">
-  <div id="photo-picker-inner">
-    <div style="font-family:var(--font-head);font-size:0.7rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem">Add Photo</div>
-    <button class="picker-btn" id="picker-btn-cam" onclick="document.getElementById('picker-input-cam').click()" style="display:none">
-      <span class="picker-icon">📷</span>
-      <span id="picker-cam-label">Take Photo</span>
-      <input id="picker-input-cam" type="file" accept="image/*" capture="environment" style="display:none" onchange="pickerHandleFile(this,true)">
-    </button>
-    <button class="picker-btn" onclick="document.getElementById('picker-input-lib').click()">
-      <span class="picker-icon">🖼️</span>
-      <span id="picker-lib-label">Choose from Library</span>
-      <input id="picker-input-lib" type="file" accept="image/*" style="display:none" onchange="pickerHandleFile(this,false)">
-    </button>
-    <button class="picker-btn" onclick="closePhotoPicker()" style="border-color:transparent;background:none;color:var(--text-dim);font-size:0.82rem;letter-spacing:0.04em;padding:0.5rem">
-      Cancel
-    </button>
-  </div>
-</div>
-
-<!-- ── Identify Item by Photo (Google Lens) ── -->
-<div id="identify-modal">
-  <div id="identify-panel">
-    <div style="display:flex;align-items:center;justify-content:space-between">
-      <div style="font-family:var(--font-head);font-size:0.75rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-dim)">Identify Item</div>
-      <button onclick="closeIdentify()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:1.2rem;padding:0.25rem">✕</button>
-    </div>
-    <div style="font-size:0.9rem;color:var(--text-mid);line-height:1.5">
-      Use <strong style="color:var(--cream)">Google Lens</strong> to photograph your item, then paste or type the item number it finds below.
-    </div>
-    <button onclick="openGoogleLens()" style="display:flex;align-items:center;justify-content:center;gap:0.6rem;padding:0.75rem 1rem;border-radius:10px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-head);font-size:0.82rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;width:100%">
-      🔍 Open Google Lens
-    </button>
-    <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem">
-      <input id="identify-manual-input" type="text" placeholder="Paste item number here (e.g. 2046W)"
-        style="flex:1;padding:0.7rem 0.9rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem;outline:none"
-        onkeydown="if(event.key==='Enter')useIdentifiedItem()">
-      <button onclick="useIdentifiedItem()" style="padding:0.7rem 1.1rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-family:var(--font-head);font-size:0.82rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;white-space:nowrap">
-        Use It
-      </button>
-    </div>
-    <button onclick="closeIdentify()" style="background:none;border:none;color:var(--text-dim);font-size:0.82rem;cursor:pointer;text-align:center;padding:0.25rem">
-      Cancel
-    </button>
-  </div>
+  <button class="tut-menu-item" onclick="tutStart('reports')">
+    <div class="tut-menu-icon" style="background:rgba(180,140,60,0.15)">📊</div>
+    How to generate a report
+  </button>
 </div>
 
 <!-- Tutorial Overlay (spotlight layer) -->
