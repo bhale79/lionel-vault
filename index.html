@@ -20,7 +20,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>My Collection App — Postwar Lionel 1945–1969</title>
 <link rel="stylesheet" href="./app.css">
-<link rel="stylesheet" href="./tutorial.css?v=3">
+<link rel="stylesheet" href="./tutorial.css">
 </head>
 <body>
 
@@ -841,6 +841,53 @@ document.addEventListener('touchmove', function(){}, {passive: true});
     <div class="tut-menu-icon" style="background:rgba(150,150,150,0.15)">🗑️</div>
     How to delete an item
   </button>
+</div>
+
+<!-- ── Photo Source Picker (camera vs library) ── -->
+<div id="photo-picker-sheet">
+  <div id="photo-picker-inner">
+    <div style="font-family:var(--font-head);font-size:0.7rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem">Add Photo</div>
+    <button class="picker-btn" id="picker-btn-cam" onclick="document.getElementById('picker-input-cam').click()" style="display:none">
+      <span class="picker-icon">📷</span>
+      <span id="picker-cam-label">Take Photo</span>
+      <input id="picker-input-cam" type="file" accept="image/*" capture="environment" style="display:none" onchange="pickerHandleFile(this,true)">
+    </button>
+    <button class="picker-btn" onclick="document.getElementById('picker-input-lib').click()">
+      <span class="picker-icon">🖼️</span>
+      <span id="picker-lib-label">Choose from Library</span>
+      <input id="picker-input-lib" type="file" accept="image/*" style="display:none" onchange="pickerHandleFile(this,false)">
+    </button>
+    <button class="picker-btn" onclick="closePhotoPicker()" style="border-color:transparent;background:none;color:var(--text-dim);font-size:0.82rem;letter-spacing:0.04em;padding:0.5rem">
+      Cancel
+    </button>
+  </div>
+</div>
+
+<!-- ── Identify Item by Photo (Google Lens) ── -->
+<div id="identify-modal">
+  <div id="identify-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font-family:var(--font-head);font-size:0.75rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-dim)">Identify Item</div>
+      <button onclick="closeIdentify()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:1.2rem;padding:0.25rem">✕</button>
+    </div>
+    <div style="font-size:0.9rem;color:var(--text-mid);line-height:1.5">
+      Use <strong style="color:var(--cream)">Google Lens</strong> to photograph your item, then paste or type the item number it finds below.
+    </div>
+    <button onclick="openGoogleLens()" style="display:flex;align-items:center;justify-content:center;gap:0.6rem;padding:0.75rem 1rem;border-radius:10px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-head);font-size:0.82rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;width:100%">
+      🔍 Open Google Lens
+    </button>
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem">
+      <input id="identify-manual-input" type="text" placeholder="Paste item number here (e.g. 2046W)"
+        style="flex:1;padding:0.7rem 0.9rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem;outline:none"
+        onkeydown="if(event.key==='Enter')useIdentifiedItem()">
+      <button onclick="useIdentifiedItem()" style="padding:0.7rem 1.1rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-family:var(--font-head);font-size:0.82rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;white-space:nowrap">
+        Use It
+      </button>
+    </div>
+    <button onclick="closeIdentify()" style="background:none;border:none;color:var(--text-dim);font-size:0.82rem;cursor:pointer;text-align:center;padding:0.25rem">
+      Cancel
+    </button>
+  </div>
 </div>
 
 <!-- Tutorial Overlay (spotlight layer) -->
