@@ -2722,12 +2722,16 @@ function showItemDetailPage(idx) {
 function showItemDetailPage_edit(idx) {
   const item = idx >= 0 ? state.masterData[idx] : null;
   if (!item) return;
-  browseRowClick(null, idx);
+  const pdKey = findPDKey(item.itemNum, item.variation);
+  if (pdKey) updateCollectionItem(idx, pdKey);
+  else showToast('Item not found in your collection', 3000, true);
 }
 function showItemDetailPage_photos(idx) {
   const item = idx >= 0 ? state.masterData[idx] : null;
   if (!item) return;
-  addPhotosFromCollection(idx);
+  const pdKey = findPDKey(item.itemNum, item.variation);
+  if (pdKey) showItemPanel(idx, pdKey, 'edit');
+  else showToast('Item not found in your collection', 3000, true);
 }
 function showItemDetailPage_sell(idx) {
   const item = idx >= 0 ? state.masterData[idx] : null;
