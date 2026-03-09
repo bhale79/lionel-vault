@@ -3318,11 +3318,15 @@ function updateItemSuggestions(query) {
   const q = (query || '').trim().toLowerCase();
   if (q.length < 1) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
-  // Parse query: split into number part and optional keyword part
-  // e.g. "6142 olive" → numPart="6142", keyParts=["olive"]
+  // Parse query — detect whether user is searching by number or by keyword
+  // e.g. "726"        → pure item number search
+  // e.g. "6142 olive" → number + keyword refinement
+  // e.g. "hopper"     → pure keyword search (no leading number)
+  // e.g. "Pennsylvania gondola" → multi-keyword search
   const qParts = q.split(/\s+/);
-  const numPart = qParts[0];
-  const keyParts = qParts.slice(1).filter(p => p.length > 0);
+  const firstIsNum = /^[0-9]/.test(qParts[0]);
+  const numPart   = firstIsNum ? qParts[0] : '';
+  const keyParts  = firstIsNum ? qParts.slice(1).filter(p => p.length > 0) : qParts;
 
   // Choose source based on tab
   const tab = wizard.tab;
@@ -3332,36 +3336,42 @@ function updateItemSuggestions(query) {
     const seen = new Set();
     Object.values(state.personalData).forEach(pd => {
       const key = pd.itemNum + (pd.variation ? ' (' + pd.variation + ')' : '');
-      if (!seen.has(key) && pd.itemNum.toLowerCase().includes(numPart)) {
+      const haystack = (pd.itemNum + ' ' + (pd.roadName||'')).toLowerCase();
+      const numOk  = !numPart  || pd.itemNum.toLowerCase().includes(numPart);
+      const keyOk  = keyParts.length === 0 || keyParts.every(kp => haystack.includes(kp));
+      if (!seen.has(key) && numOk && keyOk) {
         seen.add(key);
-        candidates.push({ num: pd.itemNum, label: key, sub: '' });
+        candidates.push({ num: pd.itemNum, label: key, sub: '', type: '' });
       }
     });
   } else {
-    // Collection + Want: suggest from master list — unique item numbers
-    // Match itemNum containing numPart, then filter by keyword in description/roadName
+    // Collection + Want: search master catalog by number AND/OR keyword
     const seen = new Set();
     state.masterData.forEach(m => {
-      if (!m.itemNum.toLowerCase().includes(numPart)) return;
+      const numOk = !numPart || m.itemNum.toLowerCase().includes(numPart);
+      if (!numOk) return;
       if (keyParts.length > 0) {
-        const haystack = (m.roadName + ' ' + m.description + ' ' + m.varDesc).toLowerCase();
+        const haystack = ((m.roadName||'') + ' ' + (m.description||'') + ' ' + (m.varDesc||'') + ' ' + (m.itemType||'')).toLowerCase();
         if (!keyParts.every(kp => haystack.includes(kp))) return;
       }
       if (!seen.has(m.itemNum)) {
         seen.add(m.itemNum);
         const road = m.roadName || m.description || '';
-        candidates.push({ num: m.itemNum, label: m.itemNum, sub: road.substring(0, 50) });
+        const type = m.itemType || '';
+        candidates.push({ num: m.itemNum, label: m.itemNum, sub: road.substring(0, 50), type: type });
       }
     });
   }
 
-  // Sort: starts-with first, then contains
+  // Sort: number-starts-with first, then number-contains, then keyword matches
   candidates.sort((a, b) => {
-    const aStarts = a.num.toLowerCase().startsWith(q);
-    const bStarts = b.num.toLowerCase().startsWith(q);
-    if (aStarts && !bStarts) return -1;
-    if (!aStarts && bStarts) return 1;
-    return a.num.localeCompare(b.num);
+    if (numPart) {
+      const aStarts = a.num.toLowerCase().startsWith(numPart);
+      const bStarts = b.num.toLowerCase().startsWith(numPart);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+    }
+    return a.num.localeCompare(b.num, undefined, { numeric: true });
   });
 
   if (candidates.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
@@ -3388,9 +3398,15 @@ function updateItemSuggestions(query) {
     btn.appendChild(numSpan);
     if (c.sub) {
       const subSpan = document.createElement('span');
-      subSpan.style.cssText = 'font-size:0.75rem;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      subSpan.style.cssText = 'font-size:0.75rem;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1';
       subSpan.textContent = c.sub;
       btn.appendChild(subSpan);
+    }
+    if (c.type) {
+      const typeSpan = document.createElement('span');
+      typeSpan.style.cssText = 'font-size:0.68rem;color:var(--text-dim);border:1px solid var(--border);border-radius:3px;padding:0.05rem 0.3rem;white-space:nowrap;flex-shrink:0;margin-left:auto';
+      typeSpan.textContent = c.type;
+      btn.appendChild(typeSpan);
     }
     el.appendChild(btn);
   });
