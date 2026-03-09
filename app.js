@@ -1718,26 +1718,8 @@ const CARD_CATALOG = [
       const total = items.reduce((s,i) => s + (parseFloat(i.askingPrice)||0), 0);
       return { value: count.toLocaleString() + (count===1?' item':' items'), sub: total > 0 ? '$' + Math.round(total).toLocaleString() + ' total asking' : 'no asking prices set' };
     }
-  },
-  {
-    id: 'custom', label: null, color: '#6c5ce7',
-    compute: function(state, slotIdx) {
-      const titleKey  = 'lv_card_custom_title_'  + (slotIdx||0);
-      const filterKey = 'lv_card_custom_filter_' + (slotIdx||0);
-      const filter = (_prefGet(filterKey,'')).toLowerCase().trim();
-      if (!filter) return { value: '—', sub: 'click card to set a filter' };
-      const ownedSet = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
-      const matching = state.masterData.filter(m => {
-        if (!ownedSet.has(normalizeItemNum(m.itemNum))) return false;
-        return (m.itemNum||'').toLowerCase().startsWith(filter) || (m.itemType||'').toLowerCase().includes(filter) || (m.roadName||'').toLowerCase().includes(filter);
-      }).length;
-      const total = state.masterData.filter(m => {
-        return (m.itemNum||'').toLowerCase().startsWith(filter) || (m.itemType||'').toLowerCase().includes(filter) || (m.roadName||'').toLowerCase().includes(filter);
-      }).length;
-      return { value: matching.toLocaleString(), sub: matching + ' of ' + total + ' in catalog' };
-    }
   }
-];
+];;
 
 const MAX_CARDS = 5;
 const _DEFAULT_SLOTS = [{id:'owned'},{id:'value'},{id:'catalog'},null,null];
@@ -1778,29 +1760,15 @@ function _openCardPopup(slotIdx) {
   popup.style.cssText = 'position:fixed;z-index:99990;background:var(--surface,#161c34);border:1px solid var(--border,#2a3a5c);border-radius:12px;padding:1rem;box-shadow:0 8px 32px rgba(0,0,0,0.5);min-width:240px;max-width:280px';
 
   const opts = CARD_CATALOG.map(function(c) {
-    const lbl = c.id === 'custom' ? 'Custom Card' : c.label;
+    const lbl = c.label;
     return '<option value="' + c.id + '"' + (c.id === currentId ? ' selected' : '') + '>' + lbl + '</option>';
   }).join('');
-
-  const isCustom = currentId === 'custom';
-  const titleKey  = 'lv_card_custom_title_'  + slotIdx;
-  const filterKey = 'lv_card_custom_filter_' + slotIdx;
-  const titleVal  = _prefGet(titleKey, 'My Custom Card').replace(/"/g,'&quot;');
-  const filterVal = _prefGet(filterKey, '').replace(/"/g,'&quot;');
-
   popup.innerHTML =
     '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.65rem">Card Slot ' + (slotIdx+1) + '</div>' +
     '<select id="card-popup-select" onchange="_onCardPopupChange(' + slotIdx + ',this.value)" style="width:100%;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;margin-bottom:0.65rem">' +
       '<option value="">— None (remove this card) —</option>' + opts +
-    '</select>' +
-    '<div id="card-popup-custom" style="display:' + (isCustom ? 'flex' : 'none') + ';flex-direction:column;gap:0.4rem;margin-bottom:0.65rem">' +
-      '<input id="card-popup-title" type="text" placeholder="Card title" maxlength="24" value="' + titleVal + '" ' +
-        'oninput="_prefSet(\'' + titleKey + '\',this.value);buildDashboard()" ' +
-        'style="padding:0.3rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">' +
-      '<input id="card-popup-filter" type="text" placeholder="Filter: e.g. 6464, tank, Missouri" value="' + filterVal + '" ' +
-        'oninput="_prefSet(\'' + filterKey + '\',this.value);buildDashboard()" ' +
-        'style="padding:0.3rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">' +
-    '</div>' +
+    '</select>'
+    +
     '<div style="display:flex;justify-content:flex-end">' +
       '<button onclick="_closeCardPopup()" style="padding:0.3rem 0.9rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">Done</button>' +
     '</div>';
@@ -1847,9 +1815,6 @@ function _onCardPopupChange(slotIdx, newId) {
   slots[slotIdx] = newId ? {id: newId} : null;
   _saveSlots(slots);
   buildDashboard();
-  // Show/hide custom fields inline
-  var customDiv = document.getElementById('card-popup-custom');
-  if (customDiv) customDiv.style.display = (newId === 'custom') ? 'flex' : 'none';
   // Re-anchor popup to new card position after rebuild
   setTimeout(function() {
     var p = document.getElementById('card-popup');
@@ -1927,8 +1892,7 @@ function buildDashboard() {
         const card = CARD_CATALOG.find(function(c){return c.id===slot.id;});
         if (!card) return '';
         const result = card.compute(state, i);
-        const titleKey = 'lv_card_custom_title_' + i;
-        const cardLabel = slot.id === 'custom' ? (_prefGet(titleKey,'My Custom Card')) : card.label;
+        const cardLabel = card.label;
         return '<div class="stat-card" id="dash-card-' + i + '" style="--card-accent:' + card.color + ';cursor:pointer;position:relative" onclick="_openCardPopup(' + i + ')" title="Click to customize">'
           + '<div style="position:absolute;top:6px;right:8px;font-size:0.65rem;color:var(--text-dim);opacity:0.45">✎</div>'
           + '<div class="stat-label">' + cardLabel + '</div>'
@@ -1964,67 +1928,36 @@ function buildDashboard() {
   if (document.getElementById('nav-forsale')) document.getElementById('nav-forsale').textContent = fsCount;
 
 
-  // Recent Additions — last 5 owned items including ephemera, by row order
-  const _recentTrains = Object.values(state.personalData)
-    .filter(pd => pd.owned)
-    .map(pd => ({ ...pd, _src: 'train' }));
-  const _recentEph = [];
-  const _ephEmojiMap = { catalogs:'📒', paper:'📄', mockups:'🔩', other:'📦' };
-  Object.entries(state.ephemeraData || {}).forEach(([tabId, bucket]) => {
-    Object.values(bucket).forEach(it => {
-      const emoji = _ephEmojiMap[tabId] || '⭐';
-      const label = it.catType ? it.catType + ' Catalog' : tabId;
-      _recentEph.push({ ...it, _src:'eph', tabId, _ephEmoji: emoji, _ephLabel: label });
-    });
-  });
-  const _recentOwned = [..._recentTrains, ..._recentEph]
-    .sort((a, b) => (b.row || 0) - (a.row || 0))
-    .slice(0, 5);
-  const _recentEl = document.getElementById('recent-list');
-  if (_recentEl) {
-    _recentEl.innerHTML = _recentOwned.length ? _recentOwned.map(function(pd) {
-      if (pd._src === 'eph') {
-        const val = pd.estValue ? '$' + parseFloat(pd.estValue).toLocaleString() : '';
-        const meta = [pd.year, val].filter(Boolean).join(' · ');
-        return '<div onclick="goToMyCollection()" class="dash-row-hover" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid var(--border);cursor:pointer">'
-          + '<span style="font-size:1.1rem;flex-shrink:0">' + pd._ephEmoji + '</span>'
-          + '<div style="flex:1;min-width:0">'
-          + '<div style="font-size:0.85rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (pd.title || '—') + '</div>'
-          + (meta ? '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:1px">' + meta + '</div>' : '')
-          + '</div>'
-          + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>'
-          + '</div>';
-      }
-      const master = state.masterData.find(function(m) {
-        return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum);
-      });
-      const name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
-      const price = pd.priceItem ? '$' + parseFloat(pd.priceItem).toLocaleString() : '';
-      const date = pd.datePurchased || '';
-      const meta = [date, price].filter(Boolean).join(' · ');
-      return '<div onclick="goToMyCollection()" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s" '
-        + 'class="dash-row-hover">'
-        + '<div style="flex:1;min-width:0">'
-        + '<div style="display:flex;align-items:center;gap:0.4rem">'
-        + '<span class="item-num">' + pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : '') + '</span>'
-        + '<span style="font-size:0.8rem;color:var(--text-mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + name + '</span>'
-        + '</div>'
-        + (meta ? '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:1px">' + meta + '</div>' : '')
-        + '</div>'
-        + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>'
-        + '</div>';
-    }).join('')
-    : '<div style="padding:1rem 0"><div style="font-size:2rem;margin-bottom:0.5rem">&#128075;</div><div style="font-weight:600;font-size:0.95rem;margin-bottom:0.4rem">Welcome to My Collection App!</div><div style="font-size:0.82rem;color:var(--text-dim);line-height:1.6;margin-bottom:1rem">Start building your collection record. Tap Add Item to log your first piece.</div><button onclick="startWizardFor(\'collection\')" style="width:100%;padding:0.75rem;border-radius:10px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.95rem;font-weight:600;cursor:pointer">+ Add My First Item</button></div>';
-  }
 
-  // Want list preview — built from wantData directly to avoid master-data duplicates
-  const _wPriOrder = { High: 0, Medium: 1, Low: 2 };
-  const _wEntries = Object.values(state.wantData)
-    .sort((a, b) => (_wPriOrder[a.priority] ?? 1) - (_wPriOrder[b.priority] ?? 1))
-    .slice(0, 6);
-  const _wPriColor = { High: 'var(--accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
-  document.getElementById('want-preview').innerHTML = _wEntries.length ? _wEntries.map(function(w) {
-    const master = state.masterData.find(function(m) { return m.itemNum === w.itemNum; });
+  // ── Dynamic large panels ──────────────────────────────────
+  (function() {
+    var panels = _getPanels();
+    [0, 1].forEach(function(i) {
+      var panelDef = PANEL_CATALOG.find(function(p) { return p.id === (panels[i] ? panels[i].id : (i === 0 ? 'recent' : 'wants')); })
+                  || PANEL_CATALOG[i] || PANEL_CATALOG[0];
+
+      // Update header: title + pencil icon
+      var headerEl = document.getElementById('dash-panel-header-' + i);
+      if (headerEl) {
+        headerEl.innerHTML =
+          '<span>' + panelDef.icon + ' ' + panelDef.label + '</span>'
+          + '<button onclick="_openPanelPopup(' + i + ')" title="Change panel" '
+          + 'style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:0.75rem;padding:0.1rem 0.3rem;border-radius:4px;opacity:0.55;line-height:1" '
+          + 'onmouseover="this.style.opacity=\'1\'" onmouseout="this.style.opacity=\'0.55\'">✎</button>';
+      }
+
+      // Render panel body
+      var bodyEl = document.getElementById('dash-panel-body-' + i);
+      if (bodyEl) {
+        try {
+          bodyEl.innerHTML = panelDef.render(state);
+        } catch(e) {
+          bodyEl.innerHTML = '<div class="empty-state"><p>Could not load panel</p></div>';
+        }
+      }
+    });
+  })();
+});
     const name = master ? (master.roadName || master.itemType || w.itemNum) : w.itemNum;
     const pc = _wPriColor[w.priority] || 'var(--text-dim)';
     const price = w.expectedPrice ? '$' + parseFloat(w.expectedPrice).toLocaleString() : '';
@@ -2041,6 +1974,229 @@ function buildDashboard() {
       + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>'
       + '</div>';
   }).join('') : '<div class="empty-state"><p>Want list is empty</p></div>';
+}
+
+
+// ── Dashboard Panel System ─────────────────────────────────────────────────
+const PANEL_CATALOG = [
+  {
+    id: 'recent',
+    label: 'Recent Additions',
+    icon: '🕐',
+    render: function(state) {
+      const trains = Object.values(state.personalData).filter(pd => pd.owned)
+        .map(pd => ({ ...pd, _src: 'train' }));
+      const ephMap = { catalogs:'📒', paper:'📄', mockups:'🔩', other:'📦' };
+      const ephs = [];
+      Object.entries(state.ephemeraData || {}).forEach(([tabId, bucket]) => {
+        Object.values(bucket).forEach(it => {
+          ephs.push({ ...it, _src:'eph', tabId, _ephEmoji: ephMap[tabId]||'⭐' });
+        });
+      });
+      return [...trains, ...ephs]
+        .sort((a, b) => (b.row || 0) - (a.row || 0))
+        .slice(0, 8)
+        .map(function(pd) {
+          if (pd._src === 'eph') {
+            const val = pd.estValue ? '$' + parseFloat(pd.estValue).toLocaleString() : '';
+            return _panelRow(
+              pd._ephEmoji, pd.title || '—', '', val,
+              'goToMyCollection()', null
+            );
+          }
+          const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum));
+          const name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
+          const price = pd.priceItem ? '$' + parseFloat(pd.priceItem).toLocaleString() : '';
+          const date = pd.datePurchased || '';
+          const meta = [date, price].filter(Boolean).join(' · ');
+          const idx = master ? state.masterData.indexOf(master) : -1;
+          const hasPhoto = !!pd.photoItem;
+          return _panelRow('🚂', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : ''), name, meta,
+            idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()', hasPhoto ? pd.photoItem : null
+          );
+        }).join('') || '<div class="empty-state"><p>No items yet</p></div>';
+    }
+  },
+  {
+    id: 'wants',
+    label: 'Top Want List Items',
+    icon: '⭐',
+    render: function(state) {
+      const priOrder = { High: 0, Medium: 1, Low: 2 };
+      const priColor = { High: 'var(--accent)', Medium: 'var(--accent2,#8b5cf6)', Low: 'var(--text-dim)' };
+      return Object.values(state.wantData)
+        .sort((a, b) => ((priOrder[a.priority] ?? 1) - (priOrder[b.priority] ?? 1)))
+        .slice(0, 8)
+        .map(function(w) {
+          const master = state.masterData.find(m => m.itemNum === w.itemNum);
+          const name = master ? (master.roadName || master.itemType || w.itemNum) : w.itemNum;
+          const price = w.expectedPrice ? '$' + parseFloat(w.expectedPrice).toLocaleString() : '';
+          const pc = priColor[w.priority] || 'var(--text-dim)';
+          const badge = '<span style="font-size:0.72rem;font-weight:600;color:' + pc + ';border:1px solid ' + pc + ';border-radius:3px;padding:0.1rem 0.3rem;flex-shrink:0">' + (w.priority || 'Med') + '</span>';
+          const idx = master ? state.masterData.indexOf(master) : -1;
+          return _panelRow('⭐', w.itemNum + (w.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + w.variation + '</span>' : ''), name, price,
+            idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToWantList()', null, badge
+          );
+        }).join('') || '<div class="empty-state"><p>Want list is empty</p></div>';
+    }
+  },
+  {
+    id: 'forsale',
+    label: 'For Sale',
+    icon: '🏷️',
+    render: function(state) {
+      return Object.values(state.forSaleData)
+        .sort((a, b) => (parseFloat(b.askingPrice) || 0) - (parseFloat(a.askingPrice) || 0))
+        .slice(0, 8)
+        .map(function(fs) {
+          const master = state.masterData.find(m => m.itemNum === fs.itemNum) || {};
+          const name = master.roadName || master.itemType || '';
+          const price = fs.askingPrice ? '$' + parseFloat(fs.askingPrice).toLocaleString() : 'No price';
+          const idx = master ? state.masterData.indexOf(master) : -1;
+          const pd = state.personalData[fs.itemNum + '|' + (fs.variation||'')] || {};
+          const hasPhoto = !!pd.photoItem;
+          return _panelRow('🏷️', fs.itemNum + (fs.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + fs.variation + '</span>' : ''), name, price,
+            idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'showPage(\'forsale\', document.querySelector(\'.nav-item[onclick*=buildForSalePage]\'));buildForSalePage();',
+            hasPhoto ? pd.photoItem : null
+          );
+        }).join('') || '<div class="empty-state" style="padding:1.5rem 0"><p>No items listed for sale</p></div>';
+    }
+  },
+  {
+    id: 'value',
+    label: 'Highest Value Items',
+    icon: '💰',
+    render: function(state) {
+      return Object.values(state.personalData)
+        .filter(pd => pd.owned && (pd.priceComplete || pd.priceItem))
+        .map(pd => ({
+          ...pd,
+          _val: parseFloat(pd.priceComplete || pd.priceItem || 0)
+        }))
+        .sort((a, b) => b._val - a._val)
+        .slice(0, 8)
+        .map(function(pd) {
+          const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum));
+          const name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
+          const price = '$' + pd._val.toLocaleString();
+          const idx = master ? state.masterData.indexOf(master) : -1;
+          const hasPhoto = !!pd.photoItem;
+          return _panelRow('💰', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : ''), name, price,
+            idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()', hasPhoto ? pd.photoItem : null
+          );
+        }).join('') || '<div class="empty-state"><p>No valued items yet</p></div>';
+    }
+  }
+];
+
+// Shared row renderer for all panels
+function _panelRow(icon, itemHtml, name, meta, onclick, photoUrl, extraBadge) {
+  const thumb = photoUrl
+    ? '<img src="' + photoUrl + '" style="width:32px;height:32px;object-fit:cover;border-radius:5px;flex-shrink:0;border:1px solid var(--border)" onerror="this.style.display=\'none\'">'
+    : '<div style="width:32px;height:32px;border-radius:5px;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem">' + icon + '</div>';
+  return '<div onclick="' + onclick + '" class="dash-row-hover" style="display:flex;align-items:center;gap:0.55rem;padding:0.45rem 0;border-bottom:1px solid var(--border);cursor:pointer">'
+    + thumb
+    + '<div style="flex:1;min-width:0">'
+    + '<div style="display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap">'
+    + '<span class="item-num" style="font-size:0.82rem">' + itemHtml + '</span>'
+    + (name ? '<span style="font-size:0.78rem;color:var(--text-mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">' + name + '</span>' : '')
+    + '</div>'
+    + (meta ? '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:1px">' + meta + '</div>' : '')
+    + '</div>'
+    + (extraBadge || '')
+    + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>'
+    + '</div>';
+}
+
+const _DEFAULT_PANELS = [{id:'recent'}, {id:'wants'}];
+
+function _getPanels() {
+  try {
+    const saved = _prefGet('lv_dash_panels', '');
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return [{ id: 'recent' }, { id: 'wants' }];
+}
+
+function _savePanels(panels) {
+  _prefSet('lv_dash_panels', JSON.stringify(panels));
+}
+
+function _openPanelPopup(panelIdx) {
+  var existing = document.getElementById('panel-popup');
+  if (existing) { existing.remove(); return; }
+
+  const panels = _getPanels();
+  const currentId = panels[panelIdx] ? panels[panelIdx].id : 'recent';
+
+  const popup = document.createElement('div');
+  popup.id = 'panel-popup';
+  popup.style.cssText = 'position:fixed;z-index:99990;background:var(--surface,#161c34);border:1px solid var(--border,#2a3a5c);border-radius:12px;padding:1rem;box-shadow:0 8px 32px rgba(0,0,0,0.5);min-width:220px;max-width:260px';
+
+  const opts = PANEL_CATALOG.map(function(p) {
+    return '<option value="' + p.id + '"' + (p.id === currentId ? ' selected' : '') + '>' + p.icon + ' ' + p.label + '</option>';
+  }).join('');
+
+  popup.innerHTML =
+    '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.65rem">Panel ' + (panelIdx + 1) + '</div>' +
+    '<select onchange="_onPanelPopupChange(' + panelIdx + ',this.value)" style="width:100%;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;margin-bottom:0.65rem">' +
+      opts +
+    '</select>' +
+    '<div style="display:flex;justify-content:flex-end">' +
+      '<button onclick="document.getElementById(\'panel-popup\').remove()" style="padding:0.3rem 0.9rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">Done</button>' +
+    '</div>';
+
+  document.body.appendChild(popup);
+
+  // Position anchored to the panel header
+  var headerEl = document.getElementById('dash-panel-header-' + panelIdx);
+  if (headerEl) {
+    var rect = headerEl.getBoundingClientRect();
+    var top = rect.bottom + 6;
+    var left = rect.left;
+    if (top + 160 > window.innerHeight - 16) top = rect.top - 160 - 6;
+    if (left + 260 > window.innerWidth - 8) left = window.innerWidth - 268;
+    if (left < 8) left = 8;
+    popup.style.top  = Math.max(8, top) + 'px';
+    popup.style.left = left + 'px';
+  } else {
+    popup.style.top = '50%'; popup.style.left = '50%';
+    popup.style.transform = 'translate(-50%,-50%)';
+  }
+
+  setTimeout(function() {
+    document.addEventListener('mousedown', _panelPopupOutsideClick);
+  }, 60);
+}
+
+function _panelPopupOutsideClick(e) {
+  var p = document.getElementById('panel-popup');
+  if (p && !p.contains(e.target)) {
+    p.remove();
+    document.removeEventListener('mousedown', _panelPopupOutsideClick);
+  }
+}
+
+function _onPanelPopupChange(panelIdx, newId) {
+  var panels = _getPanels();
+  panels[panelIdx] = { id: newId };
+  _savePanels(panels);
+  buildDashboard();
+  // Re-open popup anchored to new header
+  setTimeout(function() {
+    var p = document.getElementById('panel-popup');
+    if (!p) return;
+    var headerEl = document.getElementById('dash-panel-header-' + panelIdx);
+    if (headerEl) {
+      var rect = headerEl.getBoundingClientRect();
+      var top = rect.bottom + 6;
+      var left = rect.left;
+      if (top + 160 > window.innerHeight - 16) top = rect.top - 160 - 6;
+      if (left + 260 > window.innerWidth - 8) left = window.innerWidth - 268;
+      p.style.top  = Math.max(8, top) + 'px';
+      p.style.left = Math.max(8, left) + 'px';
+    }
+  }, 60);
 }
 
 // ── BROWSE ──────────────────────────────────────────────────────
