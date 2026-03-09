@@ -1798,6 +1798,47 @@ function populateFilters() {
   roads.slice(0, 80).forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; roadEl.appendChild(o); });
 }
 
+// ── Browse filter popup ──────────────────────────────────────────
+function toggleBrowseFilterPanel() {
+  const panel = document.getElementById('browse-filter-panel');
+  if (!panel) return;
+  const isOpen = panel.style.display === 'block';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    setTimeout(() => {
+      document.addEventListener('click', function _closeFP(e) {
+        const btn = document.getElementById('browse-filter-btn');
+        if (panel && !panel.contains(e.target) && btn && !btn.contains(e.target)) {
+          panel.style.display = 'none';
+          document.removeEventListener('click', _closeFP);
+        }
+      });
+    }, 0);
+  }
+}
+
+function updateFilterBadge() {
+  const badge = document.getElementById('browse-filter-badge');
+  const btn   = document.getElementById('browse-filter-btn');
+  if (!badge) return;
+  const t = (document.getElementById('filter-type')?.value || '').trim();
+  const r = (document.getElementById('filter-road')?.value || '').trim();
+  const count = (t ? 1 : 0) + (r ? 1 : 0);
+  badge.textContent = count;
+  badge.style.display = count > 0 ? 'inline' : 'none';
+  if (btn) btn.style.borderColor = count > 0 ? 'var(--accent)' : 'var(--border)';
+  if (btn) btn.style.color = count > 0 ? 'var(--accent)' : 'var(--text-mid)';
+}
+
+function clearBrowseFilters() {
+  const ft = document.getElementById('filter-type');
+  const fr = document.getElementById('filter-road');
+  if (ft) ft.value = '';
+  if (fr) fr.value = '';
+  updateFilterBadge();
+  applyFilters();
+}
+
 function applyFilters() {
   state.filters.type = document.getElementById('filter-type').value;
   state.filters.quickEntry = ''; // QE filter only applies in My Collection view
@@ -1837,6 +1878,7 @@ function resetFilters() {
   state.currentPage = 1;
   document.getElementById('filter-type').value = '';
   document.getElementById('filter-road').value = '';
+  updateFilterBadge();
 }
 
 function filterOwned(qe) {
@@ -1853,7 +1895,7 @@ function filterOwned(qe) {
   if (idBtn) idBtn.style.display = 'none';
   // Update table headers for collection view
   const thead = document.querySelector('#page-browse .item-table thead tr');
-  if (thead) thead.innerHTML = '<th>Item #</th><th>Var. #</th><th></th><th>Type</th><th>Photo</th><th></th><th>Actions</th>';
+  if (thead) thead.innerHTML = '<th>Item #</th><th>Description</th><th>Actions</th>';
   renderBrowse();
   // Show QE filter toggle in filter bar when in My Collection
   setTimeout(function() {
@@ -2193,7 +2235,7 @@ function renderBrowse() {
   let _ephRowsHtml = '';
   if (_ephemeraRows.length) {
     _ephRowsHtml = _ephemeraRows.map(r => {
-      if (r._divider) return `<tr><td colspan="${state.filters.owned ? '7' : '9'}" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
+      if (r._divider) return `<tr><td colspan="${state.filters.owned ? '3' : '9'}" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
       const it = r.item;
       const cond = it.condition ? parseInt(it.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
@@ -2324,33 +2366,25 @@ function renderBrowse() {
         </div>${_ownedActions}
       </div>`;
     } else if (state.filters.owned) {
-      // ── My Collection view: Item #, Var #, Details btn, Type, Thumbnail, Photos btn ──
+      // ── My Collection view: Item # | Description | Actions (3 clean columns) ──
       const _isQuick = pd && pd.quickEntry;
       const _groupId = pd && pd.groupId ? pd.groupId : '';
-      const _photoLink = pd && pd.photoItem ? pd.photoItem : '';
-      const _thumbId = 'thumb-' + item.itemNum + '-' + (item.variation||'');
-      const _descSnip = (item.description || item.roadName || item.itemType || '—');
-      return `<tr style="cursor:pointer${_isQuick ? ';opacity:0.78' : ''}" data-group="${_groupId}" data-item="${item.itemNum}" title="${_isQuick ? '⚡ Quick Entry — details not yet filled in' : ''}">
-        <td>
-          <span class="item-num" onclick="event.stopPropagation();showItemDetailPage(${globalIdx})" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px">${item.itemNum}</span>
-          ${_groupId ? '<span style="font-size:0.55rem;color:var(--accent3);margin-left:4px;vertical-align:super" title="Grouped: '+_groupId+'">🔗</span>' : ''}
-          ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+((item.variation||'').replace(/\'/g,"\\\\'"))+'\','+globalIdx+')" style="margin-left:5px;font-size:0.72rem;background:#27ae60;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700;vertical-align:middle" title="Complete this Quick Entry">⚡</span>' : ''}
+      const _escVar = (item.variation||'').replace(/'/g,"\'");
+      const _descParts = [item.roadName, item.itemType].filter(Boolean);
+      const _descFull  = _descParts.join(' · ') || item.description || '—';
+      const _descShort = _descFull.length > 42 ? _descFull.substring(0, 40) + '…' : _descFull;
+      const _varText   = item.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${item.variation}</span>` : '';
+      return `<tr onclick="showItemDetailPage(${globalIdx})" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
+        <td style="white-space:nowrap">
+          <span class="item-num">${item.itemNum}</span>${_varText}
+          ${_groupId ? '<span style="font-size:0.55rem;color:var(--accent3);margin-left:4px;vertical-align:super" title="Grouped">🔗</span>' : ''}
+          ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(''+item.itemNum+'',''+_escVar+'','+globalIdx+')" style="margin-left:5px;font-size:0.72rem;background:#27ae60;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700;vertical-align:middle" title="Complete this Quick Entry">⚡</span>' : ''}
         </td>
-        <td>${item.variation || '<span class="text-dim">—</span>'}</td>
-        <td style="text-align:center">
-          <button onclick="event.stopPropagation();showItemDetailPage(${globalIdx})" style="padding:0.25rem 0.6rem;border-radius:6px;border:1px solid var(--accent);background:rgba(240,80,8,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Details</button>
-        </td>
-        <td><span class="tag">${item.itemType || '—'}</span></td>
-        <td style="text-align:center">
-          <span id="${_thumbId}" style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:4px;background:var(--surface2);overflow:hidden;vertical-align:middle;color:var(--text-dim)">${_photoLink ? '' : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.45"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/><line x1="4" y1="4" x2="20" y2="20" stroke-width="2" opacity="0.55"/></svg>'}</span>
-        </td>
-        <td style="text-align:center">
-          <button onclick="event.stopPropagation();${_photoLink ? `openPhotoFolder('${item.itemNum}','${_photoLink}')` : `addPhotosFromCollection(${globalIdx})`}" style="padding:0.25rem 0.6rem;border-radius:6px;border:1px solid ${_photoLink ? 'var(--gold)' : 'var(--border)'};background:${_photoLink ? 'rgba(212,168,67,0.08)' : 'var(--surface2)'};color:${_photoLink ? 'var(--gold)' : 'var(--text-dim)'};font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600${_photoLink ? '' : ';opacity:0.7'}" >${_photoLink ? '📷 Photos' : '📷 No Photos Uploaded'}</button>
-        </td>
-        <td style="text-align:center;white-space:nowrap">
-          <button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${(item.variation||'').replace(/'/g,"\\\\'")}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">${isForSale ? '🏷️ Update' : '🏷️ For Sale'}</button>
-          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${item.itemNum}','${(item.variation||'').replace(/'/g,"\\\\'")}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">💰 Sold</button>
-          <button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${(item.variation||'').replace(/'/g,"\\\\'")}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
+        <td style="color:var(--text-mid);font-size:0.85rem">${_descShort}</td>
+        <td style="text-align:right;white-space:nowrap">
+          <button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">${isForSale ? '🏷️ Update' : '🏷️ For Sale'}</button>
+          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">💰 Sold</button>
+          <button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
         </td>
       </tr>`;
     } else {
@@ -2379,7 +2413,7 @@ function renderBrowse() {
 
   const emptyHtml = isMobile
     ? '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔍</div><p>No items match your filters</p></div>'
-    : '<tr><td colspan="' + (state.filters.owned ? '6' : '9') + '"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div></td></tr>';
+    : '<tr><td colspan="' + (state.filters.owned ? '3' : '9') + '"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div></td></tr>';
 
   if (isMobile) {
     let _ephCardsHtml = '';
