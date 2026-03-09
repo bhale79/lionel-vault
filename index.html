@@ -323,6 +323,19 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <select id="filter-type-dup" style="display:none"></select>
         </div>
 
+        <!-- Icon legend — shows only when in My Collection view -->
+        <div id="collection-icon-legend" style="display:none;align-items:center;gap:1rem;padding:0.35rem 0.5rem 0.5rem;flex-wrap:wrap">
+          <span style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.07em;font-weight:700">Icon Key:</span>
+          <span data-ctip="A Group means this item has another item associated with it — like a tender that goes with an engine, or a car that goes with a set." style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--text-mid);cursor:default">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            Group
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--text-mid);cursor:default">
+            <span style="font-size:0.72rem;background:#27ae60;color:#fff;border-radius:4px;padding:1px 5px;font-weight:700">⚡</span>
+            Quick Entry — details still needed
+          </span>
+        </div>
+
         <div class="table-wrap browse-table-wrap" style="max-height:calc(100vh - 220px);overflow-y:auto">
           <table class="item-table">
             <thead>
