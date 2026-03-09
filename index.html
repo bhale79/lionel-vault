@@ -136,6 +136,11 @@
           <span class="nav-badge" id="nav-qe-count" style="background:#27ae60">—</span>
         </button>
 
+        <button class="nav-item" onclick="showPage('sets', this); buildSetsPage();">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+          Complete Sets
+          <span class="nav-badge" id="nav-sets-count" style="background:#d35400;color:#fff">—</span>
+        </button>
         <button class="nav-item" onclick="showPage('want', this); buildWantPage();">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
           Want List
@@ -228,18 +233,14 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 
         <div class="two-col">
           <div class="panel">
-            <div class="section-title" id="dash-panel-header-0" style="display:flex;align-items:center;justify-content:space-between">
-              <span>🕐 Recent Additions</span>
-            </div>
-            <div id="dash-panel-body-0" style="overflow-y:auto;max-height:320px;padding-right:2px">
+            <div class="section-title">Recent Additions</div>
+            <div id="recent-list">
               <div style="padding:1rem 0"><div style="font-size:2rem;margin-bottom:0.5rem">👋</div><div style="font-weight:600;font-size:0.95rem;margin-bottom:0.4rem">Welcome to My Collection App!</div><div style="font-size:0.82rem;color:var(--text-dim);line-height:1.6;margin-bottom:1rem">Start building your collection record. Tap Add Item to log your first piece.</div><button onclick="startWizardFor('collection')" style="width:100%;padding:0.75rem;border-radius:10px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.95rem;font-weight:600;cursor:pointer">+ Add My First Item</button></div>
             </div>
           </div>
           <div class="panel">
-            <div class="section-title" id="dash-panel-header-1" style="display:flex;align-items:center;justify-content:space-between">
-              <span>⭐ Top Want List Items</span>
-            </div>
-            <div id="dash-panel-body-1" style="overflow-y:auto;max-height:320px;padding-right:2px">
+            <div class="section-title">Top Want List Items</div>
+            <div id="want-preview">
               <div class="loading"><div class="spinner"></div></div>
             </div>
           </div>
@@ -440,6 +441,45 @@ document.addEventListener('touchmove', function(){}, {passive: true});
       </div>
 
       <!-- ── Want List ── -->
+      <!-- ── Complete Sets ── -->
+      <div class="page" id="page-sets">
+        <div class="page-title" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+          <span>🎁 Complete Sets</span>
+        </div>
+        <!-- Search + filters row -->
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.75rem">
+          <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.35rem 0.65rem;flex:1;min-width:180px;max-width:300px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input id="sets-search" type="text" placeholder="Search set #, name, item #…" oninput="onPageSearch(this.value,'sets')" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:100%">
+          </div>
+          <select id="sets-filter-year" onchange="buildSetsPage()" style="padding:0.38rem 0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font-body);font-size:0.82rem">
+            <option value="">All Years</option>
+          </select>
+          <select id="sets-filter-gauge" onchange="buildSetsPage()" style="padding:0.38rem 0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font-body);font-size:0.82rem">
+            <option value="">All Gauges</option>
+          </select>
+          <span id="sets-count-label" style="font-size:0.78rem;color:var(--text-dim);white-space:nowrap"></span>
+        </div>
+        <!-- Mobile cards -->
+        <div id="sets-cards" style="display:none;flex-direction:column;gap:0.6rem"></div>
+        <!-- Desktop table -->
+        <div class="table-wrap" id="sets-table-wrap" style="margin-top:0;max-height:calc(100vh - 220px);overflow-y:auto">
+          <table class="item-table" id="sets-table">
+            <thead>
+              <tr>
+                <th>Set #</th>
+                <th>Name</th>
+                <th>Year</th>
+                <th>Gauge</th>
+                <th>Components</th>
+                <th style="min-width:160px">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="sets-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="page" id="page-want">
         <div class="page-title">Want List</div>
         <div style="display:flex;justify-content:flex-end;margin-bottom:0.75rem">
@@ -542,6 +582,10 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
         </div>
         Add
+      </button>
+      <button class="mobile-nav-item" id="mnav-sets" onclick="showPage('sets', this); buildSetsPage();">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+        <span>Sets</span>
       </button>
       <button class="mobile-nav-item" id="mnav-want" onclick="showPage('want', this); buildWantPage();">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
