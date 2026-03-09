@@ -2378,7 +2378,7 @@ function renderBrowse() {
         <td style="white-space:nowrap">
           <span class="item-num">${item.itemNum}</span>${_varText}
           ${_groupId ? '<span style="font-size:0.55rem;color:var(--accent3);margin-left:4px;vertical-align:super" title="Grouped">🔗</span>' : ''}
-          ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(''+item.itemNum+'',''+_escVar+'','+globalIdx+')" style="margin-left:5px;font-size:0.72rem;background:#27ae60;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700;vertical-align:middle" title="Complete this Quick Entry">⚡</span>' : ''}
+          ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+_escVar+'\','+globalIdx+')" style="margin-left:5px;font-size:0.72rem;background:#27ae60;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700;vertical-align:middle" title="Complete this Quick Entry">⚡</span>' : ''}
         </td>
         <td style="color:var(--text-mid);font-size:0.85rem">${_descShort}</td>
         <td style="text-align:right;white-space:nowrap">
