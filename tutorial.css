@@ -255,7 +255,7 @@
   #tut-help-menu { top: 56px; right: 12px; }
 }
 @media (max-width: 767px) {
-  #tut-help-menu { top: 56px; left: 16px; right: 16px; }
+  #tut-help-menu { bottom: 72px; top: auto; left: 16px; right: 16px; }
 }
 .tut-menu-header {
   font-family: var(--font-head);
