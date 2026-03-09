@@ -903,4 +903,13 @@
     border-radius: 8px; padding: 1rem;
     font-size: 0.82rem; color: var(--text-mid); line-height: 1.6;
   }
+
+  /* ── Landscape phone: hide dashboard stats/recent, show only buttons ── */
+  @media (max-height: 500px) and (max-width: 900px) and (orientation: landscape) {
+    #page-dashboard .stats-grid,
+    #page-dashboard .two-col,
+    #page-dashboard .page-title { display: none !important; }
+    #page-dashboard .dash-btn-grid { margin-top: 0.5rem; }
+    .main { padding-top: 0.5rem !important; }
+  }
 </style>
