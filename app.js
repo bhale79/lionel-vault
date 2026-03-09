@@ -1895,7 +1895,7 @@ function filterOwned(qe) {
   if (idBtn) idBtn.style.display = 'none';
   // Update table headers for collection view
   const thead = document.querySelector('#page-browse .item-table thead tr');
-  if (thead) thead.innerHTML = '<th>Item #</th><th>Description</th><th>Actions</th>';
+  if (thead) thead.innerHTML = '<th>Item #</th><th>Variation</th><th>Description</th><th>Actions</th>';
   renderBrowse();
   // Show QE filter toggle in filter bar when in My Collection
   setTimeout(function() {
@@ -2235,7 +2235,7 @@ function renderBrowse() {
   let _ephRowsHtml = '';
   if (_ephemeraRows.length) {
     _ephRowsHtml = _ephemeraRows.map(r => {
-      if (r._divider) return `<tr><td colspan="${state.filters.owned ? '3' : '9'}" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
+      if (r._divider) return `<tr><td colspan="${state.filters.owned ? '4' : '9'}" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
       const it = r.item;
       const cond = it.condition ? parseInt(it.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
@@ -2376,10 +2376,11 @@ function renderBrowse() {
       const _varText   = item.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${item.variation}</span>` : '';
       return `<tr onclick="showItemDetailPage(${globalIdx})" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
         <td style="white-space:nowrap">
-          <span class="item-num">${item.itemNum}</span>${_varText}
+          <span class="item-num">${item.itemNum}</span>
           ${_groupId ? '<span style="font-size:0.55rem;color:var(--accent3);margin-left:4px;vertical-align:super" title="Grouped">🔗</span>' : ''}
           ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+_escVar+'\','+globalIdx+')" style="margin-left:5px;font-size:0.72rem;background:#27ae60;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700;vertical-align:middle" title="Complete this Quick Entry">⚡</span>' : ''}
         </td>
+        <td style="white-space:nowrap">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>
         <td style="color:var(--text-mid);font-size:0.85rem">${_descShort}</td>
         <td style="text-align:right;white-space:nowrap">
           <button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">${isForSale ? '🏷️ Update' : '🏷️ For Sale'}</button>
@@ -2413,7 +2414,7 @@ function renderBrowse() {
 
   const emptyHtml = isMobile
     ? '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔍</div><p>No items match your filters</p></div>'
-    : '<tr><td colspan="' + (state.filters.owned ? '3' : '9') + '"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div></td></tr>';
+    : '<tr><td colspan="' + (state.filters.owned ? '4' : '9') + '"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div></td></tr>';
 
   if (isMobile) {
     let _ephCardsHtml = '';
@@ -2573,14 +2574,11 @@ function showItemDetailPage(idx) {
   // ── ACTION TOOLBAR ──
   html += `
   <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
-    <button onclick="showItemDetailPage_edit(${idx})" data-ctip="You can quickly edit this item here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+    <button onclick="showItemDetailPage_edit(${idx})" data-ctip="Edit this item's details and add photos all in one place." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      Update Info
+      Update Info &amp; Add Pictures
     </button>
-    <button onclick="showItemDetailPage_photos(${idx})" data-ctip="Want to add a photo to this item? Click here to add photos from your camera roll or computer." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--gold);background:rgba(212,168,67,0.08);color:var(--gold);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
-      Add Photos
-    </button>
+    
     <button onclick="showItemDetailPage_sell(${idx})" data-ctip="Did you sell something? Record that here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
       Record Sale
