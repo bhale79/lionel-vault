@@ -6632,6 +6632,36 @@ function buildSetsPage() {
   }
 }
 
+function addSetToCollection(setNum, setName) {
+  const _activePg = document.querySelector('.page.active');
+  const _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'sets';
+  // Set wizard.data FIRST so getSteps('set') can branch correctly
+  wizard = {
+    step: 0, tab: 'set',
+    data: {
+      tab: 'set',
+      set_knowsNum: 'Yes',
+      set_num: setNum,
+      _resolvedSet: state.setData.find(s => s.setNum === setNum) || null,
+      _returnPage: _returnPage
+    },
+    steps: [],
+    matchedItem: null
+  };
+  wizard.steps = getSteps('set'); // called after data is set
+  // Skip set_knowsNum and set_num — already filled
+  const autoSkip = new Set(['set_knowsNum', 'set_num', 'set_loco']);
+  while (wizard.step < wizard.steps.length) {
+    const cur = wizard.steps[wizard.step];
+    if (!autoSkip.has(cur.id)) break;
+    wizard.step++;
+  }
+  document.getElementById('wizard-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderWizardStep();
+}
+
+
 function addSetToWantList(setNum, setName) {
   // Open the want wizard pre-filled as a set
   const _activePg = document.querySelector('.page.active');
@@ -6760,17 +6790,25 @@ function showSetDetail(setNum) {
   // ── Footer action ──
   const footer = document.createElement('div');
   footer.style.cssText = 'margin-top:1.25rem;padding-top:0.9rem;border-top:1px solid var(--border);display:flex;gap:0.5rem;justify-content:flex-end';
+  // Add to Collection button (always shown)
+  const collBtn = document.createElement('button');
+  collBtn.textContent = '+ Add to Collection';
+  collBtn.style.cssText = 'padding:0.45rem 0.9rem;border-radius:7px;border:1.5px solid var(--accent);background:rgba(240,80,8,0.1);color:var(--accent);font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer';
+  collBtn.onclick = () => { overlay.remove(); addSetToCollection(s.setNum, s.setName || ''); };
+  footer.appendChild(collBtn);
+
+  // Add to Want List button
   const alreadyWanted = !!state.wantData[s.setNum + '|'];
   if (!alreadyWanted) {
     const wantBtn = document.createElement('button');
-    wantBtn.textContent = '+ Add to Want List';
+    wantBtn.textContent = '+ Want List';
     wantBtn.style.cssText = 'padding:0.45rem 0.9rem;border-radius:7px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer';
     wantBtn.onclick = () => { overlay.remove(); addSetToWantList(s.setNum, s.setName || ''); };
     footer.appendChild(wantBtn);
   } else {
     const wantedLbl = document.createElement('span');
     wantedLbl.style.cssText = 'font-size:0.8rem;color:var(--text-dim);align-self:center';
-    wantedLbl.textContent = '✓ Already on Want List';
+    wantedLbl.textContent = '✓ On Want List';
     footer.appendChild(wantedLbl);
   }
   const doneBtn = document.createElement('button');
