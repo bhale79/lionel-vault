@@ -171,6 +171,14 @@
           <svg id="refresh-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           Sync from Sheet
         </button>
+        <!-- Help widget — inline in sidebar, desktop only -->
+        <div id="tut-help-widget" onclick="tutToggleMenu()" title="Help &amp; Tutorials" role="button" tabindex="0"
+          style="display:none;align-items:center;gap:0.5rem;padding:0.5rem 0.75rem;border-radius:7px;cursor:pointer;width:100%;margin-top:0.25rem"
+          onmouseover="this.style.background='rgba(255,255,255,0.06)'"
+          onmouseout="this.style.background='none'">
+          <img id="tut-help-conductor" src="./conductor.png" style="height:28px;width:auto;flex-shrink:0">
+          <span id="tut-help-label" style="font-family:var(--font-body);font-size:0.82rem;color:var(--text-dim)">Need Help?</span>
+        </div>
       </div>
     </nav>
 
@@ -283,7 +291,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
         <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
           <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.75rem;flex:1">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <input id="browse-search" type="text" placeholder="Search item #, road, description…" oninput="onPageSearch(this.value,'browse')" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:100%">
+            <input id="browse-search" type="text" placeholder="Search item #, road, description…" oninput="onPageSearch(this.value,'browse')" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:16px;outline:none;width:100%">
           </div>
           <!-- Filter button -->
           <div style="position:relative">
@@ -813,12 +821,6 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 
 <!-- ══ SCRIPTS ══════════════════════════════════════════════════ -->
 
-<!-- Help Widget -->
-<div id="tut-help-widget" onclick="tutToggleMenu()" title="Help &amp; Tutorials" role="button" tabindex="0">
-  <span id="tut-help-label">Need Help?</span>
-  <img id="tut-help-conductor" src="./conductor.png">
-  <button id="tut-help-btn" onclick="void(0)">Help</button>
-</div>
 
 <!-- Help Menu -->
 <div id="tut-help-menu">
