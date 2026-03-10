@@ -428,6 +428,7 @@ function closeWizard() {
   const returnTo = wizard && wizard.data && wizard.data._returnPage;
   document.getElementById('wizard-modal').classList.remove('open');
   document.body.style.overflow = '';
+  if (wizard && wizard.data) wizard.data._qeSaving = false;
   if (returnTo) showPage(returnTo);
 }
 
@@ -1070,149 +1071,39 @@ function renderWizardStep() {
   } else if (s.type === 'entryMode') {
     const lbl = getItemLabel(wizard.data);
     const itemNum = (wizard.data.itemNum || '').trim();
-    const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
     const wrap = document.createElement('div');
-    wrap.style.cssText = 'padding-top:0.5rem;display:flex;flex-direction:column;gap:0.6rem';
+    wrap.style.cssText = 'padding-top:0.75rem;display:flex;flex-direction:column;gap:0.75rem';
 
-    // Hide Next button — cards drive navigation
-    var nb = document.getElementById('wizard-next-btn');
-    if (nb) nb.style.display = 'none';
-
-    // ── Full Entry card ──
+    // Full Entry card
     const fullCard = document.createElement('button');
-    fullCard.style.cssText = 'width:100%;padding:0.85rem 1rem;border-radius:12px;text-align:left;cursor:pointer;font-family:var(--font-body);transition:all 0.15s;border:2px solid var(--border);background:var(--surface2);display:flex;align-items:center;gap:0.85rem';
-    fullCard.innerHTML = '<div style="font-size:1.6rem;flex-shrink:0;line-height:1">📋</div>'
-      + '<div><div style="font-size:0.95rem;font-weight:700;color:var(--text);margin-bottom:0.1rem">Full Entry</div>'
-      + '<div style="font-size:0.78rem;color:var(--text-mid);line-height:1.4">Answer all questions and add photos. Best for a complete record.</div></div>';
+    fullCard.style.cssText = 'width:100%;padding:1.1rem 1.25rem;border-radius:14px;text-align:left;cursor:pointer;font-family:var(--font-body);transition:all 0.15s;border:2px solid var(--border);background:var(--surface2);display:flex;align-items:flex-start;gap:1rem';
+    fullCard.innerHTML = '<div style="font-size:2rem;flex-shrink:0;line-height:1">📋</div>'
+      + '<div><div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:0.2rem">Full Entry</div>'
+      + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5">Answer all questions and add photos.<br>Best for a complete record.</div></div>';
     fullCard.onclick = function() {
       wizard.data.entryMode = 'full';
       renderWizardStep();
       setTimeout(function() { wizardNext(); }, 120);
     };
 
-    // ── Quick Entry card ──
-    const quickCard = document.createElement('div');
-    quickCard.style.cssText = 'width:100%;border-radius:12px;font-family:var(--font-body);border:2px solid #1e3a5f;background:rgba(30,58,95,0.07);overflow:hidden';
-
-    // Read saved checkbox prefs
-    const _qeWorthOn = localStorage.getItem('lv_qe_worth') === '1';
-    const _qePhotoOn = isMobile && localStorage.getItem('lv_qe_photo') === '1';
-
-    // Card top row (tappable)
-    const qcTop = document.createElement('div');
-    qcTop.style.cssText = 'display:flex;align-items:center;gap:0.85rem;padding:0.85rem 1rem;cursor:pointer';
-    qcTop.innerHTML = '<div style="font-size:1.6rem;flex-shrink:0;line-height:1">⚡</div>'
-      + '<div style="flex:1"><div style="font-size:0.95rem;font-weight:700;color:#1e3a5f;margin-bottom:0.1rem">Quick Entry</div>'
-      + '<div style="font-size:0.78rem;color:var(--text-mid);line-height:1.4">Just save the item number now — fill in details later.</div></div>';
-
-    // ── Checkbox row ──
-    const qcChecks = document.createElement('div');
-    qcChecks.style.cssText = 'display:flex;gap:1.25rem;padding:0 1rem 0.8rem 1rem';
-
-    function _mkCheckbox(storageKey, emoji, label, checkedInit) {
-      const wrap = document.createElement('label');
-      wrap.style.cssText = 'display:flex;align-items:center;gap:0.45rem;cursor:pointer;user-select:none';
-
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.checked = checkedInit;
-      cb.style.cssText = 'width:16px;height:16px;accent-color:#1e3a5f;cursor:pointer;flex-shrink:0';
-      cb.onclick = function(e) { e.stopPropagation(); localStorage.setItem(storageKey, cb.checked ? '1' : '0'); };
-
-      const lbl = document.createElement('span');
-      lbl.style.cssText = 'font-size:0.82rem;color:var(--text-mid)';
-      lbl.textContent = emoji + ' ' + label;
-
-      wrap.appendChild(cb);
-      wrap.appendChild(lbl);
-      return { el: wrap, cb };
-    }
-
-    const worthCheck = _mkCheckbox('lv_qe_worth', '💰', 'Est. Worth', _qeWorthOn);
-    qcChecks.appendChild(worthCheck.el);
-    var photoCheck = null;
-    if (isMobile) {
-      photoCheck = _mkCheckbox('lv_qe_photo', '📷', 'Add Photo', _qePhotoOn);
-      qcChecks.appendChild(photoCheck.el);
-    }
-
-    quickCard.appendChild(qcTop);
-    quickCard.appendChild(qcChecks);
-
-    // ── Mini-step panel (shown after tapping card when a checkbox is checked) ──
-    const miniStep = document.createElement('div');
-    miniStep.style.cssText = 'display:none;padding:0.75rem 1rem;border-top:1px solid rgba(30,58,95,0.2);background:rgba(30,58,95,0.04)';
-
-    // Est. Worth field
-    const worthWrap = document.createElement('div');
-    worthWrap.style.cssText = 'display:none;margin-bottom:0.65rem';
-    worthWrap.innerHTML = '<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);margin-bottom:0.3rem">Est. Worth</div>'
-      + '<div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.4rem 0.75rem">'
-      + '<span style="color:var(--text-dim)">$</span>'
-      + '<input id="qe-worth-input" type="number" min="0" step="0.01" placeholder="0.00" style="background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.95rem;width:100%">'
-      + '</div>';
-
-    // Photo field (mobile only)
-    const photoWrap = document.createElement('div');
-    photoWrap.style.cssText = 'display:none;margin-bottom:0.65rem';
-    photoWrap.innerHTML = '<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);margin-bottom:0.3rem">Photo</div>'
-      + '<div style="display:flex;align-items:center;gap:0.75rem">'
-      + '<label style="display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.85rem;border-radius:8px;border:1.5px solid #27ae60;color:#27ae60;background:rgba(39,174,96,0.08);font-size:0.82rem;font-weight:600;cursor:pointer;flex-shrink:0">'
-      + '📷 Take Photo<input id="qe-photo-input" type="file" accept="image/*" capture="environment" style="display:none">'
-      + '</label>'
-      + '<span id="qe-photo-name" style="font-size:0.75rem;color:#27ae60;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>'
-      + '</div>';
-
-    // Confirm button
-    const confirmBtn = document.createElement('button');
-    confirmBtn.style.cssText = 'width:100%;padding:0.6rem;border-radius:9px;border:none;background:#1e3a5f;color:#fff;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer';
-    confirmBtn.textContent = '⚡ Confirm & Save';
-
-    miniStep.appendChild(worthWrap);
-    miniStep.appendChild(photoWrap);
-    miniStep.appendChild(confirmBtn);
-    quickCard.appendChild(miniStep);
-
-    // ── Wire photo input ──
-    setTimeout(function() {
-      var pi = document.getElementById('qe-photo-input');
-      if (pi) pi.onchange = function() {
-        if (pi.files && pi.files[0]) {
-          wizard.data._qePhotoFile = pi.files[0];
-          var nm = document.getElementById('qe-photo-name');
-          if (nm) nm.textContent = '✓ ' + pi.files[0].name;
-        }
-      };
-    }, 60);
-
-    // ── Tap card top → show mini-step if any checkbox checked, else save immediately ──
-    qcTop.onclick = function() {
-      var wantWorth = worthCheck.cb.checked;
-      var wantPhoto = photoCheck && photoCheck.cb.checked;
-      if (!wantWorth && !wantPhoto) {
-        wizard.data.entryMode = 'quick';
-        wizard.data._qeEstWorth = '';
-        delete wizard.data._qePhotoFile;
-        quickEntryAdd().catch(function(e) {
-          console.error('[QE] Uncaught error:', e);
-          showToast('❌ Quick Entry failed: ' + e.message, 6000, true);
-        });
-        return;
-      }
-      miniStep.style.display = 'block';
-      if (wantWorth) worthWrap.style.display = 'block';
-      if (wantPhoto) photoWrap.style.display = 'block';
-      setTimeout(function() { confirmBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 80);
-    };
-
-    // ── Confirm button → save with captured values ──
-    confirmBtn.onclick = function() {
+    // Quick Entry card
+    const quickCard = document.createElement('button');
+    quickCard.style.cssText = 'width:100%;padding:1.1rem 1.25rem;border-radius:14px;text-align:left;cursor:pointer;font-family:var(--font-body);transition:all 0.15s;border:2px solid #1e3a5f;background:rgba(30,58,95,0.07);display:flex;align-items:flex-start;gap:1rem';
+    quickCard.innerHTML = '<div style="font-size:2rem;flex-shrink:0;line-height:1">⚡</div>'
+      + '<div><div style="font-size:1rem;font-weight:700;color:#1e3a5f;margin-bottom:0.2rem">Quick Entry</div>'
+      + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5">Just save the item number now.<br>You can fill in the details later — use the ⚡ Quick Entry filter to find it.</div></div>';
+    quickCard.onclick = function() {
+      if (wizard.data._qeSaving) return;
+      wizard.data._qeSaving = true;
+      quickCard.disabled = true;
+      quickCard.style.opacity = '0.6';
       wizard.data.entryMode = 'quick';
-      var wi = document.getElementById('qe-worth-input');
-      wizard.data._qeEstWorth = (wi && wi.value.trim()) ? wi.value.trim() : '';
       quickEntryAdd().catch(function(e) {
         console.error('[QE] Uncaught error:', e);
         showToast('❌ Quick Entry failed: ' + e.message, 6000, true);
+        wizard.data._qeSaving = false;
+        quickCard.disabled = false;
+        quickCard.style.opacity = '1';
       });
     };
 
@@ -1220,6 +1111,9 @@ function renderWizardStep() {
     wrap.appendChild(quickCard);
     body.innerHTML = '';
     body.appendChild(wrap);
+    // Hide the Next button — selection is made by tapping a card
+    var nb = document.getElementById('wizard-next-btn');
+    if (nb) nb.style.display = 'none';
 
   } else if (s.type === 'slider') {
     const val = wizard.data[s.id] || parseInt(localStorage.getItem('lv_default_cond') || '7');
@@ -5139,35 +5033,9 @@ async function quickEntryAdd() {
     const _nextBtn = document.getElementById('wizard-next-btn');
     if (_nextBtn) _nextBtn.disabled = true;
 
-    // Upload photo if one was taken (lead item only)
-    const _qePhotoFile = d._qePhotoFile || null;
-    const _qeEstWorth  = d._qeEstWorth  || '';
-    let   _qePhotoLink = '';
-    if (_qePhotoFile && rows.length > 0) {
-      try {
-        _qePhotoLink = await driveUploadItemPhoto(_qePhotoFile, rows[0].itemNum, 'QE');
-      } catch(photoErr) {
-        console.warn('[QE] Photo upload failed, continuing without photo:', photoErr);
-      }
-    }
-
     for (const r of rows) {
       const invId = nextInventoryId();
-      const isLead = r === rows[0];
-      const row = [
-        r.itemNum, r.variation,        // A, B
-        '','','','','','','',          // C–I
-        isLead ? _qePhotoLink : '',    // J — photoItem
-        '',                            // K — photoBox
-        r.notes,                       // L — notes
-        '',                            // M — datePurchased
-        isLead ? _qeEstWorth : '',     // N — userEstWorth
-        r.matchedTo, r.setId,          // O, P
-        '','','',                      // Q–S
-        'Yes',                         // T — quickEntry
-        invId, r.groupId||'',          // U, V
-        ''                             // W — location
-      ];
+      const row = [r.itemNum, r.variation,'','','','','','','','','', r.notes,'','',r.matchedTo,r.setId,'','','','Yes', invId, r.groupId||'', ''];
       console.log('[QE] Saving', r.itemNum);
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
       const key = r.itemNum + '|' + r.variation + '|' + Date.now();
@@ -5175,8 +5043,8 @@ async function quickEntryAdd() {
         row: Date.now(), itemNum: r.itemNum, variation: r.variation,
         status: 'Owned', owned: true,
         condition: '', allOriginal: '', priceItem: '', priceBox: '', priceComplete: '',
-        hasBox: '', boxCond: '', photoItem: isLead ? _qePhotoLink : '', photoBox: '',
-        notes: r.notes, datePurchased: '', userEstWorth: isLead ? _qeEstWorth : '',
+        hasBox: '', boxCond: '', photoItem: '', photoBox: '',
+        notes: r.notes, datePurchased: '', userEstWorth: '',
         matchedTo: r.matchedTo, setId: r.setId,
         yearMade: '', isError: '', errorDesc: '', quickEntry: true,
         inventoryId: invId, groupId: r.groupId||'',
@@ -5209,8 +5077,6 @@ async function quickEntryAdd() {
     }
 
     closeWizard();
-    delete wizard.data._qePhotoFile;
-    delete wizard.data._qeEstWorth;
     showToast('⚡ ' + label + ' (Quick Entry)');
     buildDashboard();
     renderBrowse();
@@ -5390,7 +5256,18 @@ function _showQuickEntryMultiUI(itemNum, variation, tenders, isSet, bUnit) {
   saveBtn.className = 'btn btn-primary';
   saveBtn.style.cssText = 'width:100%;justify-content:center;padding:0.8rem;font-size:0.9rem;margin-top:0.25rem';
   saveBtn.textContent = '⚡ Save Quick Entry';
-  saveBtn.onclick = () => { wizard.data._qeMultiResolved = true; quickEntryAdd(); };
+  saveBtn.onclick = () => {
+    if (wizard.data._qeSaving) return;
+    wizard.data._qeSaving = true;
+    saveBtn.disabled = true;
+    saveBtn.style.opacity = '0.6';
+    wizard.data._qeMultiResolved = true;
+    quickEntryAdd().catch(function(e) {
+      wizard.data._qeSaving = false;
+      saveBtn.disabled = false;
+      saveBtn.style.opacity = '1';
+    });
+  };
   wrap.appendChild(saveBtn);
 
   body.innerHTML = '';
