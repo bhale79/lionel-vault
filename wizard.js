@@ -428,7 +428,6 @@ function closeWizard() {
   const returnTo = wizard && wizard.data && wizard.data._returnPage;
   document.getElementById('wizard-modal').classList.remove('open');
   document.body.style.overflow = '';
-  if (wizard && wizard.data) wizard.data._qeSaving = false;
   if (returnTo) showPage(returnTo);
 }
 
@@ -1093,17 +1092,10 @@ function renderWizardStep() {
       + '<div><div style="font-size:1rem;font-weight:700;color:#1e3a5f;margin-bottom:0.2rem">Quick Entry</div>'
       + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5">Just save the item number now.<br>You can fill in the details later — use the ⚡ Quick Entry filter to find it.</div></div>';
     quickCard.onclick = function() {
-      if (wizard.data._qeSaving) return;
-      wizard.data._qeSaving = true;
-      quickCard.disabled = true;
-      quickCard.style.opacity = '0.6';
       wizard.data.entryMode = 'quick';
       quickEntryAdd().catch(function(e) {
         console.error('[QE] Uncaught error:', e);
         showToast('❌ Quick Entry failed: ' + e.message, 6000, true);
-        wizard.data._qeSaving = false;
-        quickCard.disabled = false;
-        quickCard.style.opacity = '1';
       });
     };
 
@@ -4944,6 +4936,14 @@ async function saveWizardItem() {
     renderBrowse();
     showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'forsale' ? 'For Sale' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
 
+
+    // ── Vault: submit updated collection data in background ──
+    if (typeof vaultIsOptedIn === 'function' && vaultIsOptedIn()) {
+      localStorage.removeItem(VAULT.KEY_LAST_SUB);
+      setTimeout(function() {
+        if (typeof vaultSubmitData === 'function') vaultSubmitData().catch(function(e) { console.warn('[Vault] Submit after save failed:', e); });
+      }, 2000);
+    }
     // ── Background sync: bust cache and re-fetch from Sheets to get real row numbers ──
     // Longer delay on mobile to give Sheets time to propagate
     localStorage.removeItem('lv_personal_cache');
@@ -5081,6 +5081,14 @@ async function quickEntryAdd() {
     buildDashboard();
     renderBrowse();
     if (_nextBtn) _nextBtn.disabled = false;
+
+    // ── Vault: submit updated collection data in background ──
+    if (typeof vaultIsOptedIn === 'function' && vaultIsOptedIn()) {
+      localStorage.removeItem(VAULT.KEY_LAST_SUB);
+      setTimeout(function() {
+        if (typeof vaultSubmitData === 'function') vaultSubmitData().catch(function(e) { console.warn('[Vault] Submit after save failed:', e); });
+      }, 2000);
+    }
   } catch(e) {
     console.error('[QE] Save error:', e);
     showToast('❌ Save failed: ' + e.message, 6000, true);
@@ -5256,18 +5264,7 @@ function _showQuickEntryMultiUI(itemNum, variation, tenders, isSet, bUnit) {
   saveBtn.className = 'btn btn-primary';
   saveBtn.style.cssText = 'width:100%;justify-content:center;padding:0.8rem;font-size:0.9rem;margin-top:0.25rem';
   saveBtn.textContent = '⚡ Save Quick Entry';
-  saveBtn.onclick = () => {
-    if (wizard.data._qeSaving) return;
-    wizard.data._qeSaving = true;
-    saveBtn.disabled = true;
-    saveBtn.style.opacity = '0.6';
-    wizard.data._qeMultiResolved = true;
-    quickEntryAdd().catch(function(e) {
-      wizard.data._qeSaving = false;
-      saveBtn.disabled = false;
-      saveBtn.style.opacity = '1';
-    });
-  };
+  saveBtn.onclick = () => { wizard.data._qeMultiResolved = true; quickEntryAdd(); };
   wrap.appendChild(saveBtn);
 
   body.innerHTML = '';
