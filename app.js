@@ -25,6 +25,9 @@ const FOR_SALE_HEADERS = [
 const WANT_HEADERS = [
   'Item Number','Variation','Priority','Expected Price','Notes'
 ];
+const UPGRADE_HEADERS = [
+  'Item Number','Variation','Priority','Target Condition','Max Price','Notes'
+];
 
 // Ephemera tab definitions — shared structure, one tab per category
 const EPHEMERA_TABS = [
@@ -151,7 +154,8 @@ let state = {
   personalData: {},    // keyed by "itemNum|variation" -> personal row (owned items)
   soldData: {},        // keyed by "itemNum|variation" -> sold row
   forSaleData: {},     // keyed by "itemNum|variation" -> for sale row
-  wantData: {},        // keyed by "itemNum|variation" -> want list row
+  wantData: {},
+  upgradeData: {},        // keyed by "itemNum|variation" -> want list row
   setData: [],         // all rows from Master Set list (read-only reference)
   filteredData: [],
   currentPage: 1,
@@ -434,7 +438,8 @@ async function initPersonalSheet(sheetId) {
   const toCreate = [];
   if (!existingTabs.includes('Sold'))      toCreate.push({ addSheet: { properties: { title: 'Sold' } } });
   if (!existingTabs.includes('For Sale'))  toCreate.push({ addSheet: { properties: { title: 'For Sale' } } });
-  if (!existingTabs.includes('Want List')) toCreate.push({ addSheet: { properties: { title: 'Want List' } } });
+  if (!existingTabs.includes('Want List'))    toCreate.push({ addSheet: { properties: { title: 'Want List' } } });
+  if (!existingTabs.includes('Upgrade List')) toCreate.push({ addSheet: { properties: { title: 'Upgrade List' } } });
 
   if (toCreate.length > 0) {
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
@@ -449,8 +454,10 @@ async function initPersonalSheet(sheetId) {
   await sheetsUpdate(sheetId, 'Sold!A2:H2',      [SOLD_HEADERS]);
   await sheetsUpdate(sheetId, 'For Sale!A1:A1',   [['For Sale']]);
   await sheetsUpdate(sheetId, 'For Sale!A2:H2',   [FOR_SALE_HEADERS]);
-  await sheetsUpdate(sheetId, 'Want List!A1:A1', [['Want List']]);
-  await sheetsUpdate(sheetId, 'Want List!A2:E2', [WANT_HEADERS]);
+  await sheetsUpdate(sheetId, 'Want List!A1:A1',    [['Want List']]);
+  await sheetsUpdate(sheetId, 'Want List!A2:E2',    [WANT_HEADERS]);
+  await sheetsUpdate(sheetId, 'Upgrade List!A1:A1', [['Upgrade List']]);
+  await sheetsUpdate(sheetId, 'Upgrade List!A2:F2', [UPGRADE_HEADERS]);
 
   // Ephemera tabs
   await ensureEphemeraSheets(sheetId);
@@ -470,7 +477,8 @@ async function ensurePersonalHeaders(sheetId) {
     const toCreate = [];
     if (!existingTabs.includes('Sold'))      toCreate.push({ addSheet: { properties: { title: 'Sold' } } });
     if (!existingTabs.includes('For Sale'))  toCreate.push({ addSheet: { properties: { title: 'For Sale' } } });
-    if (!existingTabs.includes('Want List')) toCreate.push({ addSheet: { properties: { title: 'Want List' } } });
+    if (!existingTabs.includes('Want List'))    toCreate.push({ addSheet: { properties: { title: 'Want List' } } });
+    if (!existingTabs.includes('Upgrade List')) toCreate.push({ addSheet: { properties: { title: 'Upgrade List' } } });
     if (toCreate.length > 0) {
       await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
         method: 'POST',
@@ -489,6 +497,10 @@ async function ensurePersonalHeaders(sheetId) {
       if (!existingTabs.includes('Want List')) {
         await sheetsUpdate(sheetId, 'Want List!A1:A1', [['Want List']]);
         await sheetsUpdate(sheetId, 'Want List!A2:E2', [WANT_HEADERS]);
+      }
+      if (!existingTabs.includes('Upgrade List')) {
+        await sheetsUpdate(sheetId, 'Upgrade List!A1:A1', [['Upgrade List']]);
+        await sheetsUpdate(sheetId, 'Upgrade List!A2:F2', [UPGRADE_HEADERS]);
       }
       console.log('[Setup] Created missing tabs:', toCreate.map(t => t.addSheet.properties.title).join(', '));
     }
@@ -1372,12 +1384,13 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   const newForSale = {};
 
   // Fetch all tabs in parallel
-  const [collRes, soldRes, forSaleRes, wantRes,
+  const [collRes, soldRes, forSaleRes, wantRes, upgradeRes,
          catRes, paperRes, mockRes, otherRes, isRes] = await Promise.all([
     sheetsGet(sheetId, 'My Collection!A3:W').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Sold!A3:H').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'For Sale!A3:H').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Want List!A3:E').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Upgrade List!A3:F').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Catalogs!A3:I').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Paper Items!A3:J').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Mock-Ups!A3:O').catch(() => ({values:[]})),
@@ -1436,6 +1449,16 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     newWant[key] = {
       row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
       priority: r[2]||'Medium', expectedPrice: r[3]||'', notes: r[4]||'',
+    };
+  });
+
+  // Upgrade List
+  (upgradeRes.values || []).forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Item Number') return;
+    const key = `${r[0]}|${r[1]||''}`;
+    state.upgradeData[key] = {
+      row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
+      priority: r[2]||'Medium', targetCondition: r[3]||'', maxPrice: r[4]||'', notes: r[5]||'',
     };
   });
 
@@ -1549,6 +1572,9 @@ function buildApp() {
   populateFilters();
   buildDashboard();
   _applyDisclaimerPref();
+  // Upgrade count badge
+  const _uEl = document.getElementById('nav-upgrade-count');
+  if (_uEl) { const _uc = Object.values(state.upgradeData||{}).length; _uEl.textContent = _uc > 0 ? _uc.toLocaleString() : '—'; }
   // Wire up the Google Sheet link in the sidebar
   const sheetLink = document.getElementById('nav-sheet-link');
   if (sheetLink && state.personalSheetId) {
@@ -1918,6 +1944,9 @@ function buildDashboard() {
   document.getElementById('nav-owned').textContent = owned.toLocaleString();
   const wantListCount = Object.keys(state.wantData).length;
   document.getElementById('nav-wanted2').textContent = wantListCount.toLocaleString();
+  const _upgradeCount = Object.values(state.upgradeData).length;
+  const _upgradeEl = document.getElementById('nav-upgrade-count');
+  if (_upgradeEl) _upgradeEl.textContent = _upgradeCount > 0 ? _upgradeCount.toLocaleString() : '—';
   // Quick Entry badge count
   const _qeCount = Object.values(state.personalData).filter(pd => pd.owned && pd.quickEntry).length;
   const _qeBadge = document.getElementById('nav-qe-count');
@@ -2075,6 +2104,39 @@ const PANEL_CATALOG = [
             idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()', hasPhoto ? pd.photoItem : null
           );
         }).join('') || '<div class="empty-state"><p>No valued items yet</p></div>';
+    }
+  },
+  {
+    id: 'upgrades',
+    label: 'Upgrade Targets',
+    icon: '↑',
+    navFn: "showPage('upgrade', document.querySelector('.nav-item[onclick*=\'buildUpgradePage\']')); buildUpgradePage();",
+    render: function(state) {
+      const thresh = parseInt(_prefGet('lv_upgrade_thresh', '7'));
+      const entries = Object.values(state.upgradeData || {});
+      const priorityOrder = { High: 0, Medium: 1, Low: 2 };
+      return entries
+        .sort((a, b) => {
+          const pA = priorityOrder[a.priority] ?? 1;
+          const pB = priorityOrder[b.priority] ?? 1;
+          if (pA !== pB) return pA - pB;
+          const pdA = Object.values(state.personalData).find(p => p.owned && p.itemNum === a.itemNum && (p.variation||'') === (a.variation||''));
+          const pdB = Object.values(state.personalData).find(p => p.owned && p.itemNum === b.itemNum && (p.variation||'') === (b.variation||''));
+          return (parseInt(pdA && pdA.condition || 99)) - (parseInt(pdB && pdB.condition || 99));
+        })
+        .slice(0, 8)
+        .map(function(u) {
+          const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
+          const master = state.masterData.find(m => m.itemNum === u.itemNum);
+          const name = master ? (master.roadName || master.itemType || u.itemNum) : u.itemNum;
+          const cond = pd && pd.condition ? parseInt(pd.condition) : null;
+          const meta = [cond ? 'Cond: ' + cond : '', u.targetCondition ? '→ ' + u.targetCondition : ''].filter(Boolean).join(' ');
+          const idx = master ? state.masterData.indexOf(master) : -1;
+          const hasPhoto = pd && !!pd.photoItem;
+          return _panelRow('↑', u.itemNum + (u.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim);">' + u.variation + '</span>' : ''), name, meta,
+            idx >= 0 ? 'showItemDetailPage(' + idx + ')' : "showPage('upgrade',null);buildUpgradePage()", hasPhoto ? pd.photoItem : null
+          );
+        }).join('') || '<div class="empty-state"><p>No upgrade targets yet</p></div>';
     }
   }
 ];
@@ -2786,6 +2848,7 @@ function renderBrowse() {
         <div style="display:flex;gap:0.35rem;margin-top:0.6rem;flex-wrap:wrap">
           <button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);font-weight:600">${isForSale ? '🏷️ Update Listing' : '🏷️ For Sale'}</button>
           <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${item.itemNum}','${_escVar}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">💰 Sold It</button>
+          <button onclick="event.stopPropagation();showAddToUpgradeModal('${item.itemNum}','${_escVar}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600">↑ Upgrade</button>
           <button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${_pdRow})" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
         </div>` : '';
       return `<div class="browse-card" onclick="browseRowClick(event,${globalIdx})">
@@ -2821,6 +2884,7 @@ function renderBrowse() {
         <td style="text-align:right;white-space:nowrap">
           <button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">${isForSale ? '🏷️ Update' : '🏷️ For Sale'}</button>
           <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">💰 Sold</button>
+          <button onclick="event.stopPropagation();showAddToUpgradeModal('${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to Upgrade List">↑ Upgrade</button>
           <button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
         </td>
       </tr>`;
@@ -5472,6 +5536,26 @@ function buildPrefsPage() {
       </div>
       <div class="pref-row">
         <div class="pref-row-label">
+          <strong>Upgrade Condition Threshold</strong>
+          <span>Flag owned items below this condition as upgrade candidates</span>
+        </div>
+        <select class="pref-select" id="pref-upgrade-thresh" onchange="_prefSet('lv_upgrade_thresh', this.value)">
+          <option value="1" id="ut-1">1 or below</option>
+          <option value="2" id="ut-2">2 or below</option>
+          <option value="3" id="ut-3">3 or below</option>
+          <option value="4" id="ut-4">4 or below</option>
+          <option value="5" id="ut-5">5 or below</option>
+          <option value="6" id="ut-6">6 or below</option>
+          <option value="7" id="ut-7" selected>7 or below</option>
+          <option value="8" id="ut-8">8 or below</option>
+          <option value="9" id="ut-9">9 or below</option>
+        </select>
+        <script>
+          (function(){ var s=document.getElementById('pref-upgrade-thresh'); if(s){ var v=localStorage.getItem('lv_upgrade_thresh')||'7'; s.value=v; } })();
+        </script>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
           <strong>Show Accuracy Disclaimer</strong>
           <span>Warning banner on Master Catalog and Complete Sets pages</span>
         </div>
@@ -6525,6 +6609,7 @@ function showPage(name, clickedEl) {
   if (name === 'want') buildWantPage();
   if (name === 'sets') buildSetsPage();
   if (name === 'browse' || name === 'sets') _applyDisclaimerPref();
+  if (name === 'upgrade') buildUpgradePage();
   if (name === 'prefs') buildPrefsPage();
   document.getElementById('main-content').scrollTop = 0;
 }
@@ -6802,6 +6887,16 @@ function showSetDetail(setNum) {
   // ── Footer action ──
   const footer = document.createElement('div');
   footer.style.cssText = 'margin-top:1.25rem;padding-top:0.9rem;border-top:1px solid var(--border);display:flex;gap:0.5rem;justify-content:flex-end';
+  // Upgrade List button (only for owned items)
+  const _upgradeKey2 = `${s.itemNum}|${s.variation||''}`;
+  const _alreadyUpgrade = !!state.upgradeData[_upgradeKey2];
+  const upgradeBtn = document.createElement('button');
+  upgradeBtn.style.cssText = 'padding:0.55rem 1rem;border-radius:8px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer';
+  upgradeBtn.textContent = _alreadyUpgrade ? '↑ On Upgrade List' : '↑ Add to Upgrade List';
+  if (_alreadyUpgrade) upgradeBtn.style.opacity = '0.6';
+  else upgradeBtn.onclick = () => showAddToUpgradeModal(s.itemNum, s.variation||'');
+  if (pd && pd.owned) btns.appendChild(upgradeBtn);
+
   // Add to Collection button (always shown)
   const collBtn = document.createElement('button');
   collBtn.textContent = '+ Add to Collection';
@@ -6854,6 +6949,315 @@ function _applyDisclaimerPref() {
 function showContactModal() {
   const m = document.getElementById('contact-modal');
   if (m) { m.style.display = 'flex'; }
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+// UPGRADE LIST
+// ══════════════════════════════════════════════════════════════════
+
+function buildUpgradePage() {
+  const isMobile = window.innerWidth <= 640;
+  const _uq = (state._upgradeSearch || '').toLowerCase();
+  const _sort = state._upgradeSort || 'priority';
+  const thresh = parseInt(_prefGet('lv_upgrade_thresh', '7'));
+  const _threshFilter = state._upgradeThreshFilter !== false; // default on
+
+  let entries = Object.values(state.upgradeData).filter(u => {
+    if (_uq) {
+      const master = state.masterData.find(m => m.itemNum === u.itemNum) || {};
+      if (!(u.itemNum||'').toLowerCase().includes(_uq)
+        && !(master.roadName||'').toLowerCase().includes(_uq)
+        && !(u.notes||'').toLowerCase().includes(_uq)) return false;
+    }
+    if (_threshFilter) {
+      const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
+      const cond = pd && pd.condition ? parseInt(pd.condition) : null;
+      if (cond !== null && cond > thresh) return false;
+    }
+    return true;
+  });
+
+  const priorityOrder = { High: 0, Medium: 1, Low: 2 };
+  if (_sort === 'priority') {
+    entries.sort((a, b) => (priorityOrder[a.priority]??1) - (priorityOrder[b.priority]??1));
+  } else if (_sort === 'condition') {
+    entries.sort((a, b) => {
+      const getC = u => { const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||'')); return pd && pd.condition ? parseInt(pd.condition) : 99; };
+      return getC(a) - getC(b);
+    });
+  } else {
+    entries.sort((a, b) => (a.itemNum||'').localeCompare(b.itemNum||'', undefined, {numeric:true}));
+  }
+
+  // Update badge
+  const badge = document.getElementById('nav-upgrade-count');
+  if (badge) badge.textContent = Object.values(state.upgradeData).length > 0 ? Object.values(state.upgradeData).length : '—';
+
+  const cardsEl = document.getElementById('upgrade-cards');
+  const tableEl = document.getElementById('upgrade-table');
+  const tbody   = document.getElementById('upgrade-tbody');
+
+  const priorityColor = { High: 'var(--accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
+
+  if (entries.length === 0) {
+    const empty = `<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">↑</div><p>Your upgrade list is empty</p><p style="font-size:0.8rem;margin-top:0.5rem">Add items from My Collection that you'd like in better condition</p></div>`;
+    if (cardsEl) cardsEl.innerHTML = empty;
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="ui-empty">No items on upgrade list</td></tr>';
+    return;
+  }
+
+  if (isMobile) {
+    if (tableEl) tableEl.style.display = 'none';
+    if (cardsEl) cardsEl.style.display = 'flex';
+    cardsEl.innerHTML = entries.map(u => {
+      const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
+      const master = state.masterData.find(m => m.itemNum === u.itemNum);
+      const name = master ? (master.roadName || master.itemType || '') : '';
+      const cond = pd && pd.condition ? parseInt(pd.condition) : null;
+      const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
+      const pColor = priorityColor[u.priority] || 'var(--text-dim)';
+      const escVar = (u.variation||'').replace(/'/g,"\\'");
+      const photoId = `upgphoto-m-${u.itemNum}-${u.variation||''}`.replace(/[^a-zA-Z0-9-]/g,'_');
+      const hasPhoto = pd && !!pd.photoItem;
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">
+        <div style="display:flex;align-items:flex-start;gap:0.5rem">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">
+              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${u.itemNum}</span>
+              ${u.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${u.variation}</span>` : ''}
+              <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${u.priority||'Medium'}</span>
+            </div>
+            ${name ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${name}</div>` : ''}
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem;flex-wrap:wrap">
+              ${cond !== null ? `<span style="font-size:0.75rem"><span class="condition-pip ${condClass}"></span>Mine: ${cond}</span>` : ''}
+              ${u.targetCondition ? `<span style="font-size:0.75rem;color:#8b5cf6">→ Target: ${u.targetCondition}</span>` : ''}
+              ${u.maxPrice ? `<span style="font-size:0.75rem;color:var(--accent2);font-family:var(--font-mono)">Max: $${parseFloat(u.maxPrice).toLocaleString()}</span>` : ''}
+            </div>
+            ${u.notes ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${u.notes}</div>` : ''}
+          </div>
+          ${hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${pd.photoItem.replace(/'/g,"\\'")}')" style="background:none;border:none;font-size:1.1rem;cursor:pointer;flex-shrink:0" title="View my photo">📷</button>` : ''}
+        </div>
+        <div id="${photoId}" style="display:none;margin-top:0.5rem"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:contain" onerror="this.parentElement.style.display='none'"></div>
+        <div style="display:flex;gap:0.35rem;margin-top:0.6rem;flex-wrap:wrap">
+          <button onclick="event.stopPropagation();_upgradeViewMine('${u.itemNum}','${escVar}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600">View Mine</button>
+          <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${(name||'').replace(/'/g,"\\'")}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);font-weight:600">eBay</button>
+          <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${(name||'').replace(/'/g,"\\'")}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600">Search</button>
+          <button onclick="event.stopPropagation();upgradeGotIt('${u.itemNum}','${escVar}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">✓ Got It</button>
+          <button onclick="event.stopPropagation();removeUpgradeItem('${u.itemNum}','${escVar}',${u.row})" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    if (tableEl) tableEl.style.display = '';
+    if (cardsEl) cardsEl.style.display = 'none';
+    tbody.innerHTML = entries.map((u, idx) => {
+      const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
+      const master = state.masterData.find(m => m.itemNum === u.itemNum);
+      const name = master ? (master.roadName || master.itemType || '') : '';
+      const cond = pd && pd.condition ? parseInt(pd.condition) : null;
+      const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
+      const pColor = priorityColor[u.priority] || 'var(--text-dim)';
+      const escVar = (u.variation||'').replace(/'/g,"\\'");
+      const hasPhoto = pd && !!pd.photoItem;
+      const photoId = `upgphoto-d-${idx}`;
+      return `<tr>
+        <td><span class="item-num">${u.itemNum}</span>${u.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + u.variation + '</span>' : ''}</td>
+        <td style="color:var(--text-mid)">${name || '<span class="text-dim">—</span>'}</td>
+        <td>${cond !== null ? `<span class="condition-pip ${condClass}" style="margin-right:3px"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
+        <td style="color:#8b5cf6;font-weight:600">${u.targetCondition || '<span class="text-dim">—</span>'}</td>
+        <td><span style="color:${pColor};font-weight:500">${u.priority||'Medium'}</span></td>
+        <td class="market-val">${u.maxPrice ? '$' + parseFloat(u.maxPrice).toLocaleString() : '<span class="text-dim">—</span>'}</td>
+        <td style="font-size:0.8rem;color:var(--text-dim);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(u.notes||'').replace(/"/g,'&quot;')}">${u.notes || '<span class="text-dim">—</span>'}</td>
+        <td style="white-space:nowrap">
+          ${hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${(pd.photoItem||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.4rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);margin-right:0.2rem" title="Toggle photo">📷</button>` : ''}
+          <button onclick="_upgradeViewMine('${u.itemNum}','${escVar}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>
+          <button onclick="wantFindOnEbay('${u.itemNum}','${(name||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);margin-right:0.2rem">eBay</button>
+          <button onclick="wantSearchOtherSites('${u.itemNum}','${(name||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);margin-right:0.2rem">Search</button>
+          <button onclick="upgradeGotIt('${u.itemNum}','${escVar}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">✓ Got It</button>
+          <button onclick="removeUpgradeItem('${u.itemNum}','${escVar}',${u.row})" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
+        </td>
+      </tr>
+      <tr id="${photoId}-row" style="display:none"><td colspan="8" style="padding:0.5rem 1rem;background:var(--surface2)"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-height:160px;border-radius:6px;object-fit:contain" onerror="this.parentElement.parentElement.style.display='none'"></td></tr>`;
+    }).join('') || '<tr><td colspan="8" class="ui-empty">No items on upgrade list</td></tr>';
+  }
+}
+
+function _toggleUpgradePhoto(id, photoUrl) {
+  // Mobile: toggle inline div; desktop: toggle row
+  const el = document.getElementById(id);
+  const rowEl = document.getElementById(id + '-row');
+  const target = el || rowEl;
+  if (!target) return;
+  const showing = target.style.display !== 'none';
+  target.style.display = showing ? 'none' : '';
+}
+
+function _upgradeViewMine(itemNum, variation) {
+  const master = state.masterData.find(m => m.itemNum === itemNum);
+  if (master) {
+    showItemDetailPage(state.masterData.indexOf(master));
+  } else {
+    showToast('Item not found in master catalog');
+  }
+}
+
+function showAddToUpgradeModal(itemNum, variation) {
+  const existing = state.upgradeData[`${itemNum}|${variation||''}`] || {};
+  const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === itemNum && (p.variation||'') === (variation||''));
+  const master = state.masterData.find(m => m.itemNum === itemNum);
+  const name = master ? (master.roadName || master.itemType || itemNum) : itemNum;
+  const myCond = pd && pd.condition ? pd.condition : '';
+
+  const old = document.getElementById('upgrade-add-modal');
+  if (old) old.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'upgrade-add-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10001;display:flex;align-items:center;justify-content:center;padding:1.25rem';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:400px;width:100%;padding:1.5rem;position:relative">
+      <button onclick="document.getElementById('upgrade-add-modal').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">✕</button>
+      <div style="font-family:var(--font-head);font-size:1.15rem;color:#8b5cf6;margin-bottom:0.25rem">↑ Add to Upgrade List</div>
+      <div style="font-family:var(--font-mono);font-size:0.9rem;color:var(--accent);margin-bottom:0.1rem">${itemNum}${variation ? ' <span style="color:var(--text-dim);font-size:0.8rem">' + variation + '</span>' : ''}</div>
+      <div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:1rem">${name}${myCond ? ' · Current condition: ' + myCond : ''}</div>
+      <div style="display:flex;flex-direction:column;gap:0.75rem">
+        <div>
+          <label style="font-size:0.78rem;color:var(--text-dim);display:block;margin-bottom:0.25rem">Priority</label>
+          <select id="upg-priority" style="width:100%;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem">
+            <option value="High" ${(existing.priority||'Medium')==='High'?'selected':''}>High</option>
+            <option value="Medium" ${(existing.priority||'Medium')==='Medium'?'selected':''}>Medium</option>
+            <option value="Low" ${(existing.priority||'Medium')==='Low'?'selected':''}>Low</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text-dim);display:block;margin-bottom:0.25rem">Target Condition (1–10)</label>
+          <select id="upg-target-cond" style="width:100%;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem">
+            <option value="">Not specified</option>
+            ${[...Array(10)].map((_,i)=>{const v=10-i; return `<option value="${v}" ${(existing.targetCondition||'')==String(v)?'selected':''}>${v}</option>`;}).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text-dim);display:block;margin-bottom:0.25rem">Max Price I'd Pay</label>
+          <input id="upg-max-price" type="number" min="0" placeholder="e.g. 150" value="${existing.maxPrice||''}" style="width:100%;box-sizing:border-box;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.85rem">
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text-dim);display:block;margin-bottom:0.25rem">Notes</label>
+          <textarea id="upg-notes" rows="2" placeholder="e.g. needs to have original box" style="width:100%;box-sizing:border-box;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;resize:vertical">${existing.notes||''}</textarea>
+        </div>
+        <button onclick="saveUpgradeItem('${itemNum}','${(variation||'').replace(/'/g,"\\'")}',${existing.row||0})" style="padding:0.6rem;border-radius:8px;background:#8b5cf6;color:#fff;border:none;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-top:0.25rem">
+          ${existing.row ? 'Update Upgrade Entry' : '+ Add to Upgrade List'}
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function saveUpgradeItem(itemNum, variation, existingRow) {
+  const priority = document.getElementById('upg-priority')?.value || 'Medium';
+  const targetCond = document.getElementById('upg-target-cond')?.value || '';
+  const maxPrice = document.getElementById('upg-max-price')?.value || '';
+  const notes = document.getElementById('upg-notes')?.value || '';
+  const row = [itemNum, variation||'', priority, targetCond, maxPrice, notes];
+  const key = `${itemNum}|${variation||''}`;
+  const sheetId = state.personalSheetId;
+  if (!sheetId) { showToast('Not connected to a sheet'); return; }
+  try {
+    if (existingRow > 0) {
+      await sheetsUpdate(sheetId, `Upgrade List!A${existingRow}:F${existingRow}`, [row]);
+    } else {
+      await sheetsAppend(sheetId, 'Upgrade List!A:A', [row]);
+    }
+    // Reload data
+    const res = await sheetsGet(sheetId, 'Upgrade List!A3:F');
+    state.upgradeData = {};
+    (res.values || []).forEach((r, idx) => {
+      if (!r[0] || r[0] === 'Item Number') return;
+      state.upgradeData[`${r[0]}|${r[1]||''}`] = {
+        row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
+        priority: r[2]||'Medium', targetCondition: r[3]||'', maxPrice: r[4]||'', notes: r[5]||''
+      };
+    });
+    const modal = document.getElementById('upgrade-add-modal');
+    if (modal) modal.remove();
+    showToast('✓ Added to Upgrade List');
+    buildDashboard();
+    const badge = document.getElementById('nav-upgrade-count');
+    if (badge) badge.textContent = Object.values(state.upgradeData).length.toLocaleString();
+  } catch(e) {
+    showToast('Error saving — check connection');
+    console.error(e);
+  }
+}
+
+async function removeUpgradeItem(itemNum, variation, row) {
+  const key = `${itemNum}|${variation||''}`;
+  if (!state.personalSheetId) return;
+  try {
+    await sheetsUpdate(state.personalSheetId, `Upgrade List!A${row}:F${row}`, [['','','','','','']]);
+    delete state.upgradeData[key];
+    showToast('Removed from Upgrade List');
+    buildUpgradePage();
+    buildDashboard();
+    const badge = document.getElementById('nav-upgrade-count');
+    if (badge) { const c = Object.values(state.upgradeData).length; badge.textContent = c > 0 ? c : '—'; }
+  } catch(e) {
+    showToast('Error removing item');
+  }
+}
+
+function upgradeGotIt(itemNum, variation) {
+  const old = document.getElementById('upgrade-gotit-modal');
+  if (old) old.remove();
+  const master = state.masterData.find(m => m.itemNum === itemNum);
+  const name = master ? (master.roadName || master.itemType || itemNum) : itemNum;
+  const overlay = document.createElement('div');
+  overlay.id = 'upgrade-gotit-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10002;display:flex;align-items:center;justify-content:center;padding:1.25rem';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:380px;width:100%;padding:1.5rem;position:relative">
+      <button onclick="document.getElementById('upgrade-gotit-modal').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">✕</button>
+      <div style="font-family:var(--font-head);font-size:1.15rem;color:#2ecc71;margin-bottom:0.25rem">✓ Got It!</div>
+      <div style="font-family:var(--font-mono);font-size:0.88rem;color:var(--accent);margin-bottom:0.75rem">${itemNum} — ${name}</div>
+      <p style="font-size:0.85rem;color:var(--text);margin-bottom:1rem;line-height:1.5">Did you already add the new one to your collection?</p>
+      <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem">
+        <button onclick="document.getElementById('upg-gotit-added').style.display=''" style="flex:1;padding:0.5rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Yes, it's added</button>
+        <button onclick="document.getElementById('upg-gotit-added').style.display=''" style="flex:1;padding:0.5rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Not yet</button>
+      </div>
+      <div id="upg-gotit-added" style="display:none">
+        <p style="font-size:0.85rem;color:var(--text);margin-bottom:0.75rem;line-height:1.5">What would you like to do with your old one?</p>
+        <div style="display:flex;flex-direction:column;gap:0.4rem">
+          <button onclick="_upgradeGotItFinish('${itemNum}','${(variation||'').replace(/'/g,"\\'")}','keep')" style="padding:0.5rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left">Keep both copies</button>
+          <button onclick="_upgradeGotItFinish('${itemNum}','${(variation||'').replace(/'/g,"\\'")}','forsale')" style="padding:0.5rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.08);color:#e67e22;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left">🏷️ List old one for sale</button>
+          <button onclick="_upgradeGotItFinish('${itemNum}','${(variation||'').replace(/'/g,"\\'")}','remove')" style="padding:0.5rem;border-radius:8px;border:1.5px solid var(--accent);background:rgba(240,80,8,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left">Remove old entry from collection</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function _upgradeGotItFinish(itemNum, variation, action) {
+  const modal = document.getElementById('upgrade-gotit-modal');
+  if (modal) modal.remove();
+  const key = `${itemNum}|${variation||''}`;
+  const upgradeEntry = state.upgradeData[key];
+  // Remove from upgrade list
+  if (upgradeEntry) await removeUpgradeItem(itemNum, variation, upgradeEntry.row);
+  if (action === 'forsale') {
+    // Navigate to for sale flow for this item
+    const master = state.masterData.find(m => m.itemNum === itemNum);
+    const idx = master ? state.masterData.indexOf(master) : -1;
+    if (idx >= 0) collectionActionForSale(idx, itemNum, variation);
+    else showToast('Navigate to My Collection to list for sale');
+  } else if (action === 'remove') {
+    const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === itemNum && (p.variation||'') === (variation||''));
+    if (pd) await removeCollectionItem(itemNum, variation, pd.row);
+    else showToast('Item not found in collection');
+  } else {
+    showToast('✓ Upgrade complete — entry removed from list');
+  }
 }
 
 
