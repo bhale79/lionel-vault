@@ -306,6 +306,16 @@
   /* Item table */
   .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; }
   .item-table { width: 100%; border-collapse: collapse; }
+  /* My Collection List — fixed widths on Item #, Variation, Actions so Description fills remaining space */
+  #page-browse .item-table { table-layout: fixed; }
+  #page-browse .item-table th:nth-child(1),
+  #page-browse .item-table td:nth-child(1) { width: 100px; }
+  #page-browse .item-table th:nth-child(2),
+  #page-browse .item-table td:nth-child(2) { width: 100px; }
+  #page-browse .item-table th:nth-child(3),
+  #page-browse .item-table td:nth-child(3) { width: auto; }
+  #page-browse .item-table th:nth-child(4),
+  #page-browse .item-table td:nth-child(4) { width: 340px; }
   .item-table th {
     background: var(--surface); padding: 0.55rem 0.85rem; text-align: left;
     font-family: var(--font-head); font-size: 0.6rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
