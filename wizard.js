@@ -719,7 +719,7 @@ function _confirmEdit(key) {
     valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.4rem;width:100%">'
       + '<span id="confirm-slider-lbl-' + key + '" style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent2);min-width:1.5rem;text-align:center">' + curVal + '</span>'
       + '<input type="range" min="1" max="10" value="' + curVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data[\'' + key + '\']=parseInt(this.value);document.getElementById(\'confirm-slider-lbl-' + key + '\').textContent=this.value">'
-      + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid var(--accent);background:rgba(232,64,28,0.12);color:var(--accent)">✓</button></div>';
+      + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid #1e3a5f;background:#1e3a5f;color:#fff">✓</button></div>';
     btnEl.style.display = 'none';
     return;
   }
@@ -728,7 +728,7 @@ function _confirmEdit(key) {
     valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.3rem">'
       + '<span style="color:var(--accent2)">$</span>'
       + '<input id="confirm-input-' + key + '" type="number" value="' + (curVal || '') + '" min="0" step="0.01" style="flex:1;background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none" onkeydown="if(event.key===\'Enter\')_confirmDoneEdit(\'' + key + '\')">'
-      + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid var(--accent);background:rgba(232,64,28,0.12);color:var(--accent)">✓</button></div>';
+      + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid #1e3a5f;background:#1e3a5f;color:#fff">✓</button></div>';
     btnEl.style.display = 'none';
     setTimeout(function(){ var inp = document.getElementById('confirm-input-' + key); if(inp) inp.focus(); }, 50);
     return;
@@ -737,14 +737,14 @@ function _confirmEdit(key) {
   if (window._cfDate && window._cfDate.indexOf(key) >= 0) {
     valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.3rem">'
       + '<div style="position:relative;display:flex;align-items:center;flex:1"><input id="confirm-input-' + key + '" type="date" value="' + (curVal || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:0.3rem 2.2rem 0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;color-scheme:dark"><span onclick="document.getElementById(\"confirm-input-' + key + '\").showPicker()" style="position:absolute;right:0.4rem;cursor:pointer;font-size:0.95rem;color:var(--accent2)">📅</span></div>'
-      + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid var(--accent);background:rgba(232,64,28,0.12);color:var(--accent)">✓</button></div>';
+      + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid #1e3a5f;background:#1e3a5f;color:#fff">✓</button></div>';
     btnEl.style.display = 'none';
     return;
   }
   // Default: text input
   valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.3rem">'
     + '<input id="confirm-input-' + key + '" type="text" value="' + escaped + '" style="flex:1;background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none" onkeydown="if(event.key===\'Enter\')_confirmDoneEdit(\'' + key + '\')">'
-    + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid var(--accent);background:rgba(232,64,28,0.12);color:var(--accent)">✓</button></div>';
+    + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid #1e3a5f;background:#1e3a5f;color:#fff">✓</button></div>';
   btnEl.style.display = 'none';
   setTimeout(function(){ var inp = document.getElementById('confirm-input-' + key); if(inp) inp.focus(); }, 50);
 }
@@ -1087,9 +1087,9 @@ function renderWizardStep() {
 
     // Quick Entry card
     const quickCard = document.createElement('button');
-    quickCard.style.cssText = 'width:100%;padding:1.1rem 1.25rem;border-radius:14px;text-align:left;cursor:pointer;font-family:var(--font-body);transition:all 0.15s;border:2px solid #27ae60;background:rgba(39,174,96,0.07);display:flex;align-items:flex-start;gap:1rem';
+    quickCard.style.cssText = 'width:100%;padding:1.1rem 1.25rem;border-radius:14px;text-align:left;cursor:pointer;font-family:var(--font-body);transition:all 0.15s;border:2px solid #1e3a5f;background:rgba(30,58,95,0.07);display:flex;align-items:flex-start;gap:1rem';
     quickCard.innerHTML = '<div style="font-size:2rem;flex-shrink:0;line-height:1">⚡</div>'
-      + '<div><div style="font-size:1rem;font-weight:700;color:#27ae60;margin-bottom:0.2rem">Quick Entry</div>'
+      + '<div><div style="font-size:1rem;font-weight:700;color:#1e3a5f;margin-bottom:0.2rem">Quick Entry</div>'
       + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5">Just save the item number now.<br>You can fill in the details later — use the ⚡ Quick Entry filter to find it.</div></div>';
     quickCard.onclick = function() {
       wizard.data.entryMode = 'quick';
@@ -1600,7 +1600,7 @@ function renderWizardStep() {
         <input id="set-id-input" type="text" placeholder="Enter item # (e.g. 736, 6357, 1033)" autocomplete="off"
           style="flex:1;padding:0.65rem 0.9rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.92rem;text-transform:uppercase"
           onkeydown="if(event.key==='Enter'){event.preventDefault();window._setAddEntered();}">
-        <button onclick="window._setAddEntered()" style="padding:0.65rem 1rem;border-radius:9px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-weight:600;cursor:pointer">Add</button>`;
+        <button onclick="window._setAddEntered()" style="padding:0.65rem 1rem;border-radius:9px;border:none;background:#1e3a5f;color:white;font-family:var(--font-body);font-weight:600;cursor:pointer">Add</button>`;
       body.appendChild(addRow);
 
       // Suggestions
@@ -1660,7 +1660,7 @@ function renderWizardStep() {
       const canContinue = _resolvedSet || (_enteredNums.length >= 1);
       if (canContinue) {
         const contBtn = document.createElement('button');
-        contBtn.style.cssText = 'width:100%;margin-top:0.75rem;padding:0.85rem;border-radius:10px;border:none;background:' + (_resolvedSet ? '#27ae60' : 'var(--surface2)') + ';color:' + (_resolvedSet ? 'white' : 'var(--text-mid)') + ';font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer';
+        contBtn.style.cssText = 'width:100%;margin-top:0.75rem;padding:0.85rem;border-radius:10px;border:none;background:' + (_resolvedSet ? '#1e3a5f' : 'var(--surface2)') + ';color:' + (_resolvedSet ? 'white' : 'var(--text-mid)') + ';font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer';
         contBtn.textContent = _resolvedSet
           ? `Continue — add details for ${_resolvedSet.items.length} items →`
           : `Continue without set ID — add ${_enteredNums.length} item${_enteredNums.length!==1?'s':''}  →`;
@@ -1873,7 +1873,7 @@ function renderWizardStep() {
         }
         if (comp.have !== undefined) {
           const nextBtn = document.createElement('button');
-          nextBtn.style.cssText = 'flex:1;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer';
+          nextBtn.style.cssText = 'flex:1;padding:0.7rem;border-radius:9px;border:none;background:#1e3a5f;color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer';
           nextBtn.textContent = idx < total - 1 ? 'Next →' : 'All done ✓';
           nextBtn.onclick = () => { wizard.data._setDetailIdx = idx + 1; renderWizardStep(); };
           navRow.appendChild(nextBtn);
@@ -2096,7 +2096,7 @@ function renderWizardStep() {
           style="flex:1;padding:0.4rem 0.65rem;border-radius:7px;border:1.5px solid var(--accent);
           background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.82rem;outline:none">
         <button id="extra-photo-go" style="padding:0.4rem 0.8rem;border-radius:7px;border:none;
-          background:var(--accent);color:white;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;
+          background:#1e3a5f;color:white;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;
           white-space:nowrap">Add Photo</button>
         <button id="extra-photo-cancel" style="padding:0.4rem 0.6rem;border-radius:7px;border:1px solid var(--border);
           background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">✕</button>`;
