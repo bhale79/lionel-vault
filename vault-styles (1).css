@@ -1,0 +1,145 @@
+/* ============================================================
+   Collector's Market Est. — vault.js styles
+   Append these to the bottom of app.css
+   ============================================================ */
+
+/* ── Progress bar (dashboard) ── */
+.vault-progress-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin: 12px 0;
+}
+.vault-progress-box.vault-revealed {
+  border-color: var(--accent);
+  background: rgba(240,80,8,0.07);
+}
+.vault-progress-title {
+  font-family: var(--font-head);
+  font-size: 0.95rem;
+  color: var(--text);
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.vault-progress-count {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+.vault-progress-bar-wrap {
+  background: rgba(255,255,255,0.07);
+  border-radius: 6px;
+  height: 7px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.vault-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 6px;
+  transition: width 0.6s ease;
+  min-width: 4px;
+}
+.vault-progress-sub {
+  font-size: 0.81rem;
+  color: var(--text-mid);
+  line-height: 1.5;
+}
+
+/* ── Market card (item detail page) ── */
+.vault-market-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-top: 18px;
+}
+.vault-market-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.vault-market-title {
+  font-family: var(--font-head);
+  font-size: 0.95rem;
+  color: var(--text);
+  letter-spacing: 0.04em;
+}
+.vault-market-badge {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  background: rgba(240,80,8,0.18);
+  color: var(--accent);
+  border: 1px solid rgba(240,80,8,0.3);
+  border-radius: 4px;
+  padding: 1px 6px;
+  letter-spacing: 0.08em;
+}
+.vault-market-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.vault-market-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  flex-wrap: wrap;
+}
+.vault-market-cond {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  width: 32px;
+  flex-shrink: 0;
+}
+.vault-market-range {
+  color: var(--text);
+  font-weight: 600;
+  flex: 1;
+}
+.vault-market-avg {
+  color: var(--text-mid);
+  font-size: 0.8rem;
+}
+.vault-market-pts {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.vault-market-rarity {
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  color: var(--text-mid);
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+}
+
+/* ── Prefs row ── */
+.vault-prefs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+/* ── Toast animation ── */
+@keyframes vaultToastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
