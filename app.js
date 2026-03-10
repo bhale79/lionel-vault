@@ -1184,6 +1184,7 @@ async function loadAllData() {
     await Promise.all([loadMasterData(), loadPersonalData(), loadSetData()]);
     buildApp();
     showOnboarding();
+    if (typeof vaultInit === 'function') vaultInit();
   } catch(e) {
     showToast('Load error: ' + e.message);
     const tb = document.getElementById('browse-tbody');
@@ -3206,6 +3207,15 @@ function showItemDetailPage(idx) {
   </div>`;
 
   container.innerHTML = html;
+
+  // Collector's Market Est. card — loads async after page renders
+  const _vaultEl = document.createElement('div');
+  _vaultEl.id = 'vault-market-wrap';
+  _vaultEl.style.marginTop = '18px';
+  container.appendChild(_vaultEl);
+  if (typeof vaultRenderMarketCard === 'function') {
+    vaultRenderMarketCard(it.itemNum, it.variation || '', _vaultEl);
+  }
 
   // Async: load photos
   if (_photoLink) {
@@ -5626,6 +5636,12 @@ function buildPrefsPage() {
       </div>
     </div>
 
+    <!-- ── Collector's Market Est. ───────────── -->
+    <div class="pref-section">
+      <div class="pref-section-title">Collector's Market Est.</div>
+      <div id="vault-prefs-row"></div>
+    </div>
+
         <div class="pref-section">
       <div class="pref-section-title">About</div>
         <div class="pref-row">
@@ -5650,6 +5666,11 @@ function buildPrefsPage() {
   const locTog = document.getElementById('ptog-location');
   const oldTog = document.getElementById('pref-location-toggle');
   if (oldTog && locTog) oldTog.checked = locTog.checked;
+
+  // Render Collector's Market opt-in row
+  if (typeof vaultRenderPrefsRow === 'function') {
+    vaultRenderPrefsRow(document.getElementById('vault-prefs-row'));
+  }
 }
 
 
