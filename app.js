@@ -920,7 +920,7 @@ async function driveMoveToSold(itemNum) {
 // Stores personalSheetId in a small JSON file in Drive root
 // so any device can find the right sheet after signing in
 
-const CONFIG_FILENAME = 'lionel-vault-config.json';
+const CONFIG_FILENAME = 'my-collection-app-config.json';
 
 async function driveReadConfig() {
   try {
