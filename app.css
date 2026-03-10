@@ -306,16 +306,6 @@
   /* Item table */
   .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; }
   .item-table { width: 100%; border-collapse: collapse; }
-  /* My Collection List — fixed widths on Item #, Variation, Actions so Description fills remaining space */
-  #page-browse .item-table { table-layout: fixed; }
-  #page-browse .item-table th:nth-child(1),
-  #page-browse .item-table td:nth-child(1) { width: 100px; }
-  #page-browse .item-table th:nth-child(2),
-  #page-browse .item-table td:nth-child(2) { width: 100px; }
-  #page-browse .item-table th:nth-child(3),
-  #page-browse .item-table td:nth-child(3) { width: auto; }
-  #page-browse .item-table th:nth-child(4),
-  #page-browse .item-table td:nth-child(4) { width: 340px; }
   .item-table th {
     background: var(--surface); padding: 0.55rem 0.85rem; text-align: left;
     font-family: var(--font-head); font-size: 0.6rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
@@ -339,6 +329,21 @@
   .main .item-table thead th,
   .main .report-table thead th { background: #f0e6cc; box-shadow: 0 1px 0 #d4c8a8; }
   @media print { .table-wrap { max-height: none !important; overflow: visible !important; } }
+
+  /* ── My Collection List: fixed column layout so Description fills space ── */
+  #page-browse .item-table.collection-view { table-layout: fixed; }
+  #page-browse .item-table.collection-view th:nth-child(1),
+  #page-browse .item-table.collection-view td:nth-child(1) { width: 90px; }
+  #page-browse .item-table.collection-view th:nth-child(2),
+  #page-browse .item-table.collection-view td:nth-child(2) { width: 105px; }
+  #page-browse .item-table.collection-view th:nth-child(3),
+  #page-browse .item-table.collection-view td:nth-child(3) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #page-browse .item-table.collection-view th:nth-child(4),
+  #page-browse .item-table.collection-view td:nth-child(4) { width: 290px; }
+
+  /* ── Master Catalog: Var. column narrower ── */
+  #page-browse .item-table:not(.collection-view) th:nth-child(4),
+  #page-browse .item-table:not(.collection-view) td:nth-child(4) { width: 55px; }
 
   /* ── Utility classes (extracted from repeated inline styles) ── */
   .ui-empty { text-align:center;padding:2rem;color:var(--text-dim) }
