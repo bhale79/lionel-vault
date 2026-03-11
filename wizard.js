@@ -1134,7 +1134,9 @@ function renderWizardStep() {
     var qcPhotoWrap = document.createElement('div');
     qcPhotoWrap.style.cssText = 'display:none;margin-bottom:0.55rem';
     qcPhotoWrap.innerHTML = '<div style="font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem">📷 Photo</div>'
-      + '<input type="file" id="qe-photo-input" accept="image/*" capture="environment" style="font-size:0.82rem;color:var(--text-mid);width:100%" onclick="event.stopPropagation()">';
+      + '<input type="file" id="qe-photo-input" accept="image/*" capture="environment" style="display:none" onclick="event.stopPropagation()">'
+      + '<button id="qe-photo-btn" type="button" onclick="event.stopPropagation();document.getElementById(\"qe-photo-input\").click()" style="width:100%;padding:0.55rem 0.8rem;border-radius:9px;border:1.5px dashed var(--border);background:var(--bg);color:var(--text-mid);font-family:var(--font-body);font-size:0.88rem;cursor:pointer;text-align:left">📷 Tap to take photo</button>'
+      + '<div id="qe-photo-status" style="display:none;margin-top:0.35rem;font-size:0.78rem;color:#3a9e68;font-weight:600">✓ Photo ready</div>';
     qcMiniStep.appendChild(qcPhotoWrap);
 
     var qcConfirmBtn = document.createElement('button');
@@ -1150,6 +1152,19 @@ function renderWizardStep() {
       if (wv && wv.value) wizard.data._qeEstWorth = wv.value;
       var pf = document.getElementById('qe-photo-input');
       if (pf && pf.files && pf.files[0]) wizard.data._qePhotoFile = pf.files[0];
+      // Update styled button to show photo was captured
+      var qePhotoInput = document.getElementById('qe-photo-input');
+      if (qePhotoInput) {
+        qePhotoInput.onchange = function() {
+          if (this.files && this.files[0]) {
+            wizard.data._qePhotoFile = this.files[0];
+            var btn = document.getElementById('qe-photo-btn');
+            var status = document.getElementById('qe-photo-status');
+            if (btn) { btn.textContent = '📷 ' + this.files[0].name; btn.style.borderColor = '#3a9e68'; btn.style.color = '#3a9e68'; }
+            if (status) status.style.display = 'block';
+          }
+        };
+      }
       quickEntryAdd().catch(function(err) {
         wizard.data._qeSaving = false;
         qcConfirmBtn.disabled = false;
@@ -5121,9 +5136,21 @@ async function quickEntryAdd() {
     const _nextBtn = document.getElementById('wizard-next-btn');
     if (_nextBtn) _nextBtn.disabled = true;
 
+    // ── Upload photo before saving rows (lead item only) ──
+    let _qePhotoLink = '';
+    if (d._qePhotoFile) {
+      try {
+        _qePhotoLink = await driveUploadItemPhoto(d._qePhotoFile, rows[0].itemNum, 'QE') || '';
+      } catch(photoErr) {
+        console.warn('[QE] Photo upload failed, continuing without photo:', photoErr);
+      }
+    }
+    const _qeEstWorth = d._qeEstWorth || '';
+
     for (const r of rows) {
+      const isLead = r === rows[0];
       const invId = nextInventoryId();
-      const row = [r.itemNum, r.variation,'','','','','','','','','', r.notes,'','',r.matchedTo,r.setId,'','','','Yes', invId, r.groupId||'', ''];
+      const row = [r.itemNum, r.variation,'','','','','','','',(isLead ? _qePhotoLink : ''),'', r.notes,'',(isLead ? _qeEstWorth : ''),r.matchedTo,r.setId,'','','','Yes', invId, r.groupId||'', ''];
       console.log('[QE] Saving', r.itemNum);
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
       const key = r.itemNum + '|' + r.variation + '|' + Date.now();
@@ -5131,8 +5158,8 @@ async function quickEntryAdd() {
         row: Date.now(), itemNum: r.itemNum, variation: r.variation,
         status: 'Owned', owned: true,
         condition: '', allOriginal: '', priceItem: '', priceBox: '', priceComplete: '',
-        hasBox: '', boxCond: '', photoItem: '', photoBox: '',
-        notes: r.notes, datePurchased: '', userEstWorth: '',
+        hasBox: '', boxCond: '', photoItem: (isLead ? _qePhotoLink : ''), photoBox: '',
+        notes: r.notes, datePurchased: '', userEstWorth: (isLead ? _qeEstWorth : ''),
         matchedTo: r.matchedTo, setId: r.setId,
         yearMade: '', isError: '', errorDesc: '', quickEntry: true,
         inventoryId: invId, groupId: r.groupId||'',
