@@ -1133,10 +1133,46 @@ function renderWizardStep() {
 
     var qcPhotoWrap = document.createElement('div');
     qcPhotoWrap.style.cssText = 'display:none;margin-bottom:0.55rem';
-    qcPhotoWrap.innerHTML = '<div style="font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem">📷 Photo</div>'
-      + '<input type="file" id="qe-photo-input" accept="image/*" capture="environment" style="display:none" onclick="event.stopPropagation()">'
-      + '<button id="qe-photo-btn" type="button" onclick="event.stopPropagation();document.getElementById(\"qe-photo-input\").click()" style="width:100%;padding:0.55rem 0.8rem;border-radius:9px;border:1.5px dashed var(--border);background:var(--bg);color:var(--text-mid);font-family:var(--font-body);font-size:0.88rem;cursor:pointer;text-align:left">📷 Tap to take photo</button>'
-      + '<div id="qe-photo-status" style="display:none;margin-top:0.35rem;font-size:0.78rem;color:#3a9e68;font-weight:600">✓ Photo ready</div>';
+
+    var qcPhotoLabel = document.createElement('div');
+    qcPhotoLabel.style.cssText = 'font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem';
+    qcPhotoLabel.textContent = '📷 Photo';
+    qcPhotoWrap.appendChild(qcPhotoLabel);
+
+    var qcPhotoInput = document.createElement('input');
+    qcPhotoInput.type = 'file';
+    qcPhotoInput.id = 'qe-photo-input';
+    qcPhotoInput.accept = 'image/*';
+    qcPhotoInput.setAttribute('capture', 'environment');
+    qcPhotoInput.style.display = 'none';
+    qcPhotoInput.addEventListener('click', function(e) { e.stopPropagation(); });
+    qcPhotoInput.addEventListener('change', function() {
+      if (this.files && this.files[0]) {
+        wizard.data._qePhotoFile = this.files[0];
+        qcPhotoBtn.textContent = '📷 ' + this.files[0].name;
+        qcPhotoBtn.style.borderColor = '#3a9e68';
+        qcPhotoBtn.style.color = '#3a9e68';
+        qcPhotoStatus.style.display = 'block';
+      }
+    });
+    qcPhotoWrap.appendChild(qcPhotoInput);
+
+    var qcPhotoBtn = document.createElement('button');
+    qcPhotoBtn.id = 'qe-photo-btn';
+    qcPhotoBtn.type = 'button';
+    qcPhotoBtn.textContent = '📷 Tap to take photo';
+    qcPhotoBtn.style.cssText = 'width:100%;padding:0.55rem 0.8rem;border-radius:9px;border:1.5px dashed var(--border);background:var(--bg);color:var(--text-mid);font-family:var(--font-body);font-size:0.88rem;cursor:pointer;text-align:left';
+    qcPhotoBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      qcPhotoInput.click();
+    });
+    qcPhotoWrap.appendChild(qcPhotoBtn);
+
+    var qcPhotoStatus = document.createElement('div');
+    qcPhotoStatus.style.cssText = 'display:none;margin-top:0.35rem;font-size:0.78rem;color:#3a9e68;font-weight:600';
+    qcPhotoStatus.textContent = '✓ Photo ready';
+    qcPhotoWrap.appendChild(qcPhotoStatus);
+
     qcMiniStep.appendChild(qcPhotoWrap);
 
     var qcConfirmBtn = document.createElement('button');
@@ -1150,21 +1186,7 @@ function renderWizardStep() {
       qcConfirmBtn.textContent = 'Saving…';
       var wv = document.getElementById('qe-worth-input');
       if (wv && wv.value) wizard.data._qeEstWorth = wv.value;
-      var pf = document.getElementById('qe-photo-input');
-      if (pf && pf.files && pf.files[0]) wizard.data._qePhotoFile = pf.files[0];
-      // Update styled button to show photo was captured
-      var qePhotoInput = document.getElementById('qe-photo-input');
-      if (qePhotoInput) {
-        qePhotoInput.onchange = function() {
-          if (this.files && this.files[0]) {
-            wizard.data._qePhotoFile = this.files[0];
-            var btn = document.getElementById('qe-photo-btn');
-            var status = document.getElementById('qe-photo-status');
-            if (btn) { btn.textContent = '📷 ' + this.files[0].name; btn.style.borderColor = '#3a9e68'; btn.style.color = '#3a9e68'; }
-            if (status) status.style.display = 'block';
-          }
-        };
-      }
+      // _qePhotoFile already set by qcPhotoInput change listener above
       quickEntryAdd().catch(function(err) {
         wizard.data._qeSaving = false;
         qcConfirmBtn.disabled = false;
