@@ -449,32 +449,44 @@ async function runTests() {
     if (uploadedFileId) {
       await check('Delete test photo from Drive', async () => {
         await driveDeleteFile(uploadedFileId);
-        // Verify it's gone
+        // A 404 back means the file is gone — that's success
         const verify = await fetch(`https://www.googleapis.com/drive/v3/files/${uploadedFileId}?fields=id,trashed`, {
           headers: { Authorization: 'Bearer ' + accessToken }
         });
+        if (verify.status === 404) return 'Test photo removed from Drive ✓';
         const json = await verify.json();
         if (json.id && !json.trashed) throw new Error('File still exists after delete attempt');
         return 'Test photo removed from Drive ✓';
       });
     }
 
-    // Delete row 2 first (higher row number), then row 1 (lower)
-    // Always delete higher row first to avoid row number shift
-    const rows = [row1, row2].filter(Boolean).sort((a, b) => b - a);
+    // Find ALL test rows (including leftovers from previous failed runs)
+    await check('Find and delete ALL test rows from My Collection sheet', async () => {
+      let deleted = 0;
+      // Keep scanning and deleting until no test rows remain (delete from bottom up each pass)
+      for (let pass = 0; pass < 20; pass++) {
+        const res = await sheetsGet(sheetId, 'My Collection!A3:L');
+        const allRows = res.values || [];
+        // Find row numbers of test rows (1-indexed, data starts at row 3)
+        const testRowNums = [];
+        allRows.forEach((r, i) => {
+          if ((r[11] || '').includes('TEST RUNNER')) testRowNums.push(3 + i);
+        });
+        if (testRowNums.length === 0) break;
+        // Delete from bottom up to avoid row shift issues
+        testRowNums.sort((a, b) => b - a);
+        for (const rowNum of testRowNums) {
+          await sheetsDeleteRow(sheetId, rowNum);
+          deleted++;
+        }
+      }
+      return deleted > 0 ? deleted + ' test row(s) deleted ✓' : 'No test rows found (already clean) ✓';
+    });
 
-    for (const rowNum of rows) {
-      await check('Delete test row ' + rowNum + ' from My Collection sheet', async () => {
-        await sheetsDeleteRow(sheetId, rowNum);
-        return 'Row ' + rowNum + ' deleted ✓';
-      });
-    }
-
-    // Final verify — confirm test items are gone
+    // Final verify — confirm sheet is clean
     await check('Verify sheet is clean (no TEST RUNNER rows remain)', async () => {
       const res = await sheetsGet(sheetId, 'My Collection!A3:L');
-      const rows = (res.values || []);
-      const leftover = rows.filter(r => (r[11] || '').includes('TEST RUNNER'));
+      const leftover = (res.values || []).filter(r => (r[11] || '').includes('TEST RUNNER'));
       if (leftover.length) throw new Error(leftover.length + ' test row(s) still present in sheet');
       return 'Sheet is clean ✓';
     });
