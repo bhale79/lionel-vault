@@ -5658,6 +5658,18 @@ function buildPrefsPage() {
       <div id="vault-prefs-row"></div>
     </div>
 
+    <div class="pref-section">
+      <div class="pref-section-title">App Health Check</div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Run Health Check</strong>
+          <span>Verify all app functions and data are wired up correctly</span>
+        </div>
+        <button class="pref-btn" id="health-check-btn" onclick="_runHealthCheck()">Run Check</button>
+      </div>
+      <div id="health-check-output" style="display:none;margin-top:0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0.85rem 1rem;font-size:0.75rem;font-family:var(--font-mono);line-height:1.8;max-height:320px;overflow-y:auto"></div>
+    </div>
+
         <div class="pref-section">
       <div class="pref-section-title">About</div>
         <div class="pref-row">
@@ -5689,6 +5701,96 @@ function buildPrefsPage() {
   }
 }
 
+
+function _runHealthCheck() {
+  const out = document.getElementById('health-check-output');
+  const btn = document.getElementById('health-check-btn');
+  if (!out) return;
+  out.style.display = 'block';
+  out.innerHTML = '<span style="color:var(--text-dim)">Running checks…</span>';
+  if (btn) { btn.disabled = true; btn.textContent = 'Running…'; }
+
+  setTimeout(function() {
+    const OK   = '✅';
+    const ERR  = '❌';
+    const WARN = '⚠️';
+    const results = [];
+    function pass(label, detail) { results.push({ s: OK,   l: label, d: detail }); }
+    function fail(label, detail) { results.push({ s: ERR,  l: label, d: detail }); }
+    function warn(label, detail) { results.push({ s: WARN, l: label, d: detail }); }
+
+    // Core functions
+    ['showPage','renderBrowse','buildDashboard','buildWantPage','buildForSalePage',
+     'buildSoldPage','buildQuickEntryList','showItemDetailPage','updateCollectionItem',
+     'removeCollectionItem','loadPersonalData','sheetsAppend','sheetsDeleteRow',
+     'driveUploadItemPhoto','driveEnsureSetup','collectionActionForSale',
+     'collectionActionSold','showAddToUpgradeModal'
+    ].forEach(fn => { typeof window[fn]==='function' ? pass(fn+'()') : fail(fn+'()','Not found'); });
+
+    // Wizard functions
+    ['openWizard','quickEntryAdd','closeWizard','saveItem','launchSetItemWizard','_showQuickEntryMultiUI'
+    ].forEach(fn => { typeof window[fn]==='function' ? pass(fn+'()') : fail(fn+'()','wizard.js may not have loaded'); });
+
+    // Vault functions
+    ['vaultInit','vaultSubmitData','vaultIsOptedIn','vaultRenderMarketCard','vaultRenderPrefsRow'
+    ].forEach(fn => { typeof window[fn]==='function' ? pass(fn+'()') : warn(fn+'()','vault.js non-critical'); });
+
+    // State
+    if (typeof state === 'undefined') {
+      fail('state object', 'Not defined');
+    } else {
+      pass('state object');
+      state.personalSheetId ? pass('personalSheetId', state.personalSheetId.substring(0,16)+'…') : fail('personalSheetId','null — not signed in?');
+      (state.masterData && state.masterData.length) ? pass('masterData', state.masterData.length.toLocaleString()+' items') : fail('masterData','Empty');
+      (state.personalData && Object.keys(state.personalData).length) ? pass('personalData', Object.keys(state.personalData).length+' items') : warn('personalData','Empty');
+    }
+
+    // Auth
+    const tok = localStorage.getItem('lv_token');
+    const exp = parseInt(localStorage.getItem('lv_token_expiry')||'0');
+    if (!tok) warn('accessToken','No token — sign in again');
+    else if (exp < Date.now()) warn('accessToken','Expired — will refresh on next action');
+    else pass('accessToken','Valid ~'+Math.round((exp-Date.now())/60000)+' min');
+
+    // Drive cache
+    if (typeof driveCache !== 'undefined') {
+      driveCache.photosId ? pass('driveCache.photosId') : warn('driveCache.photosId','Not set');
+      driveCache.vaultId  ? pass('driveCache.vaultId')  : warn('driveCache.vaultId','Not set');
+    } else { fail('driveCache','Not defined'); }
+
+    // DOM elements
+    ['page-browse','page-dashboard','page-quickentry','browse-tbody',
+     'result-count','page-info','wizard-modal'
+    ].forEach(id => { document.getElementById(id) ? pass('#'+id) : fail('#'+id,'Missing from DOM'); });
+
+    // Column mapping
+    if (typeof state !== 'undefined' && state.personalData) {
+      const samp = Object.values(state.personalData).filter(p=>p.owned).slice(0,3);
+      if (samp.length) {
+        samp.some(p=>'userEstWorth' in p) ? pass('col N: userEstWorth') : warn('col N: userEstWorth','Not found on items');
+        samp.some(p=>'photoItem' in p)    ? pass('col J: photoItem')    : warn('col J: photoItem','Not found on items');
+      }
+    }
+
+    // Render results
+    const passes = results.filter(r=>r.s===OK).length;
+    const fails  = results.filter(r=>r.s===ERR).length;
+    const warns  = results.filter(r=>r.s===WARN).length;
+    const summaryColor = fails>0 ? '#e74c3c' : warns>0 ? '#d4a843' : '#3a9e68';
+    const summaryText  = fails>0 ? fails+' issue(s) found — see ❌ below' : warns>0 ? 'Minor warnings only' : 'All systems go! 🚂';
+
+    let html = '<div style="font-weight:700;color:'+summaryColor+';margin-bottom:0.6rem;font-size:0.82rem">'
+      + passes+' passed · '+fails+' failed · '+warns+' warnings — '+summaryText+'</div>';
+    results.forEach(function(r) {
+      const c = r.s===OK ? '#3a9e68' : r.s===ERR ? '#e74c3c' : '#d4a843';
+      html += '<div style="color:'+c+'">' + r.s + ' ' + r.l
+        + (r.d ? ' <span style="color:var(--text-dim);font-size:0.7rem">→ '+r.d+'</span>' : '')
+        + '</div>';
+    });
+    out.innerHTML = html;
+    if (btn) { btn.disabled = false; btn.textContent = 'Run Again'; }
+  }, 50);
+}
 
 function _onDashCardToggle(id, checked) {
   let selected = _getDashCards();
