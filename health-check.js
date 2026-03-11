@@ -37,7 +37,7 @@
   ];
   wizardFns.forEach(fn => {
     if (typeof window[fn] === 'function') pass(fn + '()');
-    else fail(fn + '()', 'NOT FOUND — wizard.js may not have loaded');
+    else fail(fn + '()', 'NOT FOUND — wizard.js may not have loaded or function renamed');
   });
 
   // ── 3. Vault functions exist ──────────────────────────────────
@@ -51,7 +51,7 @@
   });
 
   // ── 4. Tutorial functions exist ───────────────────────────────
-  const tutFns = ['startTutorial', 'tutShowStep', 'tutDismiss'];
+  const tutFns = ['tutNext', 'tutBack', 'tutClose'];
   tutFns.forEach(fn => {
     if (typeof window[fn] === 'function') pass(fn + '()');
     else warn(fn + '()', 'Not found — tutorial.js may not have loaded (non-critical)');
@@ -124,7 +124,7 @@
   const domIds = [
     'page-browse', 'page-dashboard', 'page-quickentry',
     'browse-tbody', 'result-count', 'page-info',
-    'wizard-overlay',
+    'wizard-modal',
   ];
   domIds.forEach(id => {
     if (document.getElementById(id)) pass('#' + id + ' DOM element');
