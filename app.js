@@ -2437,7 +2437,7 @@ function buildQuickEntryList() {
 
   const qeItems = Object.values(state.personalData)
     .filter(pd => pd.owned && pd.quickEntry)
-    .sort((a, b) => (a.row || 0) - (b.row || 0)); // ascending so lead (first saved) is index 0
+    .sort((a, b) => (b.row || 0) - (a.row || 0));
 
   if (qeItems.length === 0) {
     container.innerHTML = '<div class="empty-state" style="padding:3rem 1rem">'
@@ -2452,88 +2452,47 @@ function buildQuickEntryList() {
   const badge = document.getElementById('nav-qe-count');
   if (badge) badge.textContent = qeItems.length;
 
-  // Group items that share a groupId — lead item is the one saved first (lowest row)
-  var seen = {};
-  var displayEntries = []; // each entry is either a single pd or { lead, members[] }
-  qeItems.forEach(function(pd) {
-    if (pd.groupId) {
-      if (!seen[pd.groupId]) {
-        seen[pd.groupId] = { lead: pd, members: [pd] };
-        displayEntries.push(seen[pd.groupId]);
-      } else {
-        seen[pd.groupId].members.push(pd);
-      }
-    } else {
-      displayEntries.push({ lead: pd, members: [pd] });
-    }
-  });
-  // Reverse so newest entries appear at top
-  displayEntries.reverse();
-
   var gridEl = document.createElement('div');
   gridEl.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem';
-
-  displayEntries.forEach(function(entry) {
-    var lead = entry.lead;
-    var members = entry.members;
-    var isGroup = members.length > 1;
-
+    qeItems.forEach(function(pd) {
     var master = state.masterData.find(function(m) {
-      return m.itemNum === lead.itemNum && (!lead.variation || m.variation === lead.variation);
-    }) || state.masterData.find(function(m) { return m.itemNum === lead.itemNum; });
+      return m.itemNum === pd.itemNum && (!pd.variation || m.variation === pd.variation);
+    }) || state.masterData.find(function(m) { return m.itemNum === pd.itemNum; });
     var itemName = master ? (master.roadName || master.description || master.itemType || '') : '';
     var itemType = master ? (master.itemType || '') : '';
     var itemYear = master ? (master.yearProd || '') : '';
-    var variation = lead.variation || '';
+    var variation = pd.variation || '';
     var meta = [itemType, itemYear].filter(Boolean).join(' · ');
 
     var row = document.createElement('div');
-    var borderColor = isGroup ? 'rgba(139,92,246,0.4)' : 'rgba(39,174,96,0.3)';
-    row.style.cssText = 'display:flex;align-items:center;gap:0.85rem;padding:0.9rem 1rem;background:var(--surface);border:1.5px solid ' + borderColor + ';border-radius:12px;cursor:pointer;transition:all 0.15s';
-    var hoverColor = isGroup ? '#8b5cf6' : '#27ae60';
-    var hoverBg = isGroup ? 'rgba(139,92,246,0.06)' : 'rgba(39,174,96,0.06)';
-    row.onmouseenter = function() { this.style.borderColor=hoverColor; this.style.background=hoverBg; };
-    row.onmouseleave = function() { this.style.borderColor=borderColor; this.style.background='var(--surface)'; };
+    row.style.cssText = 'display:flex;align-items:center;gap:0.85rem;padding:0.9rem 1rem;background:var(--surface);border:1.5px solid rgba(39,174,96,0.3);border-radius:12px;cursor:pointer;transition:all 0.15s';
+    row.onmouseenter = function() { this.style.borderColor='#27ae60'; this.style.background='rgba(39,174,96,0.06)'; };
+    row.onmouseleave = function() { this.style.borderColor='rgba(39,174,96,0.3)'; this.style.background='var(--surface)'; };
     row.onclick = (function(num, vari) { return function() {
-      completeQuickEntry(num, vari, -1);
-    }; })(lead.itemNum, variation);
+      var prefix = num + '|' + vari + '|';
+      var exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(prefix); });
+      if (!exact) { exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(num + '|'); }); }
+      if (exact) { updateCollectionItem(-1, exact); }
+    }; })(pd.itemNum, variation);
 
     var icon = document.createElement('div');
-    if (isGroup) {
-      icon.style.cssText = 'background:rgba(139,92,246,0.12);border-radius:8px;padding:0.5rem;flex-shrink:0';
-      icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
-    } else {
-      icon.style.cssText = 'background:rgba(39,174,96,0.12);border-radius:8px;padding:0.5rem;flex-shrink:0';
-      icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#27ae60" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
-    }
+    icon.style.cssText = 'background:rgba(39,174,96,0.12);border-radius:8px;padding:0.5rem;flex-shrink:0';
+    icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#27ae60" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
 
     var info = document.createElement('div');
     info.style.cssText = 'flex:1;min-width:0';
 
     var topRow = document.createElement('div');
     topRow.style.cssText = 'display:flex;align-items:baseline;gap:0.5rem;flex-wrap:wrap';
-
-    if (isGroup) {
-      // Show all item numbers joined with +
-      var numsSpan = document.createElement('span');
-      numsSpan.style.cssText = 'font-family:var(--font-mono);font-weight:700;color:var(--accent2);font-size:0.95rem';
-      numsSpan.textContent = members.map(function(m) { return m.itemNum; }).join(' + ');
-      topRow.appendChild(numsSpan);
-      var grpBadge = document.createElement('span');
-      grpBadge.style.cssText = 'font-size:0.68rem;color:#8b5cf6;background:rgba(139,92,246,0.12);padding:0.1rem 0.4rem;border-radius:4px;font-weight:600';
-      grpBadge.textContent = 'Grouped';
-      topRow.appendChild(grpBadge);
-    } else {
-      var numSpan = document.createElement('span');
-      numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:700;color:var(--accent2);font-size:1rem';
-      numSpan.textContent = lead.itemNum;
-      topRow.appendChild(numSpan);
-      if (variation) {
-        var varSpan = document.createElement('span');
-        varSpan.style.cssText = 'font-size:0.75rem;color:var(--text-dim);background:var(--surface2);padding:0.1rem 0.4rem;border-radius:4px';
-        varSpan.textContent = variation;
-        topRow.appendChild(varSpan);
-      }
+    var numSpan = document.createElement('span');
+    numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:700;color:var(--accent2);font-size:1rem';
+    numSpan.textContent = pd.itemNum;
+    topRow.appendChild(numSpan);
+    if (variation) {
+      var varSpan = document.createElement('span');
+      varSpan.style.cssText = 'font-size:0.75rem;color:var(--text-dim);background:var(--surface2);padding:0.1rem 0.4rem;border-radius:4px';
+      varSpan.textContent = variation;
+      topRow.appendChild(varSpan);
     }
     info.appendChild(topRow);
 
@@ -2554,12 +2513,14 @@ function buildQuickEntryList() {
     right.style.cssText = 'flex-shrink:0;text-align:right';
     var addInfoBtn = document.createElement('button');
     addInfoBtn.textContent = 'Add Info';
-    var btnColor = isGroup ? '#8b5cf6' : '#27ae60';
-    addInfoBtn.style.cssText = 'font-size:0.78rem;color:#fff;font-weight:600;background:' + btnColor + ';border:none;padding:0.3rem 0.7rem;border-radius:6px;cursor:pointer;white-space:nowrap';
+    addInfoBtn.style.cssText = 'font-size:0.78rem;color:#fff;font-weight:600;background:#27ae60;border:none;padding:0.3rem 0.7rem;border-radius:6px;cursor:pointer;white-space:nowrap';
     addInfoBtn.onclick = (function(num, vari) { return function(e) {
       e.stopPropagation();
-      completeQuickEntry(num, vari, -1);
-    }; })(lead.itemNum, variation);
+      var prefix = num + '|' + vari + '|';
+      var exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(prefix); });
+      if (!exact) { exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(num + '|'); }); }
+      if (exact) { updateCollectionItem(-1, exact); }
+    }; })(pd.itemNum, variation);
     right.appendChild(addInfoBtn);
 
     row.appendChild(icon);
@@ -2567,11 +2528,9 @@ function buildQuickEntryList() {
     row.appendChild(right);
     gridEl.appendChild(row);
   });
-
-  var entryCount = displayEntries.length;
   var footer = document.createElement('div');
   footer.style.cssText = 'margin-top:1rem;padding:0.75rem 1rem;background:rgba(39,174,96,0.06);border-radius:10px;border:1px solid rgba(39,174,96,0.2);font-size:0.82rem;color:var(--text-dim);text-align:center';
-  footer.textContent = entryCount + ' entr' + (entryCount !== 1 ? 'ies' : 'y') + ' waiting for details — tap any item to open and complete it.';
+  footer.textContent = qeItems.length + ' item' + (qeItems.length !== 1 ? 's' : '') + ' waiting for details — tap any item to open and complete it.';
 
   container.innerHTML = '';
   container.appendChild(gridEl);
@@ -2643,15 +2602,21 @@ function renderBrowse() {
         ? (state.masterData.find(m => m.itemNum === _baseNum && (!pd.variation || m.variation === pd.variation))
            || state.masterData.find(m => m.itemNum === _baseNum))
         : null;
+      // Fallback: if no suffix match, still try to find master entry by item number alone
+      // (handles cases like 2426W saved with no variation but master has variations)
+      const _masterFallback = _baseItem ? null
+        : (state.masterData.find(m => m.itemNum === pd.itemNum && (!pd.variation || m.variation === pd.variation))
+           || state.masterData.find(m => m.itemNum === pd.itemNum));
+      const _refItem = _baseItem || _masterFallback;
       return {
         itemNum: pd.itemNum, variation: pd.variation || '',
-        itemType: _poType || (_baseItem ? _baseItem.itemType : ''),
-        roadName: pd.roadName || (_baseItem ? _baseItem.roadName : ''),
-        description: _baseItem ? _baseItem.description : (pd.notes || ''),
-        yearProd: pd.datePurchased || (_baseItem ? _baseItem.yearProd : ''),
-        marketVal: _baseItem ? _baseItem.marketVal : '',
-        varDesc: _baseItem ? _baseItem.varDesc : '',
-        refLink: _baseItem ? _baseItem.refLink : '',
+        itemType: _poType || (_refItem ? _refItem.itemType : ''),
+        roadName: pd.roadName || (_refItem ? _refItem.roadName : ''),
+        description: _refItem ? _refItem.description : (pd.notes || ''),
+        yearProd: pd.datePurchased || (_refItem ? _refItem.yearProd : ''),
+        marketVal: _refItem ? _refItem.marketVal : '',
+        varDesc: _refItem ? _refItem.varDesc : '',
+        refLink: _refItem ? _refItem.refLink : '',
         _personalOnly: true
       };
     });
@@ -3325,8 +3290,7 @@ function showItemDetailPage_sell(idx) {
   const item = idx >= 0 ? state.masterData[idx] : null;
   if (!item) return;
   const pdKey = findPDKey(item.itemNum, item.variation);
-  if (!pdKey) { showToast('Item not found in your collection', 3000, true); return; }
-  _checkSetBeforeAction(pdKey, () => sellFromCollection(idx, pdKey), { isSell: true, idx });
+  if (pdKey) sellFromCollection(idx, pdKey);
 }
 function showItemDetailPage_forsale(idx) {
   const item = idx >= 0 ? state.masterData[idx] : null;
@@ -3500,10 +3464,10 @@ function collectionActionForSale(globalIdx, itemNum, variation) {
 function collectionActionSold(globalIdx, itemNum, variation) {
   var pdKey = findPDKey(itemNum, variation);
   if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
-  _checkSetBeforeAction(pdKey, () => sellFromCollection(globalIdx, pdKey), { isSell: true, idx: globalIdx });
+  _checkSetBeforeAction(pdKey, () => sellFromCollection(globalIdx, pdKey));
 }
 
-function _checkSetBeforeAction(pdKey, proceed, opts) {
+function _checkSetBeforeAction(pdKey, proceed) {
   const pd = state.personalData[pdKey] || {};
   if (!pd.groupId) { proceed(); return; }
   // Check if this groupId has other members
@@ -3521,10 +3485,6 @@ function _checkSetBeforeAction(pdKey, proceed, opts) {
         What would you like to do?
       </div>
       <div style="display:flex;flex-direction:column;gap:0.5rem">
-        ${opts && opts.isSell ? `<button id="_setaction-selltogether" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid var(--gold);background:rgba(212,168,67,0.1);color:var(--gold);font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
-          💰 Sell together — all ${siblings.length + 1} items<br>
-          <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">One sale price covers the whole group</span>
-        </button>` : ''}
         <button id="_setaction-proceed" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #27ae60;background:rgba(39,174,96,0.1);color:#27ae60;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
           Continue — list as incomplete set<br>
           <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">Other set items keep their group ID</span>
@@ -3537,13 +3497,6 @@ function _checkSetBeforeAction(pdKey, proceed, opts) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
-  if (opts && opts.isSell) {
-    document.getElementById('_setaction-selltogether').onclick = () => {
-      overlay.remove();
-      const allGroup = [[pdKey, pd], ...siblings];
-      _sellGroupTogether(allGroup, opts.idx);
-    };
-  }
   document.getElementById('_setaction-proceed').onclick = () => { overlay.remove(); proceed(); };
   document.getElementById('_setaction-cancel').onclick  = () => overlay.remove();
   document.getElementById('_setaction-break').onclick   = async () => {
@@ -3705,36 +3658,6 @@ function _checkSetBeforeAction(pdKey, proceed, opts) {
       proceed();
     }
   };
-}
-
-function _sellGroupTogether(allGroup, idx) {
-  // allGroup is [[pdKey, pd], ...] — first entry is the lead item the user tapped
-  const [leadKey, leadPd] = allGroup[0];
-  const siblings = allGroup.slice(1);
-  const item = (idx >= 0 ? state.masterData[idx] : null) || {
-    itemNum: leadPd.itemNum, variation: leadPd.variation || '',
-    roadName: '', itemType: '', yearProd: '', marketVal: '',
-  };
-  wizard = { step: 0, tab: 'sold', data: {
-    tab: 'sold',
-    itemNum: item.itemNum,
-    variation: item.variation || '',
-    condition: leadPd.condition || '',
-    priceItem: leadPd.priceItem || '',
-    estWorth: leadPd.userEstWorth || '',
-    _collectionPdKey: leadKey,
-    _collectionRow: leadPd.row,
-    _sellGroupSiblings: siblings.map(function(e) { return { pdKey: e[0], pd: e[1] }; }),
-  }, steps: getSteps('sold'), matchedItem: item };
-  document.getElementById('wizard-modal').classList.add('open');
-  document.body.style.overflow = 'hidden';
-  const autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemPicker', 'itemCategory']);
-  while (wizard.step < wizard.steps.length - 1) {
-    const s = wizard.steps[wizard.step];
-    if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) wizard.step++;
-    else break;
-  }
-  renderWizardStep();
 }
 
 async function removeCollectionItem(itemNum, variation, row) {
@@ -4775,32 +4698,6 @@ async function saveItem() {
       await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:H${soldEntry.row}`, [soldRow]);
     } else {
       await sheetsAppend(state.personalSheetId, 'Sold!A:A', [soldRow]);
-    }
-
-    // If selling as a group, record sold for all sibling items too
-    if (wizard && wizard.data && wizard.data._sellGroupSiblings && wizard.data._sellGroupSiblings.length) {
-      const _salePrice = document.getElementById('fc-sale-price')?.value || '';
-      const _dateSold  = document.getElementById('fc-date-sold')?.value  || '';
-      const _wizNotes  = document.getElementById('fc-notes')?.value      || '';
-      for (const sib of wizard.data._sellGroupSiblings) {
-        // Clear sibling from My Collection sheet
-        if (sib.pd.row) {
-          await sheetsUpdate(state.personalSheetId,
-            `My Collection!A${sib.pd.row}:W${sib.pd.row}`,
-            [['','','','','','','','','','','','','','','','','','','','','','','']]);
-        }
-        // Write sibling sold entry — price is blank (total is on lead); note references lead
-        const _sibNote = ('Sold as group with ' + item.itemNum
-          + (_salePrice ? ' — total sale: $' + _salePrice : '')
-          + (_wizNotes ? ' — ' + _wizNotes : '')).trim();
-        await sheetsAppend(state.personalSheetId, 'Sold!A:A', [[
-          sib.pd.itemNum, sib.pd.variation || '', '1',
-          sib.pd.condition || '', sib.pd.priceItem || '',
-          '', _dateSold, _sibNote
-        ]]);
-        // Remove from local state
-        delete state.personalData[sib.pdKey];
-      }
     }
 
   } else if (currentStatus === 'Want') {
