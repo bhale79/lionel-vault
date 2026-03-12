@@ -736,7 +736,7 @@ function _confirmEdit(key) {
   // Date fields
   if (window._cfDate && window._cfDate.indexOf(key) >= 0) {
     valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.3rem">'
-      + '<div style="position:relative;display:flex;align-items:center;flex:1"><input id="confirm-input-' + key + '" type="date" value="' + (curVal || '') + '" onclick="try{this.showPicker();}catch(e){}" style="width:100%;background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:0.3rem 2.2rem 0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;color-scheme:dark;cursor:pointer"><span onclick="document.getElementById(\"confirm-input-' + key + '\").showPicker()" style="position:absolute;right:0.4rem;cursor:pointer;font-size:0.95rem;color:var(--accent2);z-index:2">📅</span></div>'
+      + '<div style="position:relative;display:flex;align-items:center;flex:1"><input id="confirm-input-' + key + '" type="date" value="' + (curVal || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:0.3rem 2.2rem 0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;color-scheme:dark"><span onclick="event.preventDefault();event.stopPropagation();document.getElementById(\"confirm-input-' + key + '\").showPicker()" style="position:absolute;right:0.4rem;cursor:pointer;font-size:0.95rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">📅</span></div>'
       + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid #1e3a5f;background:#1e3a5f;color:#fff">✓</button></div>';
     btnEl.style.display = 'none';
     return;
@@ -1461,11 +1461,10 @@ function renderWizardStep() {
           <input type="date" id="wiz-input" value="${val}"
             style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
             padding:0.75rem 3rem 0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none;
-            color-scheme:dark;cursor:pointer;"
-            onclick="try{this.showPicker();}catch(e){}"
+            color-scheme:dark;"
             oninput="wizard.data['${s.id}']=this.value">
-          <span onclick="document.getElementById('wiz-input').showPicker()" title="Open calendar"
-            style="position:absolute;right:0.75rem;cursor:pointer;font-size:1.15rem;color:var(--accent2);user-select:none;pointer-events:all;z-index:2">📅</span>
+          <button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById('wiz-input').showPicker();" title="Open calendar"
+            style="position:absolute;right:0.5rem;cursor:pointer;font-size:1.15rem;color:var(--accent2);background:none;border:none;padding:0.4rem;line-height:1;touch-action:manipulation">📅</button>
         </div>
         ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
@@ -2770,7 +2769,7 @@ function renderWizardStep() {
     // Date purchased — loco and normal only
     if (!_pvIsSetOther) {
       _pvHtml += '<div style="flex:1"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Date Set Purchased' : 'Date Purchased') + '</div>';
-      _pvHtml += '<div style="position:relative;display:flex;align-items:center"><input type="date" value="' + (_pvD.datePurchased || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box;color-scheme:dark" onclick="try{this.showPicker();}catch(e){}" oninput="wizard.data.datePurchased=this.value" id="pvDate"><span onclick="document.getElementById(\"pvDate\").showPicker()" style="position:absolute;right:0.6rem;cursor:pointer;font-size:1rem;color:var(--accent2);z-index:2">📅</span></div></div>';
+            _pvHtml += '<div style="position:relative;display:flex;align-items:center"><input type="date" value="' + (_pvD.datePurchased || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box;color-scheme:dark" oninput="wizard.data.datePurchased=this.value" id="pvDate"><button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;pvDate&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">📅</button></div></div>';
     }
     
     _pvHtml += '<div style="flex:1"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">What year if you know exactly?</div>';
