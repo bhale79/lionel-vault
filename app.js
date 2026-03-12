@@ -3681,9 +3681,80 @@ function _checkSetBeforeAction(pdKey, proceed) {
 }
 
 async function removeCollectionItem(itemNum, variation, row) {
-  if (!confirm('Remove No. ' + itemNum + (variation ? ' (Var. ' + variation + ')' : '') + ' from your collection?')) return;
+  // Check if this item is part of a group with other members
   var pdKey = findPDKey(itemNum, variation);
-  // Clear the row in the sheet (columns A through W)
+  var thisPd = pdKey ? state.personalData[pdKey] : null;
+  var groupId = thisPd && thisPd.groupId;
+  var groupSiblings = groupId
+    ? Object.values(state.personalData).filter(p => p.groupId === groupId && p.owned)
+    : [];
+  var isGrouped = groupSiblings.length > 1;
+
+  if (isGrouped) {
+    // Show choice modal — remove just this item or the whole group
+    var groupLabels = groupSiblings.map(p => p.itemNum).join(' + ');
+    var choice = await new Promise(function(resolve) {
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9500;display:flex;align-items:center;justify-content:center;padding:1rem';
+      overlay.innerHTML = `
+        <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:1.5rem;max-width:360px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;color:var(--accent);text-transform:uppercase;margin-bottom:0.5rem">Remove Item</div>
+          <div style="font-size:0.9rem;color:var(--text-mid);margin-bottom:0.25rem;line-height:1.4">
+            <strong style="color:var(--text)">\${itemNum}</strong> is grouped with <strong style="color:var(--text)">\${groupSiblings.filter(p => p.itemNum !== itemNum).map(p => p.itemNum).join(', ')}</strong>.
+          </div>
+          <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:1.25rem">What would you like to remove?</div>
+          <div style="display:flex;flex-direction:column;gap:0.5rem">
+            <button id="rm-just-one" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left">
+              <strong>Just this item</strong> — remove \${itemNum} only
+            </button>
+            <button id="rm-all-group" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--accent);background:rgba(240,80,8,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600">
+              Remove entire group — \${groupLabels}
+            </button>
+            <button id="rm-cancel" style="padding:0.45rem 1rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;margin-top:0.25rem">Cancel</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      overlay.querySelector('#rm-just-one').onclick  = function() { document.body.removeChild(overlay); resolve('one'); };
+      overlay.querySelector('#rm-all-group').onclick = function() { document.body.removeChild(overlay); resolve('all'); };
+      overlay.querySelector('#rm-cancel').onclick    = function() { document.body.removeChild(overlay); resolve('cancel'); };
+    });
+    if (choice === 'cancel') return;
+
+    if (choice === 'all') {
+      // Remove every item in the group
+      for (var sib of groupSiblings) {
+        var sibKey = findPDKey(sib.itemNum, sib.variation);
+        if (sib.row) {
+          try {
+            await sheetsUpdate(state.personalSheetId, 'My Collection!A' + sib.row + ':W' + sib.row,
+              [['','','','','','','','','','','','','','','','','','','','','','','']]);
+          } catch(e) { console.warn('Remove group row error:', sib.itemNum, e); }
+        }
+        var sibFsKey = sib.itemNum + '|' + (sib.variation || '');
+        var sibFs = state.forSaleData[sibFsKey];
+        if (sibFs && sibFs.row) {
+          try {
+            await sheetsUpdate(state.personalSheetId, 'For Sale!A' + sibFs.row + ':H' + sibFs.row,
+              [['','','','','','','','']]);
+          } catch(e) { console.warn('For Sale group cleanup:', e); }
+          delete state.forSaleData[sibFsKey];
+        }
+        if (sibKey) delete state.personalData[sibKey];
+      }
+      localStorage.removeItem('lv_personal_cache');
+      localStorage.removeItem('lv_personal_cache_ts');
+      renderBrowse();
+      buildDashboard();
+      showToast('✓ Removed ' + groupSiblings.length + ' grouped items');
+      return;
+    }
+    // else fall through to remove just this one item
+  } else {
+    // Standalone item — simple confirm
+    if (!confirm('Remove No. ' + itemNum + (variation ? ' (Var. ' + variation + ')' : '') + ' from your collection?')) return;
+  }
+
+  // ── Remove single item ──
   if (row) {
     try {
       await sheetsUpdate(state.personalSheetId, 'My Collection!A' + row + ':W' + row,
@@ -3700,7 +3771,6 @@ async function removeCollectionItem(itemNum, variation, row) {
     } catch(e) { console.warn('For Sale cleanup:', e); }
     delete state.forSaleData[fsKey];
   }
-  // Remove from local state
   if (pdKey) delete state.personalData[pdKey];
   localStorage.removeItem('lv_personal_cache');
   localStorage.removeItem('lv_personal_cache_ts');
