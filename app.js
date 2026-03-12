@@ -2437,7 +2437,7 @@ function buildQuickEntryList() {
 
   const qeItems = Object.values(state.personalData)
     .filter(pd => pd.owned && pd.quickEntry)
-    .sort((a, b) => (b.row || 0) - (a.row || 0));
+    .sort((a, b) => (a.row || 0) - (b.row || 0)); // ascending so lead (first saved) is index 0
 
   if (qeItems.length === 0) {
     container.innerHTML = '<div class="empty-state" style="padding:3rem 1rem">'
@@ -2452,44 +2452,88 @@ function buildQuickEntryList() {
   const badge = document.getElementById('nav-qe-count');
   if (badge) badge.textContent = qeItems.length;
 
+  // Group items that share a groupId — lead item is the one saved first (lowest row)
+  var seen = {};
+  var displayEntries = []; // each entry is either a single pd or { lead, members[] }
+  qeItems.forEach(function(pd) {
+    if (pd.groupId) {
+      if (!seen[pd.groupId]) {
+        seen[pd.groupId] = { lead: pd, members: [pd] };
+        displayEntries.push(seen[pd.groupId]);
+      } else {
+        seen[pd.groupId].members.push(pd);
+      }
+    } else {
+      displayEntries.push({ lead: pd, members: [pd] });
+    }
+  });
+  // Reverse so newest entries appear at top
+  displayEntries.reverse();
+
   var gridEl = document.createElement('div');
   gridEl.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem';
-    qeItems.forEach(function(pd) {
+
+  displayEntries.forEach(function(entry) {
+    var lead = entry.lead;
+    var members = entry.members;
+    var isGroup = members.length > 1;
+
     var master = state.masterData.find(function(m) {
-      return m.itemNum === pd.itemNum && (!pd.variation || m.variation === pd.variation);
-    }) || state.masterData.find(function(m) { return m.itemNum === pd.itemNum; });
+      return m.itemNum === lead.itemNum && (!lead.variation || m.variation === lead.variation);
+    }) || state.masterData.find(function(m) { return m.itemNum === lead.itemNum; });
     var itemName = master ? (master.roadName || master.description || master.itemType || '') : '';
     var itemType = master ? (master.itemType || '') : '';
     var itemYear = master ? (master.yearProd || '') : '';
-    var variation = pd.variation || '';
+    var variation = lead.variation || '';
     var meta = [itemType, itemYear].filter(Boolean).join(' · ');
 
     var row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:0.85rem;padding:0.9rem 1rem;background:var(--surface);border:1.5px solid rgba(39,174,96,0.3);border-radius:12px;cursor:pointer;transition:all 0.15s';
-    row.onmouseenter = function() { this.style.borderColor='#27ae60'; this.style.background='rgba(39,174,96,0.06)'; };
-    row.onmouseleave = function() { this.style.borderColor='rgba(39,174,96,0.3)'; this.style.background='var(--surface)'; };
+    var borderColor = isGroup ? 'rgba(139,92,246,0.4)' : 'rgba(39,174,96,0.3)';
+    row.style.cssText = 'display:flex;align-items:center;gap:0.85rem;padding:0.9rem 1rem;background:var(--surface);border:1.5px solid ' + borderColor + ';border-radius:12px;cursor:pointer;transition:all 0.15s';
+    var hoverColor = isGroup ? '#8b5cf6' : '#27ae60';
+    var hoverBg = isGroup ? 'rgba(139,92,246,0.06)' : 'rgba(39,174,96,0.06)';
+    row.onmouseenter = function() { this.style.borderColor=hoverColor; this.style.background=hoverBg; };
+    row.onmouseleave = function() { this.style.borderColor=borderColor; this.style.background='var(--surface)'; };
     row.onclick = (function(num, vari) { return function() {
       completeQuickEntry(num, vari, -1);
-    }; })(pd.itemNum, variation);
+    }; })(lead.itemNum, variation);
 
     var icon = document.createElement('div');
-    icon.style.cssText = 'background:rgba(39,174,96,0.12);border-radius:8px;padding:0.5rem;flex-shrink:0';
-    icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#27ae60" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+    if (isGroup) {
+      icon.style.cssText = 'background:rgba(139,92,246,0.12);border-radius:8px;padding:0.5rem;flex-shrink:0';
+      icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+    } else {
+      icon.style.cssText = 'background:rgba(39,174,96,0.12);border-radius:8px;padding:0.5rem;flex-shrink:0';
+      icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#27ae60" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+    }
 
     var info = document.createElement('div');
     info.style.cssText = 'flex:1;min-width:0';
 
     var topRow = document.createElement('div');
     topRow.style.cssText = 'display:flex;align-items:baseline;gap:0.5rem;flex-wrap:wrap';
-    var numSpan = document.createElement('span');
-    numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:700;color:var(--accent2);font-size:1rem';
-    numSpan.textContent = pd.itemNum;
-    topRow.appendChild(numSpan);
-    if (variation) {
-      var varSpan = document.createElement('span');
-      varSpan.style.cssText = 'font-size:0.75rem;color:var(--text-dim);background:var(--surface2);padding:0.1rem 0.4rem;border-radius:4px';
-      varSpan.textContent = variation;
-      topRow.appendChild(varSpan);
+
+    if (isGroup) {
+      // Show all item numbers joined with +
+      var numsSpan = document.createElement('span');
+      numsSpan.style.cssText = 'font-family:var(--font-mono);font-weight:700;color:var(--accent2);font-size:0.95rem';
+      numsSpan.textContent = members.map(function(m) { return m.itemNum; }).join(' + ');
+      topRow.appendChild(numsSpan);
+      var grpBadge = document.createElement('span');
+      grpBadge.style.cssText = 'font-size:0.68rem;color:#8b5cf6;background:rgba(139,92,246,0.12);padding:0.1rem 0.4rem;border-radius:4px;font-weight:600';
+      grpBadge.textContent = 'Grouped';
+      topRow.appendChild(grpBadge);
+    } else {
+      var numSpan = document.createElement('span');
+      numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:700;color:var(--accent2);font-size:1rem';
+      numSpan.textContent = lead.itemNum;
+      topRow.appendChild(numSpan);
+      if (variation) {
+        var varSpan = document.createElement('span');
+        varSpan.style.cssText = 'font-size:0.75rem;color:var(--text-dim);background:var(--surface2);padding:0.1rem 0.4rem;border-radius:4px';
+        varSpan.textContent = variation;
+        topRow.appendChild(varSpan);
+      }
     }
     info.appendChild(topRow);
 
@@ -2510,11 +2554,12 @@ function buildQuickEntryList() {
     right.style.cssText = 'flex-shrink:0;text-align:right';
     var addInfoBtn = document.createElement('button');
     addInfoBtn.textContent = 'Add Info';
-    addInfoBtn.style.cssText = 'font-size:0.78rem;color:#fff;font-weight:600;background:#27ae60;border:none;padding:0.3rem 0.7rem;border-radius:6px;cursor:pointer;white-space:nowrap';
+    var btnColor = isGroup ? '#8b5cf6' : '#27ae60';
+    addInfoBtn.style.cssText = 'font-size:0.78rem;color:#fff;font-weight:600;background:' + btnColor + ';border:none;padding:0.3rem 0.7rem;border-radius:6px;cursor:pointer;white-space:nowrap';
     addInfoBtn.onclick = (function(num, vari) { return function(e) {
       e.stopPropagation();
       completeQuickEntry(num, vari, -1);
-    }; })(pd.itemNum, variation);
+    }; })(lead.itemNum, variation);
     right.appendChild(addInfoBtn);
 
     row.appendChild(icon);
@@ -2522,9 +2567,11 @@ function buildQuickEntryList() {
     row.appendChild(right);
     gridEl.appendChild(row);
   });
+
+  var entryCount = displayEntries.length;
   var footer = document.createElement('div');
   footer.style.cssText = 'margin-top:1rem;padding:0.75rem 1rem;background:rgba(39,174,96,0.06);border-radius:10px;border:1px solid rgba(39,174,96,0.2);font-size:0.82rem;color:var(--text-dim);text-align:center';
-  footer.textContent = qeItems.length + ' item' + (qeItems.length !== 1 ? 's' : '') + ' waiting for details — tap any item to open and complete it.';
+  footer.textContent = entryCount + ' entr' + (entryCount !== 1 ? 'ies' : 'y') + ' waiting for details — tap any item to open and complete it.';
 
   container.innerHTML = '';
   container.appendChild(gridEl);
