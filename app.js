@@ -2631,6 +2631,12 @@ function renderBrowse() {
         marketVal: _refItem ? _refItem.marketVal : '',
         varDesc: _refItem ? _refItem.varDesc : '',
         refLink: _refItem ? _refItem.refLink : '',
+        // Carry through collection-status fields so icons/actions work for personal-only items
+        owned: pd.owned, row: pd.row,
+        quickEntry: pd.quickEntry, groupId: pd.groupId || '',
+        matchedTo: pd.matchedTo || '', setId: pd.setId || '',
+        photoItem: pd.photoItem || '', userEstWorth: pd.userEstWorth || '',
+        condition: pd.condition || '', inventoryId: pd.inventoryId || '',
         _personalOnly: true
       };
     });
