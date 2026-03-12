@@ -1108,16 +1108,12 @@ function renderWizardStep() {
       return { el: row, cb: cb };
     }
 
-    var _isMobileQE = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
     var qcCbRow = document.createElement('div');
     qcCbRow.style.cssText = 'display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.65rem;padding-top:0.55rem;border-top:1px solid rgba(30,58,95,0.25)';
     var worthCheck = _mkQeCheckbox('lv_qe_worth', '💰', 'Est. Worth');
     qcCbRow.appendChild(worthCheck.el);
-    var photoCheck = null;
-    if (_isMobileQE) {
-      photoCheck = _mkQeCheckbox('lv_qe_photo', '📷', 'Add Photo');
-      qcCbRow.appendChild(photoCheck.el);
-    }
+    var photoCheck = _mkQeCheckbox('lv_qe_photo', '📷', 'Add Photo');
+    qcCbRow.appendChild(photoCheck.el);
 
     var qcMiniStep = document.createElement('div');
     qcMiniStep.style.cssText = 'display:none;margin-top:0.65rem;padding-top:0.65rem;border-top:1px solid rgba(30,58,95,0.3)';
