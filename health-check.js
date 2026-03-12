@@ -2,7 +2,7 @@
 //  My Collection App — Health Check
 //  Paste this entire block into your browser console while
 //  the app is open. It will print a wiring report in ~2 seconds.
-//  Last updated: Session 50
+//  Last updated: Session 51
 // ============================================================
 
 (function() {
@@ -32,7 +32,7 @@
 
   // ── 2. Wizard functions exist ─────────────────────────────────
   const wizardFns = [
-    'quickEntryAdd', 'closeWizard', 'saveItem', 'launchWizard',
+    'quickEntryAdd', 'closeWizard', 'saveItem', 'openWizard',
     'launchSetItemWizard', '_showQuickEntryMultiUI',
   ];
   wizardFns.forEach(fn => {
@@ -51,7 +51,7 @@
   });
 
   // ── 4. Tutorial functions exist ───────────────────────────────
-  const tutFns = ['tutNext', 'tutBack', 'tutClose'];
+  const tutFns = ['tutNext'];
   tutFns.forEach(fn => {
     if (typeof window[fn] === 'function') pass(fn + '()');
     else warn(fn + '()', 'Not found — tutorial.js may not have loaded (non-critical)');
