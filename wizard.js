@@ -5071,6 +5071,16 @@ async function saveWizardItem() {
     renderBrowse();
     showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'forsale' ? 'For Sale' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
 
+    // After adding to Want List, check if item has groupable partners
+    if (tab === 'want' && typeof _checkWantPartners === 'function') {
+      setTimeout(() => _checkWantPartners(
+        itemNum, variation,
+        d.priority || 'Medium',
+        d.expectedPrice || '',
+        (d.notes || '').trim()
+      ), 400);
+    }
+
     // ── Vault: submit updated collection data in background ──
     if (typeof vaultIsOptedIn === 'function' && vaultIsOptedIn()) {
       localStorage.removeItem(VAULT.KEY_LAST_SUB);
