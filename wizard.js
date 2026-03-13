@@ -406,7 +406,38 @@ function getSteps(tab) {
 }
 
 
+function _buildWizardModal() {
+  if (document.getElementById('wizard-modal')) return;
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'wizard-modal';
+  overlay.onclick = function(e) { if (e.target === overlay) closeWizardOnOverlay(e); };
+  overlay.innerHTML =
+    '<div class="modal" style="max-width:520px;height:580px;display:flex;flex-direction:column;overflow:hidden">' +
+      '<div class="modal-header">' +
+        '<div>' +
+          '<div class="modal-item-num" id="wizard-step-label"></div>' +
+          '<div class="modal-title" id="wizard-title"></div>' +
+        '</div>' +
+        '<button class="btn-close" onclick="closeWizard()">&#x2715;</button>' +
+      '</div>' +
+      '<div style="padding:0 1.5rem;padding-top:0.75rem">' +
+        '<div style="background:var(--border);border-radius:4px;height:4px">' +
+          '<div id="wizard-progress" style="height:100%;border-radius:4px;background:var(--accent);transition:width 0.3s ease;width:0%"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="modal-body" id="wizard-body" style="flex:1;overflow-y:auto;min-height:0"></div>' +
+      '<div class="modal-footer">' +
+        '<button class="btn btn-secondary" id="wizard-back-btn" onclick="wizardBack()" style="display:none">&#x2190; Back</button>' +
+        '<button class="btn btn-secondary" onclick="closeWizard()">Cancel</button>' +
+        '<button class="btn btn-primary" id="wizard-next-btn" onclick="wizardNext()">Next &#x2192;</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
 function openWizard(tab) {
+  _buildWizardModal();
   // Start wizard pre-set to a specific tab, skipping the tab picker step
   const _activePg = document.querySelector('.page.active');
   const _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'dashboard';
