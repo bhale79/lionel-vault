@@ -7126,6 +7126,10 @@ function showPage(name, clickedEl) {
   if (name === 'upgrade') buildUpgradePage();
   if (name === 'prefs') buildPrefsPage();
   document.getElementById('main-content').scrollTop = 0;
+  // Push history entry so back button returns here instead of closing the app
+  if (!_navSuppressHistory) {
+    history.pushState({ appPage: name }, '', '');
+  }
 }
 
 // ── SETS PAGE ────────────────────────────────────────────────────────────────
@@ -7785,4 +7789,63 @@ function parseJwt(token) {
 window.onload = () => {
   if (typeof google !== 'undefined') initGoogle();
 };
+
+// ── Back-button / popstate handler ──────────────────────────────────────────
+// Seed a base history entry so there's always one entry behind us.
+// Without this the very first back press would exit the app.
+var _navSuppressHistory = false;
+var _backPressTime = 0;
+
+history.replaceState({ appPage: 'dashboard' }, '', '');
+
+window.addEventListener('popstate', function(e) {
+  // ── Case 1: Wizard is open ──
+  var wizModal = document.getElementById('wizard-modal');
+  if (wizModal && wizModal.classList.contains('open')) {
+    if (typeof wizard !== 'undefined' && wizard.step > 0) {
+      // Go back one wizard step
+      wizard.step--;
+      if (typeof renderWizardStep === 'function') renderWizardStep();
+    } else {
+      // On first step — close the wizard
+      if (typeof closeWizard === 'function') closeWizard();
+    }
+    // Re-push so we stay in the app
+    history.pushState({ appPage: 'wizard' }, '', '');
+    return;
+  }
+
+  // ── Case 2: Any modal/overlay is open — close it ──
+  var openOverlay = document.querySelector(
+    '.rb-overlay.open, [id$="-modal"].open, [id$="-overlay"].open'
+  );
+  if (openOverlay) {
+    openOverlay.classList.remove('open');
+    history.pushState({ appPage: 'modal' }, '', '');
+    return;
+  }
+
+  // ── Case 3: On a page other than dashboard — go to dashboard ──
+  var activePage = document.querySelector('.page.active');
+  var activePageId = activePage ? activePage.id.replace('page-', '') : 'dashboard';
+  if (activePageId !== 'dashboard') {
+    _navSuppressHistory = true;
+    showPage('dashboard');
+    _navSuppressHistory = false;
+    // Push so back from dashboard still gets the double-tap prompt
+    history.pushState({ appPage: 'dashboard' }, '', '');
+    return;
+  }
+
+  // ── Case 4: Already on dashboard — double-tap to exit ──
+  var now = Date.now();
+  if (now - _backPressTime < 2000) {
+    // Second press within 2s — let the app close naturally
+    return;
+  }
+  _backPressTime = now;
+  showToast('Press back again to exit', 2000);
+  // Re-push to stay in app for the 2-second window
+  history.pushState({ appPage: 'dashboard' }, '', '');
+});
 
