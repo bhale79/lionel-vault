@@ -6061,9 +6061,41 @@ function _isAdmin() {
   return !!(state.user && state.user.email === 'bhale@ipd-llc.com');
 }
 
+function _buildQAPanel() {
+  if (document.getElementById('qa-fab')) return;
+  // Floating button
+  var fab = document.createElement('div');
+  fab.id = 'qa-fab';
+  fab.title = 'QA Checklist';
+  fab.innerHTML = '&#9989;';
+  fab.style.cssText = 'display:none;position:fixed;bottom:1.5rem;right:1.5rem;z-index:11000;width:46px;height:46px;border-radius:50%;background:#1e3a5f;border:2px solid #2980b9;color:#fff;font-size:1.1rem;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.45);align-items:center;justify-content:center;transition:transform 0.15s';
+  fab.onclick = function() { _qaToggle(); };
+  fab.onmouseenter = function() { fab.style.transform = 'scale(1.1)'; };
+  fab.onmouseleave = function() { fab.style.transform = 'scale(1)'; };
+  document.body.appendChild(fab);
+  // Panel
+  var panel = document.createElement('div');
+  panel.id = 'qa-panel';
+  panel.style.cssText = 'display:none;position:fixed;bottom:0;left:0;right:0;z-index:10999;background:var(--surface);border-top:2px solid #2980b9;border-radius:18px 18px 0 0;max-height:70vh;flex-direction:column;box-shadow:0 -6px 30px rgba(0,0,0,0.5);transform:translateY(100%);transition:transform 0.28s cubic-bezier(0.4,0,0.2,1)';
+  panel.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.85rem 1.25rem;border-bottom:1px solid var(--border);flex-shrink:0">' +
+      '<div style="display:flex;align-items:center;gap:0.75rem">' +
+        '<span style="font-family:var(--font-head);font-size:1rem;color:#2980b9">&#9989; QA Checklist</span>' +
+        '<span id="qa-progress-label" style="font-size:0.75rem;color:var(--text-dim)"></span>' +
+      '</div>' +
+      '<div style="display:flex;gap:0.5rem;align-items:center">' +
+        '<button onclick="_qaReset()" style="font-size:0.72rem;padding:0.25rem 0.6rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);cursor:pointer;font-family:var(--font-body)">Reset</button>' +
+        '<button onclick="_qaToggle()" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;padding:0.1rem 0.3rem">&#10005;</button>' +
+      '</div>' +
+    '</div>' +
+    '<div id="qa-body" style="flex:1;overflow-y:auto;padding:0.75rem 1rem 1.5rem"></div>';
+  document.body.appendChild(panel);
+}
+
 function _maybeShowAdminPrefs() {
   var sec = document.getElementById('admin-health-section');
   if (sec) sec.style.display = _isAdmin() ? '' : 'none';
+  if (_isAdmin()) _buildQAPanel();
   var fab = document.getElementById('qa-fab');
   if (fab) fab.style.display = _isAdmin() ? 'flex' : 'none';
 }
