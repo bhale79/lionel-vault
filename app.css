@@ -932,4 +932,13 @@
   input[type="date"]::-webkit-calendar-picker-indicator {
     display: none;
   }
+
+  /* ── Dashboard action buttons: desktop shows row, mobile shows 2x2 grid ── */
+  .dash-mobile-actions { display: none; }
+  .dash-desktop-actions { display: flex; }
+  @media (max-width: 640px) {
+    .dash-mobile-actions { display: block; }
+    .dash-desktop-actions { display: none !important; }
+    #dash-greeting { display: none !important; }
+  }
 </style>
