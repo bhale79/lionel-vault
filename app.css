@@ -933,11 +933,11 @@
     display: none;
   }
 
-  /* ── Dashboard action buttons: desktop shows row, mobile shows 2x2 grid ── */
+  /* ── Dashboard action buttons: desktop shows row, mobile shows side-by-side panels ── */
   .dash-mobile-actions { display: none; }
   .dash-desktop-actions { display: flex; }
   @media (max-width: 640px) {
-    .dash-mobile-actions { display: block; }
+    .dash-mobile-actions { display: flex !important; }
     .dash-desktop-actions { display: none !important; }
     #dash-greeting { display: none !important; }
   }
