@@ -4018,21 +4018,22 @@ async function removeCollectionItem(itemNum, variation, row) {
     // Show choice modal — remove just this item or the whole group
     var groupLabels = groupSiblings.map(p => p.itemNum).join(' + ');
     var choice = await new Promise(function(resolve) {
+      var siblings = groupSiblings.filter(p => p.itemNum !== itemNum).map(p => p.itemNum).join(', ');
       var overlay = document.createElement('div');
       overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9500;display:flex;align-items:center;justify-content:center;padding:1rem';
       overlay.innerHTML = `
         <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:1.5rem;max-width:360px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
           <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;color:var(--accent);text-transform:uppercase;margin-bottom:0.5rem">Remove Item</div>
-          <div style="font-size:0.9rem;color:var(--text-mid);margin-bottom:0.25rem;line-height:1.4">
-            <strong style="color:var(--text)">\${itemNum}</strong> is grouped with <strong style="color:var(--text)">\${groupSiblings.filter(p => p.itemNum !== itemNum).map(p => p.itemNum).join(', ')}</strong>.
+          <div style="font-size:0.9rem;color:var(--text);margin-bottom:0.2rem;line-height:1.5">
+            Item <strong>${itemNum}</strong> is grouped with <strong>${siblings}</strong>.
           </div>
-          <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:1.25rem">What would you like to remove?</div>
+          <div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:1.25rem;line-height:1.5">Do you want to remove just this item, or all items in the group?</div>
           <div style="display:flex;flex-direction:column;gap:0.5rem">
-            <button id="rm-just-one" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left">
-              <strong>Just this item</strong> — remove \${itemNum} only
+            <button id="rm-just-one" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;line-height:1.4">
+              Remove <strong>${itemNum}</strong> only
             </button>
-            <button id="rm-all-group" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--accent);background:rgba(240,80,8,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600">
-              Remove entire group — \${groupLabels}
+            <button id="rm-all-group" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--accent);background:rgba(240,80,8,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;line-height:1.4">
+              Remove all grouped items (${groupLabels})
             </button>
             <button id="rm-cancel" style="padding:0.45rem 1rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;margin-top:0.25rem">Cancel</button>
           </div>
