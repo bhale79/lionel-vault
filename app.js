@@ -449,7 +449,7 @@ function onTokenReceived(resp) {
   localStorage.setItem('lv_master_id', state.masterSheetId);
 
   // Always sync from Drive config to ensure correct sheet ID across devices
-  driveReadConfig().then(config => {
+  driveReadConfig().then(async config => {
     if (config && config.personalSheetId) {
       // Always use Drive config as source of truth
       state.personalSheetId = config.personalSheetId;
@@ -459,17 +459,24 @@ function onTokenReceived(resp) {
       if (config.soldPhotosId) { driveCache.soldPhotosId = config.soldPhotosId; localStorage.setItem('lv_sold_photos_id', config.soldPhotosId); }
       loadAllData();
     } else {
-      // No config found — check localStorage before creating anything new
+      // Config file not found — try searching Drive by sheet name
+      const foundId = await driveFindPersonalSheet();
+      if (foundId) {
+        state.personalSheetId = foundId;
+        localStorage.setItem('lv_personal_id', foundId);
+        // Write config so future loads are faster
+        driveWriteConfig({ personalSheetId: foundId }).catch(() => {});
+        loadAllData();
+        return;
+      }
+      // No config and no sheet found — check localStorage before creating anything new
       state.personalSheetId = localStorage.getItem('lv_personal_id');
       if (!state.personalSheetId) {
         // Only create a new sheet if this is genuinely a first-time setup
-        // (no saved user on this device at all)
         const savedUser = localStorage.getItem('lv_user');
         if (!savedUser) {
           createPersonalSheet().then(loadAllData);
         } else {
-          // Returning user but no sheet ID — Drive config read failed after retries
-          // Don't create a blank sheet — show a clear recovery message
           showToast('Could not find your collection. Please sign out and back in.');
           hideLoading();
         }
@@ -478,8 +485,17 @@ function onTokenReceived(resp) {
         loadAllData();
       }
     }
-  }).catch(() => {
-    // Drive read failed — fall back to localStorage
+  }).catch(async () => {
+    // Drive read failed — try searching by sheet name
+    const foundId = await driveFindPersonalSheet();
+    if (foundId) {
+      state.personalSheetId = foundId;
+      localStorage.setItem('lv_personal_id', foundId);
+      driveWriteConfig({ personalSheetId: foundId }).catch(() => {});
+      loadAllData();
+      return;
+    }
+    // Fall back to localStorage
     state.personalSheetId = localStorage.getItem('lv_personal_id');
     if (!state.personalSheetId) {
       const savedUser = localStorage.getItem('lv_user');
@@ -1154,6 +1170,22 @@ async function driveReadConfig(retryCount = 0) {
     }
     // All retries failed — show clear message to user
     showToast('Could not connect to your collection. Try signing out and back in.');
+    return null;
+  }
+}
+
+// Fallback: search Drive for the personal sheet by name
+// Used when config file read fails — always works as long as the sheet exists in Drive
+async function driveFindPersonalSheet() {
+  try {
+    const q = encodeURIComponent(`name='${PERSONAL_SHEET_NAME}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+    const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&spaces=drive`);
+    if (res.files && res.files.length > 0) {
+      return res.files[0].id;
+    }
+    return null;
+  } catch(e) {
+    console.warn('driveFindPersonalSheet error:', e);
     return null;
   }
 }
