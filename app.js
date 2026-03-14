@@ -157,6 +157,7 @@ let state = {
   wantData: {},
   upgradeData: {},        // keyed by "itemNum|variation" -> want list row
   setData: [],         // all rows from Master Set list (read-only reference)
+  companionData: [],   // all rows from Companions tab (engine/tender/B-unit relationships)
   filteredData: [],
   currentPage: 1,
   pageSize: 50,
@@ -1503,7 +1504,7 @@ async function loadAllData() {
   try {
     loadUserDefinedTabs();
     // Load master data (uses cache if fresh) and personal data in parallel
-    await Promise.all([loadMasterData(), loadPersonalData(), loadSetData()]);
+    await Promise.all([loadMasterData(), loadPersonalData(), loadSetData(), loadCompanionData()]);
     buildApp();
     showOnboarding();
     if (typeof vaultInit === 'function') vaultInit();
@@ -1612,6 +1613,40 @@ async function loadSetData() {
     localStorage.setItem('lv_set_cache', JSON.stringify(state.setData));
     localStorage.setItem('lv_set_cache_ts', Date.now().toString());
   } catch(e) { console.warn('loadSetData:', e); state.setData = []; }
+}
+
+async function loadCompanionData() {
+  try {
+    const cached = localStorage.getItem('lv_companion_cache');
+    const cachedAt = parseInt(localStorage.getItem('lv_companion_cache_ts') || '0');
+    if (cached && (Date.now() - cachedAt) < 24*60*60*1000) {
+      state.companionData = JSON.parse(cached);
+      sheetsGet(state.masterSheetId, 'Companions!A2:E').then(res => {
+        if (res && res.values) {
+          parseCompanionRows(res.values);
+          localStorage.setItem('lv_companion_cache', JSON.stringify(state.companionData));
+          localStorage.setItem('lv_companion_cache_ts', Date.now().toString());
+        }
+      }).catch(() => {});
+      return;
+    }
+    const res = await sheetsGet(state.masterSheetId, 'Companions!A2:E');
+    parseCompanionRows((res && res.values) || []);
+    localStorage.setItem('lv_companion_cache', JSON.stringify(state.companionData));
+    localStorage.setItem('lv_companion_cache_ts', Date.now().toString());
+  } catch(e) { console.warn('loadCompanionData:', e); state.companionData = []; }
+}
+
+function parseCompanionRows(rows) {
+  state.companionData = rows
+    .filter(r => r[0] && r[2])
+    .map(r => ({
+      engineNum:     (r[0] || '').trim(),
+      engineVar:     (r[1] || '').trim(),
+      companionNum:  (r[2] || '').trim(),
+      companionType: (r[3] || '').trim(),
+      notes:         (r[4] || '').trim(),
+    }));
 }
 
 function parseSetRows(rows) {
