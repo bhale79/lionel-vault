@@ -757,6 +757,11 @@
     /* My Collection mobile: hide road + quick-entry filters, keep type + search */
     #filter-road { display: none !important; }
     #filter-quick-inline { display: none !important; }
+    /* Stack All Types above search bar, search goes full width */
+    #page-browse .filter-bar { flex-direction: column; align-items: stretch; gap: 0.4rem; }
+    #page-browse .filter-bar #filter-type { width: 100%; }
+    #page-browse .filter-bar > div { max-width: 100% !important; flex: none !important; width: 100% !important; box-sizing: border-box; }
+    #page-browse #result-count { margin-left: 0; }
 
     /* Wizard modal — full screen on mobile */
     .wizard-modal-inner {
