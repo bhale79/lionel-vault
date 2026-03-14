@@ -687,7 +687,4 @@ async function vaultInit() {
     // Small delay so app data is fully loaded first
     setTimeout(() => vaultSubmitData(), 3000);
   }
-
-  // Show floating badge for users who haven't opted in yet
-  vaultRenderFloatingBadge();
 }
