@@ -71,6 +71,62 @@ const _TUT = (function() {
         { title: 'Grouped Items',
           msg: 'If the item is part of a group — like an engine paired with a tender — you\'ll be asked whether to delete just this piece or the entire group. Choose carefully!' }
       ]
+    },
+
+    'remove-item': {
+      label: 'Remove / delete an item',
+      steps: [
+        { title: 'Find the Item',
+          msg: 'Go to <strong>My Collection List</strong> in the sidebar. Find the item you want to remove by scrolling or using the search bar.' },
+        { title: 'Tap the ✕ Button',
+          msg: 'On mobile, tap the small <strong>✕</strong> button on the right side of the item\'s card. On desktop, open the item\'s detail page and scroll down to find the remove option.' },
+        { title: 'Confirm Removal',
+          msg: 'The app will ask you to confirm. If the item is standalone, it\'s removed immediately. Nothing is deleted permanently from your Google Sheet — the row is simply cleared.' },
+        { title: 'Grouped Items',
+          msg: 'If the item is grouped with others — like an engine and tender — you\'ll be asked: remove <strong>just this piece</strong> or the <strong>entire group</strong>. Choose carefully, as the whole group option removes all linked items at once.' }
+      ]
+    },
+
+    'want-to-collection': {
+      label: 'Move a want item to your collection',
+      steps: [
+        { title: 'Open Your Want List',
+          msg: 'Go to <strong>Want List</strong> in the sidebar. You\'ll see all the items you\'re looking for, each showing the catalog market value.' },
+        { title: 'Find the Item You Acquired',
+          msg: 'Locate the item you just bought. Each want list entry has a green <strong>+ Collection</strong> button.' },
+        { title: 'Tap + Collection',
+          msg: 'Tap the green button — the Add Item wizard opens pre-filled with the item number and variation already selected. You just need to fill in condition, price paid, and any other details.' },
+        { title: 'Save to Your Collection',
+          msg: 'Walk through the wizard normally and tap <strong>Save</strong>. The item is added to your collection and <strong>automatically removed from your Want List</strong> — no manual cleanup needed.' }
+      ]
+    },
+
+    'mark-sold': {
+      label: 'Mark an item as sold',
+      steps: [
+        { title: 'Find the Item',
+          msg: 'Go to <strong>My Collection List</strong> and tap the item you\'ve sold to open its detail page.' },
+        { title: 'Tap Record Sale',
+          msg: 'In the detail page, tap the green <strong>Record Sale</strong> button. A panel slides up asking for the sale details.' },
+        { title: 'Enter Sale Details',
+          msg: 'Enter the <strong>sale price</strong>, the <strong>date sold</strong>, and optionally the buyer\'s name or any notes. All fields except the price are optional.' },
+        { title: 'Confirm the Sale',
+          msg: 'Tap <strong>Save Sale</strong>. The item moves out of your active collection and into your <strong>Sold Items</strong> history. Your total sold value on the dashboard updates automatically.' }
+      ]
+    },
+
+    'reports': {
+      label: 'How to generate a report',
+      steps: [
+        { title: 'Opening Reports',
+          msg: 'Go to <strong>Reports</strong> in the left sidebar. The reports page lets you generate formatted summaries of your collection for different purposes.' },
+        { title: 'Insurance Report',
+          msg: 'The <strong>Insurance Report</strong> lists every item you own with its estimated worth. This gives you a printable document to share with your insurance provider when scheduling a collection for coverage.' },
+        { title: 'Want List Report',
+          msg: 'The <strong>Want List Report</strong> exports your full want list — item numbers, variations, target prices, and notes. Great to print and take to a train show.' },
+        { title: 'Printing & Saving',
+          msg: 'Each report has a <strong>Print</strong> button that opens your browser\'s print dialog. You can print to paper or save as a PDF. The layout is formatted specifically for clean printed output.' }
+      ]
     }
 
   };
