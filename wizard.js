@@ -464,12 +464,22 @@ function closeWizard() {
   if (returnTo) showPage(returnTo);
 }
 
-function completeQuickEntry(itemNum, variation, globalIdx) {
+function completeQuickEntry(itemNum, variation, globalIdx, pdRow) {
   var _activePg = document.querySelector('.page.active');
   var _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'browse';
 
-  // Pre-fill from existing personal data so nothing gets blanked on save
-  var pdKey = findPDKey(itemNum, variation);
+  // Use the specific row number passed in to pin to the right copy —
+  // avoids picking the wrong item when multiple copies share the same item number
+  var pdKey = pdRow
+    ? (itemNum + '|' + (variation||'') + '|' + pdRow)
+    : findPDKey(itemNum, variation);
+  // Fallback: if constructed key not found, search manually
+  if (pdRow && !state.personalData[pdKey]) {
+    pdKey = Object.keys(state.personalData).find(function(k) {
+      var pd = state.personalData[k];
+      return pd.itemNum === itemNum && (pd.variation||'') === (variation||'') && pd.row == pdRow;
+    }) || findPDKey(itemNum, variation);
+  }
   var pd = pdKey ? state.personalData[pdKey] : null;
 
   // Strip powered/dummy suffix to get base item number for master lookup and wizard
@@ -491,6 +501,7 @@ function completeQuickEntry(itemNum, variation, globalIdx) {
     entryMode: 'full',
     _fillItemMode: true,
     _completingQuickEntry: true,
+    _fillTargetKey: pdKey,
   };
   if (_unitPower) data.unitPower = _unitPower;
   if (variation) data.variation = variation;
@@ -4535,9 +4546,13 @@ async function saveWizardItem() {
   try {
     if (tab === 'collection') {
       // Find existing by row-keyed lookup (key includes row number now)
-      let existing = Object.keys(state.personalData)
-        .map(k => state.personalData[k])
-        .find(pd => pd.itemNum === itemNum && pd.variation === variation) || null;
+      // When completing a quick entry, use the specific row passed in —
+      // avoids overwriting a different copy of the same item number
+      let existing = (d._fillTargetKey && state.personalData[d._fillTargetKey])
+        ? state.personalData[d._fillTargetKey]
+        : (Object.keys(state.personalData)
+            .map(k => state.personalData[k])
+            .find(pd => pd.itemNum === itemNum && pd.variation === variation && pd.quickEntry) || null);
       if (d.boxOnly) {
         // Box-only entry: create a standalone -BOX row as its own inventory item
         const boxItemNum = itemNum + '-BOX';
