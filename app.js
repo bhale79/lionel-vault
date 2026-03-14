@@ -3180,12 +3180,12 @@ function renderBrowse() {
       const showLegend = _prefGet('lv_show_coll_legend', 'true') === 'true';
       legendEl.style.display = '';
       legendEl.innerHTML = showLegend
-        ? `<div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;font-size:0.72rem;color:var(--text-dim);padding:0.4rem 0.6rem;background:var(--surface2);border:1px solid var(--border);border-radius:7px;margin-bottom:0.5rem">
-            <span style="font-weight:600;color:var(--text-mid)">Icon key:</span>
-            <span title="Grouped items">🔗 Grouped</span>
-            <span title="Quick entry — details not yet complete">⚡ Quick Entry</span>
-            <span title="Has a photo on file">📷 Has Photo</span>
-            <button onclick="event.stopPropagation();_prefSet('lv_show_coll_legend','false');renderBrowse()" style="margin-left:auto;background:none;border:none;color:var(--text-dim);font-size:0.72rem;cursor:pointer;padding:0;text-decoration:underline">Hide</button>
+        ? `<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:nowrap;font-size:0.72rem;color:var(--text-dim);padding:0.4rem 0.6rem;background:var(--surface2);border:1px solid var(--border);border-radius:7px;margin-bottom:0.5rem;overflow:hidden">
+            <span style="font-weight:600;color:var(--text-mid);flex-shrink:0">Icon key:</span>
+            <span style="flex-shrink:0" title="Grouped items">🔗 Grouped</span>
+            <span style="flex-shrink:0" title="Quick entry — details not yet complete">⚡ Quick Entry</span>
+            <span style="flex-shrink:0" title="Has a photo on file">📷 Has Photo</span>
+            <button onclick="event.stopPropagation();_prefSet('lv_show_coll_legend','false');renderBrowse()" style="margin-left:auto;flex-shrink:0;background:none;border:none;color:var(--text-dim);font-size:0.72rem;cursor:pointer;padding:0;text-decoration:underline">Hide</button>
           </div>`
         : `<div style="display:flex;justify-content:flex-end;margin-bottom:0.35rem">
             <button onclick="event.stopPropagation();_prefSet('lv_show_coll_legend','true');renderBrowse()" style="background:none;border:none;color:var(--text-dim);font-size:0.72rem;cursor:pointer;padding:0;text-decoration:underline">Show icon key</button>
