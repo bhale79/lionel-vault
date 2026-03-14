@@ -247,12 +247,30 @@ function _buildAppShell() {
     '<div class="header-logo">' +
       '<div style="font-family:var(--font-head);font-size:1.4rem;font-weight:700;color:var(--cream);letter-spacing:0.06em;text-transform:uppercase;line-height:1">My <span style="color:var(--accent)">Collection</span> App</div>' +
     '</div>' +
-    '<div class="header-right">' +
-      '<div class="user-chip">' +
+    '<div class="header-right" style="position:relative">' +
+      '<div class="user-chip" id="user-chip" onclick="toggleAccountMenu()" role="button" aria-haspopup="true">' +
         '<div class="user-avatar" id="user-avatar">?</div>' +
         '<span id="user-name">Loading\u2026</span>' +
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:2px;opacity:0.6"><polyline points="6 9 12 15 18 9"/></svg>' +
       '</div>' +
-      '<button class="btn-sign-out" onclick="handleSignOut()">Sign out</button>' +
+      '<div class="account-menu" id="account-menu" style="display:none">' +
+        '<div class="account-menu-header">' +
+          '<div class="account-menu-avatar" id="account-menu-avatar"></div>' +
+          '<div>' +
+            '<div class="account-menu-name" id="account-menu-name"></div>' +
+            '<div class="account-menu-email" id="account-menu-email"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="account-menu-divider"></div>' +
+        '<button class="account-menu-item" onclick="toggleAccountMenu(); showPage(\'prefs\', null); buildPrefsPage()">' +
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>' +
+          'Preferences' +
+        '</button>' +
+        '<button class="account-menu-item account-menu-signout" onclick="handleSignOut()">' +
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>' +
+          'Sign Out' +
+        '</button>' +
+      '</div>' +
     '</div>';
   app.insertBefore(header, app.firstChild);
   // Build app-body wrapper with sidebar + main placeholder
@@ -542,6 +560,45 @@ function handleSignOut() {
   document.getElementById('app').classList.remove('active');
 }
 
+function toggleAccountMenu() {
+  var menu = document.getElementById('account-menu');
+  if (!menu) return;
+  var isOpen = menu.style.display !== 'none';
+  if (isOpen) {
+    menu.style.display = 'none';
+    document.removeEventListener('click', _accountMenuOutsideClick);
+    return;
+  }
+  // Populate name/email/avatar each time it opens so it's always fresh
+  var u = state.user || {};
+  var nameEl = document.getElementById('account-menu-name');
+  var emailEl = document.getElementById('account-menu-email');
+  var avatarEl = document.getElementById('account-menu-avatar');
+  if (nameEl) nameEl.textContent = u.name || '';
+  if (emailEl) emailEl.textContent = u.email || '';
+  if (avatarEl) {
+    if (u.picture) {
+      avatarEl.innerHTML = '<img src="' + u.picture + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover" alt="">';
+    } else {
+      avatarEl.textContent = (u.name || '?')[0].toUpperCase();
+    }
+  }
+  menu.style.display = 'block';
+  // Close when clicking outside — defer so this click doesn't immediately close it
+  setTimeout(function() {
+    document.addEventListener('click', _accountMenuOutsideClick);
+  }, 0);
+}
+
+function _accountMenuOutsideClick(e) {
+  var chip = document.getElementById('user-chip');
+  var menu = document.getElementById('account-menu');
+  if (menu && chip && !chip.contains(e.target)) {
+    menu.style.display = 'none';
+    document.removeEventListener('click', _accountMenuOutsideClick);
+  }
+}
+
 function closeOnboarding() { var o = document.getElementById("onboarding-overlay"); if (o) o.remove(); }
 
 function showOnboarding() {
@@ -588,8 +645,16 @@ function showSetup() {
 
 function updateUserUI() {
   if (!state.user) return;
-  document.getElementById('user-name').textContent = state.user.name;
-  document.getElementById('user-avatar').textContent = state.user.name[0].toUpperCase();
+  var nameEl = document.getElementById('user-name');
+  var avatarEl = document.getElementById('user-avatar');
+  if (nameEl) nameEl.textContent = state.user.name;
+  if (avatarEl) {
+    if (state.user.picture) {
+      avatarEl.innerHTML = '<img src="' + state.user.picture + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover" alt="">';
+    } else {
+      avatarEl.textContent = state.user.name[0].toUpperCase();
+    }
+  }
 }
 
 async function completeSetup() {
