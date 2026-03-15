@@ -510,7 +510,7 @@ function runDuplicateChecker() {
       // Reconstruct exact pdKey for this specific copy using its row number
       var pdKey   = pd.itemNum + '|' + (pd.variation || '') + '|' + pd.row;
 
-      html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.35rem 0.5rem;background:var(--surface);border-radius:7px;width:100%;box-sizing:border-box;cursor:pointer" onclick="showItemDetailPage(' + masterIdx + ')" title="View details">' +
+      html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.35rem 0.5rem;background:var(--surface);border-radius:7px;width:100%;box-sizing:border-box;cursor:pointer" onclick="window._detailReturn=&apos;tools&apos;;showItemDetailPage(' + masterIdx + ')" title="View details">' +
         '<span style="font-size:0.75rem;color:var(--text-dim);flex-shrink:0">Copy ' + (i + 1) + '</span>' +
         '<span style="font-family:var(--font-mono);font-size:0.78rem;color:var(--text-mid)">' + invId + '</span>' +
         '<span style="font-size:0.78rem;color:var(--text-dim);flex:1">' + condStr + hasBox + isQE + '</span>' +
