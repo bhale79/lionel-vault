@@ -5640,6 +5640,8 @@ function _applyIdentifiedItem(num) {
       inp.value = num;
       wizard.data.itemNum = num;
       updateItemSuggestions(num);
+      // Advance to next step after a short delay so suggestions load first
+      setTimeout(function() { if (typeof wizardNext === 'function') wizardNext(); }, 350);
     }
   } else {
     const search = document.getElementById('browse-search');
