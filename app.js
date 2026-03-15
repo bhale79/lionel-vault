@@ -2408,7 +2408,8 @@ const PANEL_CATALOG = [
           const meta = [date, price].filter(Boolean).join(' · ');
           const idx = master ? state.masterData.indexOf(master) : -1;
           const hasPhoto = !!pd.photoItem;
-          return _panelRow('🚂', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : ''), name, meta,
+          const groupBadge = pd.groupId ? ' <span style="font-size:0.55rem;color:var(--accent3);vertical-align:super" title="Grouped">🔗</span>' : '';
+          return _panelRow('🚂', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : '') + groupBadge, name, meta,
             idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()', hasPhoto ? pd.photoItem : null
           );
         }).join('') || '<div class="empty-state"><p>No items yet</p></div>';
@@ -3652,15 +3653,6 @@ function showItemDetailPage(idx) {
   </div>`;
 
   container.innerHTML = html;
-
-  // Collector's Market Est. card — loads async after page renders
-  const _vaultEl = document.createElement('div');
-  _vaultEl.id = 'vault-market-wrap';
-  _vaultEl.style.marginTop = '18px';
-  container.appendChild(_vaultEl);
-  if (typeof vaultRenderMarketCard === 'function') {
-    vaultRenderMarketCard(it.itemNum, it.variation || '', _vaultEl);
-  }
 
   // Async: load photos
   if (_photoLink) {
