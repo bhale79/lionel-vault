@@ -614,7 +614,7 @@ function showOnboarding() {
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   ov.innerHTML = '<div style="background:var(--surface);border-radius:18px;max-width:380px;width:100%;padding:2rem;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5)">'
     + '<div style="margin-bottom:0.75rem;display:flex;justify-content:center"><img src="' + _RSV_PLACEHOLDER_PNG + '" style="width:90px;height:auto;opacity:0.9;border-radius:6px"></div>'
-    + '<div style="font-family:var(--font-head);font-size:1.5rem;font-weight:700;margin-bottom:0.5rem;color:var(--text)">Welcome to <span style=\"color:var(--accent)\">My Collection App</span></div>'
+    + '<div style="font-family:var(--font-head);font-size:1.5rem;font-weight:700;margin-bottom:0.5rem;color:var(--text)">Welcome to <span style=\"color:var(--accent)\">The Boxcar Files</span></div>'
     + '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.7;margin-bottom:1.5rem">Your personal postwar Lionel collection manager. Here\'s how it works:</div>'
     + '<div style="display:flex;flex-direction:column;gap:0.75rem;text-align:left;margin-bottom:1.5rem">'
     + '<div style="display:flex;gap:0.75rem;align-items:flex-start"><div style="background:var(--accent);color:white;border-radius:50%;width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem">1</div><div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:var(--text)">Browse the Master Catalog</strong><br>Over 2,000 postwar items pre-loaded — engines, cars, accessories and more.</div></div>'
@@ -1047,7 +1047,7 @@ async function driveMoveFileToFolder(fileId, fromFolderId, toFolderId) {
 // Called once on first run — creates the full vault folder structure
 async function driveSetupVault() {
   // Use 'root' directly as parent ID — Drive API accepts it without needing to look up the ID
-  driveCache.vaultId = await driveFindOrCreateFolder('Lionel Vault - My Collection', 'root');
+  driveCache.vaultId = await driveFindOrCreateFolder('The Boxcar Files - My Collection', 'root');
   localStorage.setItem('lv_vault_id', driveCache.vaultId);
 
   // Find or create both photo subfolders (always, so nothing is missing)
@@ -1214,7 +1214,7 @@ async function driveMoveToSold(itemNum) {
 // Stores personalSheetId in a small JSON file in Drive root
 // so any device can find the right sheet after signing in
 
-const CONFIG_FILENAME = 'my-collection-app-config.json';
+const CONFIG_FILENAME = 'boxcar-files-config.json';
 
 async function driveReadConfig(retryCount = 0) {
   const MAX_RETRIES = 3;
@@ -1966,7 +1966,7 @@ function buildApp() {
 
 function showLoading() {
   const tb = document.getElementById('browse-tbody');
-  if (tb) tb.innerHTML = '<tr><td colspan="9"><div class="loading" style="padding:3rem;flex-direction:column;gap:0.75rem"><div class="spinner" style="width:36px;height:36px;border-width:3px"></div><div style="font-size:0.9rem;color:var(--text-dim)">Loading My Collection App…</div><div style="font-size:0.75rem;color:var(--text-dim);opacity:0.7">Fetching master inventory</div></div></td></tr>';
+  if (tb) tb.innerHTML = '<tr><td colspan="9"><div class="loading" style="padding:3rem;flex-direction:column;gap:0.75rem"><div class="spinner" style="width:36px;height:36px;border-width:3px"></div><div style="font-size:0.9rem;color:var(--text-dim)">Loading The Boxcar Files…</div><div style="font-size:0.75rem;color:var(--text-dim);opacity:0.7">Fetching master inventory</div></div></td></tr>';
 }
 
 // ── DASHBOARD ───────────────────────────────────────────────────
