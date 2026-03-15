@@ -499,14 +499,12 @@ function onTokenReceived(resp) {
       // No config and no sheet found — check localStorage before creating anything new
       state.personalSheetId = localStorage.getItem('lv_personal_id');
       if (!state.personalSheetId) {
-        // Only create a new sheet if this is genuinely a first-time setup
-        const savedUser = localStorage.getItem('lv_user');
-        if (!savedUser) {
-          createPersonalSheet().then(loadAllData);
-        } else {
-          showToast('Could not find your collection. Please sign out and back in.');
+        // No sheet found anywhere — create one for this new user
+        createPersonalSheet().then(loadAllData).catch(e => {
+          console.error('[Setup] createPersonalSheet failed:', e);
+          showToast('Could not create your collection sheet. Please sign out and try again.', 4000, true);
           hideLoading();
-        }
+        });
       } else {
         driveEnsureSetup().catch(e => console.warn('Drive setup:', e));
         loadAllData();
@@ -525,13 +523,12 @@ function onTokenReceived(resp) {
     // Fall back to localStorage
     state.personalSheetId = localStorage.getItem('lv_personal_id');
     if (!state.personalSheetId) {
-      const savedUser = localStorage.getItem('lv_user');
-      if (!savedUser) {
-        createPersonalSheet().then(loadAllData);
-      } else {
-        showToast('Could not find your collection. Please sign out and back in.');
+      // No sheet found anywhere — create one for this new user
+      createPersonalSheet().then(loadAllData).catch(e => {
+        console.error('[Setup] createPersonalSheet failed:', e);
+        showToast('Could not create your collection sheet. Please sign out and try again.', 4000, true);
         hideLoading();
-      }
+      });
     } else {
       loadAllData();
     }
@@ -1459,6 +1456,18 @@ async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber) {
 }
 
 async function createPersonalSheet() {
+  // 0. Wait for user info if not yet loaded (async race on first sign-in)
+  if (!state.user || !state.user.name) {
+    try {
+      const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: 'Bearer ' + accessToken }
+      }).then(r => r.json());
+      state.user = { name: info.given_name || info.name || 'My', email: info.email, picture: info.picture };
+      localStorage.setItem('lv_user', JSON.stringify(state.user));
+      updateUserUI();
+    } catch(e) { console.warn('[Setup] Could not fetch user info:', e); }
+  }
+
   // 1. Set up Drive vault folders first
   await driveSetupVault();
 
