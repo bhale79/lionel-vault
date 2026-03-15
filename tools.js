@@ -591,6 +591,20 @@ function runCompanionSuggester() {
     addSuggestion(c.companionNum, c.engineNum, reverseType);
   });
 
+  // AA-unit scan: powered (-P) and dummy (-D) A units are stored with suffixes in personal data.
+  // If you own one, suggest the other.
+  Object.values(state.personalData).forEach(function(pd) {
+    if (!pd.owned) return;
+    var num = (pd.itemNum || '').trim();
+    if (num.endsWith('-P')) {
+      var dummyNum = num.slice(0, -2) + '-D';
+      addSuggestion(num, dummyNum, 'Dummy A Unit');
+    } else if (num.endsWith('-D')) {
+      var poweredNum = num.slice(0, -2) + '-P';
+      addSuggestion(num, poweredNum, 'Powered A Unit');
+    }
+  });
+
   var items = Object.values(suggestMap).filter(function(e) { return e.suggestions.length > 0; });
 
   if (!items.length) {
@@ -638,10 +652,12 @@ function runCompanionSuggester() {
 
       // Type label and color
       var typeLabel, typeColor;
-      if (s.companionType === 'B Unit')      { typeLabel = 'B Unit';  typeColor = '#8b5cf6'; }
-      else if (s.companionType === 'A Unit') { typeLabel = 'A Unit';  typeColor = '#8b5cf6'; }
-      else if (s.companionType === 'Engine') { typeLabel = 'Engine';  typeColor = '#d4a843'; }
-      else                                   { typeLabel = 'Tender';  typeColor = '#0891b2'; }
+      if (s.companionType === 'B Unit')           { typeLabel = 'B Unit';         typeColor = '#8b5cf6'; }
+      else if (s.companionType === 'A Unit')      { typeLabel = 'A Unit';         typeColor = '#8b5cf6'; }
+      else if (s.companionType === 'Powered A Unit') { typeLabel = 'Powered A Unit'; typeColor = '#2980b9'; }
+      else if (s.companionType === 'Dummy A Unit')   { typeLabel = 'Dummy A Unit';   typeColor = '#7f8c8d'; }
+      else if (s.companionType === 'Engine')      { typeLabel = 'Engine';         typeColor = '#d4a843'; }
+      else                                        { typeLabel = 'Tender';         typeColor = '#0891b2'; }
 
       html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.35rem 0.5rem;background:var(--surface);border-radius:7px;width:100%;box-sizing:border-box">' +
         '<span style="font-family:var(--font-mono);font-size:0.85rem;color:var(--text)">' + s.companionNum + '</span>' +
