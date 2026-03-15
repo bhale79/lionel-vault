@@ -224,7 +224,7 @@ function _buildSetupScreen() {
         '<p>Enter the Master Inventory Sheet ID (get this from whoever shared the app with you).</p>' +
       '</div>' +
       '<div class="setup-step"><div class="setup-num">2</div>' +
-        '<p>Create a blank Google Sheet for your personal collection, then paste its ID below. Go to <a href="https://sheets.google.com" target="_blank" style="color:var(--accent2)">sheets.google.com</a>, create a blank sheet, name it "My Collection App", and copy the ID from the URL.</p>' +
+        '<p>Create a blank Google Sheet for your personal collection, then paste its ID below. Go to <a href="https://sheets.google.com" target="_blank" style="color:var(--accent2)">sheets.google.com</a>, create a blank sheet, name it "The Boxcar Files", and copy the ID from the URL.</p>' +
       '</div>' +
       '<div class="input-group"><label>Master Sheet ID</label>' +
         '<input id="master-sheet-input" type="text" placeholder="1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0">' +
