@@ -357,8 +357,13 @@
   .main .report-table thead th { background: #f0e6cc; box-shadow: 0 1px 0 #d4c8a8; }
   @media print { .table-wrap { max-height: none !important; overflow: visible !important; } }
 
-  /* ── My Collection List: fixed column layout so Description fills space ── */
-  #page-browse .item-table.collection-view { table-layout: fixed; }
+  /* Browse table wrapper: vertical scroll on wrapper, horizontal scroll disabled
+     so the sticky thead travels with horizontal table scroll correctly */
+  .browse-table-wrap { overflow-x: auto; overflow-y: auto; }
+  /* Disable sticky on browse thead — can't be sticky in both axes simultaneously */
+  .browse-table-wrap .item-table thead th { position: static; box-shadow: none; }
+  /* Collection view: min-width ensures table scrolls as one unit */
+  #page-browse .item-table.collection-view { min-width: 780px; }
   #page-browse .item-table.collection-view th:nth-child(1),
   #page-browse .item-table.collection-view td:nth-child(1) { width: 90px; }
   #page-browse .item-table.collection-view th:nth-child(2),
