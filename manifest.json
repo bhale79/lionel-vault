@@ -1,6 +1,6 @@
 {
-  "name": "My Collection App",
-  "short_name": "My Collection",
+  "name": "The Boxcar Files",
+  "short_name": "Boxcar Files",
   "description": "Track your postwar train collection",
   "start_url": "./index.html",
   "display": "standalone",
