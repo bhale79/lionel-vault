@@ -1698,10 +1698,11 @@ async function loadPersonalData() {
   }
   if (!state.personalSheetId) return;
 
-  // Use cached personal data for instant load (15 min TTL)
+  // Use cached personal data for instant load (2 hour TTL)
   const _pcache = localStorage.getItem('lv_personal_cache');
   const _ptime  = parseInt(localStorage.getItem('lv_personal_cache_ts') || '0');
-  const _PAGE_TTL = 15 * 60 * 1000;
+  const _PAGE_TTL    = 2 * 60 * 60 * 1000; // 2 hours
+  const _BG_REFRESH  = 5 * 60 * 1000;      // background refresh throttle: 5 min
   if (_pcache && (Date.now() - _ptime) < _PAGE_TTL) {
     try {
       const _pd = JSON.parse(_pcache);
@@ -1711,12 +1712,14 @@ async function loadPersonalData() {
       state.wantData      = _pd.wantData      || {};
       state.isData        = _pd.isData        || {};
       state.ephemeraData  = _pd.ephemeraData  || { catalogs:{}, paper:{}, mockups:{}, other:{} };
-      // Refresh in background
-      _loadPersonalFromSheets(state.personalSheetId).then(() => {
-        _cachePersonalData();
-        buildDashboard();
-        renderBrowse();
-      }).catch(() => {});
+      // Only background-refresh if cache is older than 5 minutes
+      if ((Date.now() - _ptime) > _BG_REFRESH) {
+        _loadPersonalFromSheets(state.personalSheetId).then(() => {
+          _cachePersonalData();
+          buildDashboard();
+          renderBrowse();
+        }).catch(() => {});
+      }
       return;
     } catch(e) {}
   }
@@ -3986,7 +3989,7 @@ function _checkSetBeforeAction(pdKey, proceed) {
               .catch(e => console.warn('clear groupId row', p.row, e));
           }
         }
-        localStorage.removeItem('lv_personal_cache');
+        _cachePersonalData();
         const _msg = splitMode === 'even'
           ? 'Set broken up — price split evenly across ' + _count + ' items'
           : splitMode === 'clear'
@@ -4067,7 +4070,7 @@ function _checkSetBeforeAction(pdKey, proceed) {
             .catch(e => console.warn('Clear groupId row', p.row, e));
         }
       }
-      localStorage.removeItem('lv_personal_cache');
+      _cachePersonalData();
       showToast('Set broken up — items are now individual');
       proceed();
     }
@@ -4136,8 +4139,7 @@ async function removeCollectionItem(itemNum, variation, row) {
         }
         if (sibKey) delete state.personalData[sibKey];
       }
-      localStorage.removeItem('lv_personal_cache');
-      localStorage.removeItem('lv_personal_cache_ts');
+      _cachePersonalData();
       renderBrowse();
       buildDashboard();
       showToast('✓ Removed ' + groupSiblings.length + ' grouped items');
@@ -4167,8 +4169,7 @@ async function removeCollectionItem(itemNum, variation, row) {
     delete state.forSaleData[fsKey];
   }
   if (pdKey) delete state.personalData[pdKey];
-  localStorage.removeItem('lv_personal_cache');
-  localStorage.removeItem('lv_personal_cache_ts');
+  _cachePersonalData();
   renderBrowse();
   buildDashboard();
   showToast('✓ Removed from collection');
@@ -5432,8 +5433,7 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
       } catch(e) { console.warn('[WantPartner] Failed to add', c.itemNum, e); }
     }
     if (added) {
-      localStorage.removeItem('lv_personal_cache');
-      localStorage.removeItem('lv_personal_cache_ts');
+      _cachePersonalData();
       showToast('✓ Added ' + added + ' partner' + (added > 1 ? 's' : '') + ' to Want List');
       setTimeout(async () => {
         await loadPersonalData();
@@ -5625,7 +5625,7 @@ async function ephemeraDelete(tabId, rowKey) {
     sheetsUpdate(state.personalSheetId, sheetName, blanks).catch(e => console.warn('ephemera delete row', e));
   }
   delete state.ephemeraData[tabId][rowKey];
-  localStorage.removeItem('lv_personal_cache');
+  _cachePersonalData();
   showToast('✓ Removed from collection');
   renderBrowse();
   buildDashboard();
@@ -5751,7 +5751,7 @@ function ephemeraSold(tabId, rowKey) {
           sheetsUpdate(state.personalSheetId, sheetName, blanks).catch(e => console.warn('ephemera sold clear', e));
         }
         delete state.ephemeraData[tabId][rowKey];
-        localStorage.removeItem('lv_personal_cache');
+        _cachePersonalData();
         renderBrowse();
         buildDashboard();
       }
@@ -5961,8 +5961,7 @@ async function removeWantItem(itemNum, variation, row) {
     await sheetsUpdate(state.personalSheetId, `Want List!A${row}:E${row}`, [['','','','','']]);
   }
   delete state.wantData[key];
-  localStorage.removeItem('lv_personal_cache');
-  localStorage.removeItem('lv_personal_cache_ts');
+  _cachePersonalData();
   buildWantPage();
   buildDashboard();
   showToast('✓ Removed from Want List');
@@ -6308,8 +6307,7 @@ async function markForSaleAsSold(itemNum, variation, askingPrice) {
   state.soldData[fsKey] = { row: existingSold?.row || 99999, itemNum, variation, condition: fs.condition, salePrice: salePrice || askingPrice, dateSold, notes: fs.notes };
   delete state.forSaleData[fsKey];
 
-  localStorage.removeItem('lv_personal_cache');
-  localStorage.removeItem('lv_personal_cache_ts');
+  _cachePersonalData();
 
   buildForSalePage();
   buildSoldPage();
@@ -6324,8 +6322,7 @@ async function removeForSaleItem(itemNum, variation, row) {
     await sheetsUpdate(state.personalSheetId, `For Sale!A${row}:H${row}`, [['','','','','','','','']]);
   }
   delete state.forSaleData[fsKey];
-  localStorage.removeItem('lv_personal_cache');
-  localStorage.removeItem('lv_personal_cache_ts');
+  _cachePersonalData();
   buildForSalePage();
   showToast('✓ Removed from For Sale');
 }
@@ -6344,8 +6341,7 @@ async function removeForSaleAndCollection(itemNum, variation, fsRow) {
     await sheetsUpdate(state.personalSheetId, `My Collection!A${collEntry.row}:W${collEntry.row}`, [['','','','','','','','','','','','','','','','','','','','','','','']]);  // 23 cols A-W
   }
   delete state.personalData[key];
-  localStorage.removeItem('lv_personal_cache');
-  localStorage.removeItem('lv_personal_cache_ts');
+  _cachePersonalData();
   buildForSalePage();
   buildDashboard();
   renderBrowse();
