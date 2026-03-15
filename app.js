@@ -5996,7 +5996,7 @@ function moveWantToCollection(itemNum, variation) {
 
 // ── EBAY SEARCH MODAL ────────────────────────────────────────────
 // Affiliate Campaign ID — replace CAMPAIGN_ID with real ID from eBay Partner Network
-const _EPN_CAMPAIGN_ID = 'CAMPAIGN_ID';
+const _EPN_CAMPAIGN_ID = '5339145351';
 const _EPN_PARAMS = _EPN_CAMPAIGN_ID !== 'CAMPAIGN_ID'
   ? `&mkcid=1&mkrid=711-53200-19255-0&siteid=0&campid=${_EPN_CAMPAIGN_ID}&toolid=10001&mkevt=1`
   : '';
