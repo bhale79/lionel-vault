@@ -464,7 +464,25 @@ function runCompanionSuggester() {
   state.companionData.forEach(function(c) {
     var engineKey = norm(c.engineNum);
     if (!ownedNums.has(engineKey)) return;             // don't own this engine — skip
-    if (ownedNums.has(norm(c.companionNum))) return;   // already own the companion — skip
+
+    // For same-item-number B units, the companion number matches the engine number.
+    // We can't use a simple "is it owned?" check because we'd always find the A unit.
+    // Instead, check whether the user specifically owns a B unit for this item number.
+    var isSameNum = norm(c.companionNum) === norm(c.engineNum);
+    if (isSameNum) {
+      // Check if any owned entry for this item number has unit='B' in master data
+      var ownsBUnit = Object.values(state.personalData).some(function(pd) {
+        if (!pd.owned) return false;
+        if (norm(pd.itemNum) !== norm(c.companionNum)) return false;
+        var masterEntry = state.masterData && state.masterData.find(function(m) {
+          return norm(m.itemNum) === norm(pd.itemNum) && m.unit === 'B';
+        });
+        return !!masterEntry;
+      });
+      if (ownsBUnit) return; // already own the B unit — skip
+    } else {
+      if (ownedNums.has(norm(c.companionNum))) return; // already own the companion — skip
+    }
 
     if (!engineMap[engineKey]) engineMap[engineKey] = { engineNum: c.engineNum, suggestions: [] };
 
@@ -540,10 +558,15 @@ function runCompanionSuggester() {
 async function companionAddToWantList(companionNum, engineIdx, suggIdx) {
   var norm = function(n) { return (n || '').toString().trim().toUpperCase(); };
 
-  // Look up master data for this companion
-  var master = state.masterData && state.masterData.find(function(m) {
-    return norm(m.itemNum) === norm(companionNum);
-  });
+  // Look up master data for this companion — prefer B unit entry for same-item-number companions
+  var master = state.masterData && (
+    state.masterData.find(function(m) {
+      return norm(m.itemNum) === norm(companionNum) && m.unit === 'B';
+    }) ||
+    state.masterData.find(function(m) {
+      return norm(m.itemNum) === norm(companionNum);
+    })
+  );
   var variation = master ? (master.variation || '') : '';
   var wantRow = [companionNum, variation, '', '', 'Added via Companion Suggester'];
 
