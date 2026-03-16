@@ -78,6 +78,52 @@ function buildPrefsPage() {
         </div>
         ${toggle('qeBadge', 'lv_qe_badge_enabled', 'true')}
       </div>
+
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Default: All Original</strong>
+          <span>Pre-selected answer when adding an item</span>
+        </div>
+        <select class="pref-select" onchange="_prefSet('lv_def_allOriginal', this.value)">
+          <option value="Yes" ${_prefGet('lv_def_allOriginal','Yes')==='Yes'?'selected':''}>Yes</option><option value="No" ${_prefGet('lv_def_allOriginal','Yes')==='No'?'selected':''}>No</option><option value="Unknown" ${_prefGet('lv_def_allOriginal','Yes')==='Unknown'?'selected':''}>Unknown</option>
+        </select>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Default: Has Box</strong>
+          <span>Pre-selected answer when adding an item</span>
+        </div>
+        <select class="pref-select" onchange="_prefSet('lv_def_hasBox', this.value)">
+          <option value="Yes" ${_prefGet('lv_def_hasBox','No')==='Yes'?'selected':''}>Yes</option><option value="No" ${_prefGet('lv_def_hasBox','No')==='No'?'selected':''}>No</option>
+        </select>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Default: Instruction Sheet</strong>
+          <span>Pre-selected answer when adding an item</span>
+        </div>
+        <select class="pref-select" onchange="_prefSet('lv_def_hasIS', this.value)">
+          <option value="Yes" ${_prefGet('lv_def_hasIS','No')==='Yes'?'selected':''}>Yes</option><option value="No" ${_prefGet('lv_def_hasIS','No')==='No'?'selected':''}>No</option>
+        </select>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Default: Error Item</strong>
+          <span>Pre-selected answer when adding an item</span>
+        </div>
+        <select class="pref-select" onchange="_prefSet('lv_def_isError', this.value)">
+          <option value="Yes" ${_prefGet('lv_def_isError','No')==='Yes'?'selected':''}>Yes</option><option value="No" ${_prefGet('lv_def_isError','No')==='No'?'selected':''}>No</option>
+        </select>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Default: Master (Outer) Box</strong>
+          <span>Pre-selected answer when adding an item</span>
+        </div>
+        <select class="pref-select" onchange="_prefSet('lv_def_masterBox', this.value)">
+          <option value="Yes" ${_prefGet('lv_def_masterBox','No')==='Yes'?'selected':''}>Yes</option><option value="No" ${_prefGet('lv_def_masterBox','No')==='No'?'selected':''}>No</option>
+        </select>
+      </div>
       <div class="pref-row">
         <div class="pref-row-label">
           <strong>Default Condition</strong>
