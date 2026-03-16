@@ -606,7 +606,7 @@ function _accountMenuOutsideClick(e) {
   }
 }
 
-function closeOnboarding() { var o = document.getElementById("onboarding-overlay"); if (o) o.remove(); }
+function closeOnboarding() { var o = document.getElementById("onboarding-overlay"); if (o) o.remove(); setTimeout(function() { if (typeof vaultShowOptInModal === "function" && !localStorage.getItem("lv_vault_optin")) vaultShowOptInModal(false); }, 600); }
 
 function showOnboarding() {
   if (localStorage.getItem('lv_onboarded')) return;
