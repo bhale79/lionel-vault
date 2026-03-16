@@ -139,7 +139,7 @@ function getSteps(tab) {
       return [
         { id: 'eph_paperType',
           title: 'What type of paper item is this?',
-          type: 'choiceSearch',
+          type: 'choice3',
           choices: ['Catalog','Instruction Sheet','Operating Manual','Magazine','Dealer Paper','Dealer Promo Kit','Dealer Display Poster','Reference Book','Promotional Item','Other'] },
         { id: 'eph_paperSubType',
           title: (d) => {
@@ -148,7 +148,7 @@ function getSteps(tab) {
             if (d.eph_paperType === 'Dealer Paper') return 'What type of dealer paper?';
             return 'Sub-type';
           },
-          type: 'choiceSearch',
+          type: 'choice3',
           choices: (d) => _subChoices[d.eph_paperType] || [],
           skipIf: (d) => !_subChoices[d.eph_paperType] },
         { id: 'eph_title',
