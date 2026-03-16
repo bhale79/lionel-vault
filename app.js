@@ -163,6 +163,7 @@ let state = {
   upgradeData: {},        // keyed by "itemNum|variation" -> want list row
   setData: [],         // all rows from Master Set list (read-only reference)
   companionData: [],   // all rows from Companions tab (engine/tender/B-unit relationships)
+  catalogRefData: [],  // all rows from master Catalogs tab (reference list for paper item wizard)
   filteredData: [],
   currentPage: 1,
   pageSize: 50,
@@ -1520,7 +1521,7 @@ async function loadAllData() {
   try {
     loadUserDefinedTabs();
     // Load master data (uses cache if fresh) and personal data in parallel
-    await Promise.all([loadMasterData(), loadPersonalData(), loadSetData(), loadCompanionData()]);
+    await Promise.all([loadMasterData(), loadPersonalData(), loadSetData(), loadCompanionData(), loadCatalogRefData()]);
     buildApp();
     showOnboarding();
     if (typeof vaultInit === 'function') vaultInit();
@@ -1546,6 +1547,8 @@ async function loadMasterData() {
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
+    localStorage.removeItem('lv_catalog_ref_cache');
+    localStorage.removeItem('lv_catalog_ref_ts');
     localStorage.setItem('lv_cache_ver', _CACHE_VER);
   }
   const cached = localStorage.getItem('lv_master_cache');
@@ -1606,6 +1609,36 @@ function parseMasterRows(rows) {
     seen.add(key);
     return true;
   });
+}
+
+async function loadCatalogRefData() {
+  // Fetch Catalogs tab from master sheet — used by paper item wizard for searchable picker
+  // Columns: A=Catalog ID, B=Year, C=Type, D=Title
+  const CACHE_KEY = 'lv_catalog_ref_cache';
+  const CACHE_TS  = 'lv_catalog_ref_ts';
+  const TTL = 24 * 60 * 60 * 1000; // 24 hours
+  const cached = localStorage.getItem(CACHE_KEY);
+  const cachedAt = parseInt(localStorage.getItem(CACHE_TS) || '0');
+  if (cached && (Date.now() - cachedAt) < TTL) {
+    try { state.catalogRefData = JSON.parse(cached); return; } catch(e) {}
+  }
+  try {
+    const res = await sheetsGet(state.masterSheetId, 'Catalogs!A2:D');
+    const rows = (res && res.values) || [];
+    state.catalogRefData = rows
+      .filter(r => r[0] && r[3] && r[0] !== 'Catalog ID') // skip header/empty
+      .map(r => ({
+        id:    r[0] || '',
+        year:  r[1] || '',
+        type:  r[2] || '',
+        title: r[3] || '',
+      }));
+    localStorage.setItem(CACHE_KEY, JSON.stringify(state.catalogRefData));
+    localStorage.setItem(CACHE_TS, Date.now().toString());
+  } catch(e) {
+    console.warn('loadCatalogRefData:', e);
+    state.catalogRefData = [];
+  }
 }
 
 async function loadSetData() {
