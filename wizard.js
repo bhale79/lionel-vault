@@ -153,10 +153,18 @@ function getSteps(tab) {
           skipIf: (d) => !_subChoices[d.eph_paperType] },
         // Step 3 — catalog picker (searchable, Catalog type only)
         { id: 'eph_catalogPick',
-          title: 'Find your catalog',
+          title: (d) => {
+            const labels = {
+              'Catalog': 'Find your catalog', 'Operating Manual': 'Find your manual',
+              'Magazine': 'Find your magazine issue', 'Dealer Paper': 'Find your dealer paper',
+              'Dealer Promo Kit': 'Find your promo kit', 'Dealer Display Poster': 'Find your poster',
+              'Reference Book': 'Find your reference book', 'Promotional Item': 'Find your item',
+            };
+            return labels[d.eph_paperType] || 'Find your item';
+          },
           type: 'catalogPicker',
           optional: true,
-          skipIf: (d) => d.eph_paperType !== 'Catalog' },
+          skipIf: (d) => !d.eph_paperType || d.eph_paperType === 'Instruction Sheet' || d.eph_paperType === 'Other' },
         // Step 4 — title (skipped if catalog picked from list)
         { id: 'eph_title',
           title: (d) => {
@@ -1427,6 +1435,8 @@ function renderWizardStep() {
   } else if (s.type === 'catalogPicker') {
     const cpVal  = wizard.data[s.id] || null;
     const cpSub  = wizard.data.eph_paperSubType || '';
+    const cpType = wizard.data.eph_paperType || '';
+    // Sub-type filter map (for Catalog sub-types)
     const subTypeMap = {
       'Consumer Postwar':  ['Consumer'],
       'Consumer Pre-war':  ['Consumer (Pre-war)'],
@@ -1435,8 +1445,32 @@ function renderWizardStep() {
       'Accessory':         ['Consumer'],
       'HO':                ['Consumer'],
       'Science/Other':     ['Consumer'],
+      // Magazine sub-types
+      'Lionel Magazine':              ['Lionel Magazine'],
+      'Model Builder / Model Engineer':['Model Builder Magazine'],
+      // Dealer Paper sub-types
+      'Price List':           ['Dealer Price List'],
+      'Parts List':           ['Dealer Parts List'],
+      'Service Paper':        ['Dealer Service Paper'],
+      'Service Station Listing':['Service Station Listing'],
+      'Dealer Flyer':         ['Dealer Flyer'],
     };
-    const allowedTypes = cpSub ? (subTypeMap[cpSub] || []) : [];
+    // Top-level type filter (when no sub-type, or for non-Catalog types)
+    const topTypeMap = {
+      'Operating Manual':     ['Operating Manual'],
+      'Dealer Promo Kit':     ['Dealer Promo Kit'],
+      'Dealer Display Poster':['Dealer Display Poster'],
+      'Reference Book':       ['Reference Book'],
+      'Promotional Item':     ['Promotional'],
+      'Magazine':             ['Lionel Magazine','Model Builder Magazine'],
+      'Dealer Paper':         ['Dealer Price List','Dealer Parts List','Dealer Service Paper','Service Station Listing','Dealer Flyer'],
+    };
+    let allowedTypes = [];
+    if (cpSub && subTypeMap[cpSub]) {
+      allowedTypes = subTypeMap[cpSub];
+    } else if (cpType && topTypeMap[cpType]) {
+      allowedTypes = topTypeMap[cpType];
+    }
     const allItems = (state.catalogRefData || []).filter(function(it) {
       if (!allowedTypes.length) return true;
       return allowedTypes.some(function(t) { return (it.type||'').includes(t); });
