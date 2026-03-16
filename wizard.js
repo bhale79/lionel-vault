@@ -4395,6 +4395,13 @@ async function _wizardNextCore() {
   // Ephemera confirm — must be checked BEFORE generic confirm
   const _ephTabIds = ['paper','mockups','other',...(state.userDefinedTabs||[]).map(t=>t.id)];
   if (s.id === 'eph_confirm' || (s.type === 'confirm' && _ephTabIds.includes(wizard.tab))) {
+    // If paper type is Instruction Sheet, route to IS save instead
+    if (wizard.data.eph_paperType === 'Instruction Sheet') {
+      if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
+      try { await saveInstructionSheet(); } catch(e) { showToast('Error: '+e.message); }
+      if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
+      return;
+    }
     if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
     try { await saveEphemeraItem(); } catch(e) { showToast('Error: '+e.message); }
     if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
