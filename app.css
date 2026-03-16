@@ -97,7 +97,7 @@
   .auth-note { font-size: 0.82rem !important; }
   .browse-card-sub { font-size: 0.8rem !important; }
   .browse-card-name { font-size: 0.92rem !important; }
-  .modal-item-num { font-size: 0.88rem !important; }
+  .modal-item-num { font-size: 0.92rem !important; }
   .modal-subtitle { font-size: 0.88rem !important; }
   .info-field .info-val { font-size: 0.92rem !important; }
   .desc-block { font-size: 0.88rem !important; }
@@ -527,8 +527,8 @@
     padding: 1.5rem 1.5rem 1rem; border-bottom: 1px solid var(--border);
     position: sticky; top: 0; background: var(--surface); z-index: 1;
   }
-  .modal-item-num { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent2); margin-bottom: 0.25rem; }
-  .modal-title { font-size: 1.1rem; font-weight: 600; }
+  .modal-item-num { font-family: var(--font-mono); font-size: 0.9rem; color: var(--text); font-weight: 600; margin-bottom: 0.25rem; }
+  .modal-title { font-size: 1.2rem; font-weight: 700; color: var(--text); }
   .modal-subtitle { font-size: 0.82rem; color: var(--text-dim); margin-top: 0.2rem; }
   .btn-close {
     width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border);
