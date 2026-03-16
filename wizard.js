@@ -1450,18 +1450,18 @@ function renderWizardStep() {
       if (!allowedTypes.length) return true;
       return allowedTypes.some(t => (it.type||'').includes(t));
     });
+    // Store in global array indexed by position — onclick passes index only
+    window._cpAllItems = allItems;
     const pickedTitle = cpVal ? cpVal.title : '';
-    // Build list HTML without template literals to avoid encoding issues
     let listHTML = '';
     if (allItems.length === 0) {
-      listHTML = '<div style="color:var(--text-dim);font-size:0.82rem;padding:0.5rem">No catalog data yet — press Next to enter title manually</div>';
+      listHTML = '<div style="color:var(--text-dim);font-size:0.82rem;padding:0.5rem">No catalog data yet - press Next to enter title manually</div>';
     } else {
-      allItems.slice(0, 80).forEach(it => {
+      allItems.slice(0, 80).forEach(function(it, idx) {
         const picked = cpVal && cpVal.id === it.id;
         const label = it.title + (it.year && !it.title.includes(it.year) ? ' (' + it.year + ')' : '');
-        const searchAttr = (it.title + ' ' + it.year + ' ' + it.type).toLowerCase();
-        const jsonVal = JSON.stringify(JSON.stringify(it)).replace(/'/g, '&#39;');
-        listHTML += '<button onclick="wizardPickCatalog(' + jsonVal + ')" data-search="' + searchAttr + '" style="'
+        const searchAttr = (it.title + ' ' + it.year + ' ' + it.type).toLowerCase().replace(/"/g, '');
+        listHTML += '<button onclick="wizardPickCatalog(' + idx + ')" data-search="' + searchAttr + '" style="'
           + 'padding:0.5rem 0.75rem;border-radius:8px;text-align:left;cursor:pointer;width:100%;'
           + 'border:2px solid ' + (picked ? 'var(--accent)' : 'var(--border)') + ';'
           + 'background:' + (picked ? 'rgba(232,64,28,0.15)' : 'var(--surface2)') + ';'
@@ -1472,15 +1472,14 @@ function renderWizardStep() {
     }
     body.innerHTML = '<div style="padding-top:0.5rem">'
       + '<div style="position:relative;margin-bottom:0.6rem">'
-      + '<input id="' + cpId + '" type="text" placeholder="Type year or keyword, e.g. 1957 adv\u2026" autocomplete="off" autocorrect="off" spellcheck="false" value="' + pickedTitle.replace(/"/g,'&quot;') + '" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.75rem 0.55rem 2rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none" oninput="wizardFilterCatalog()">'
-      + '<span style="position:absolute;left:0.6rem;top:50%;transform:translateY(-50%);color:var(--text-dim);font-size:0.9rem;pointer-events:none">\uD83D\uDD0D</span>'
+      + '<input id="' + cpId + '" type="text" placeholder="Type year or keyword..." autocomplete="off" autocorrect="off" spellcheck="false" value="' + pickedTitle.replace(/"/g, '&quot;') + '" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.75rem 0.55rem 2rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none" oninput="wizardFilterCatalog()">'
+      + '<span style="position:absolute;left:0.6rem;top:50%;transform:translateY(-50%);color:var(--text-dim);font-size:0.9rem;pointer-events:none">&#128269;</span>'
       + '</div>'
       + '<div id="cp-list" style="display:flex;flex-direction:column;max-height:280px;overflow-y:auto">'
       + listHTML
       + '</div>'
-      + '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to enter title manually</div>'
+      + '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional - press Next to enter title manually</div>'
       + '</div>';
-    window._cpAllItems = allItems;
     setTimeout(function() { var i = document.getElementById(cpId); if(i) i.focus(); }, 80);
 
   } else if (s.type === 'pricePaid') {
@@ -3242,9 +3241,10 @@ function wizardFilterCatalog() {
   });
 }
 
-function wizardPickCatalog(jsonStr) {
+function wizardPickCatalog(idx) {
   try {
-    const item = JSON.parse(jsonStr);
+    const item = (window._cpAllItems || [])[idx];
+    if (!item) return;
     wizard.data.eph_catalogPick = item;
     wizard.data.eph_year  = item.year  || wizard.data.eph_year  || '';
     wizard.data.eph_title = item.title || wizard.data.eph_title || '';
