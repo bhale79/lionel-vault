@@ -2047,9 +2047,7 @@ const CARD_CATALOG = [
     compute: function(state) {
       let total = 0;
       Object.values(state.personalData).filter(pd=>pd.owned).forEach(pd => {
-        if (pd.priceComplete) total += parseFloat(pd.priceComplete)||0;
-        else if (pd.priceItem && pd.priceItem!=='N/A') total += parseFloat(pd.priceItem)||0;
-        else if (pd.priceBox) total += parseFloat(pd.priceBox)||0;
+        if (pd.userEstWorth) total += parseFloat(pd.userEstWorth)||0;
       });
       Object.values(state.ephemeraData||{}).forEach(b => { Object.values(b).forEach(it => { if (it.estValue) total += parseFloat(it.estValue)||0; }); });
       return { value: total > 0 ? '$' + Math.round(total).toLocaleString() : '—', sub: 'estimated worth' };
@@ -2269,9 +2267,7 @@ function buildDashboard() {
   // Count value across ALL owned rows (items + boxes)
   const allOwnedEntries = Object.values(state.personalData).filter(pd => pd.owned);
   allOwnedEntries.forEach(pd => {
-    if (pd.priceComplete) totalValue += parseFloat(pd.priceComplete) || 0;
-    else if (pd.priceItem && pd.priceItem !== 'N/A') totalValue += parseFloat(pd.priceItem) || 0;
-    else if (pd.priceBox) totalValue += parseFloat(pd.priceBox) || 0;
+    if (pd.userEstWorth) totalValue += parseFloat(pd.userEstWorth) || 0;
   });
   // Add ephemera values
   let ephemeraCount = 0;
