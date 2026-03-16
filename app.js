@@ -1544,7 +1544,7 @@ async function loadAllData() {
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '12';
+  const _CACHE_VER = '13';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -1626,7 +1626,7 @@ async function loadCatalogRefData() {
     try { state.catalogRefData = JSON.parse(cached); return; } catch(e) {}
   }
   try {
-    const res = await sheetsGet(state.masterSheetId, 'Catalogs!A2:D');
+    const res = await sheetsGet(state.masterSheetId, 'catalogs!A2:D');
     const rows = (res && res.values) || [];
     state.catalogRefData = rows
       .filter(r => r[0] && r[3] && r[0] !== 'Catalog ID') // skip header/empty
