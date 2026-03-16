@@ -51,7 +51,7 @@ const CATALOG_HEADERS = [
 ];
 // Mock-ups get extra columns
 const IS_HEADERS = [
-  'Sheet #','Linked Item #','Year/Date Printed','Condition (1-10)','Notes','Photo Link','Inventory ID','Group ID'
+  'Sheet #','Linked Item #','Year/Date Printed','Condition (1-10)','Notes','Photo Link','Inventory ID','Group ID','Form Code'
 ];
 const MOCKUP_HEADERS = [
   'Title','Item Number Ref','Description','Year','Manufacturer',
@@ -1783,7 +1783,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     sheetsGet(sheetId, 'Paper Items!A3:M').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Mock-Ups!A3:O').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Other Lionel!A3:J').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Instruction Sheets!A3:H').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Instruction Sheets!A3:I').catch(() => ({values:[]})),
   ]);
 
   // My Collection
@@ -1858,7 +1858,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     newIsData[key] = {
       row: key, sheetNum: r[0]||'', linkedItem: r[1]||'', year: r[2]||'',
       condition: r[3]||'', notes: r[4]||'', photoLink: r[5]||'',
-      inventoryId: r[6]||'', groupId: r[7]||'',
+      inventoryId: r[6]||'', groupId: r[7]||'', formCode: r[8]||'',
     };
   });
 
