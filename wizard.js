@@ -2856,27 +2856,11 @@ function renderWizardStep() {
       _pvHtml += '</div>';
     }
     
-    // Date purchased + Year made (side by side on desktop)
-    _pvHtml += '<div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;' + (window.innerWidth < 500 ? 'flex-direction:column' : '') + '">';
-
     // Date purchased — loco and normal only
     if (!_pvIsSetOther) {
-      _pvHtml += '<div style="flex:1"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Date Set Purchased' : 'Date Purchased') + '</div>';
-            _pvHtml += '<div style="position:relative;display:flex;align-items:center"><input type="date" value="' + (_pvD.datePurchased || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box;color-scheme:dark" oninput="wizard.data.datePurchased=this.value" id="pvDate"><button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;pvDate&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">📅</button></div></div>';
+      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Date Set Purchased' : 'Date Purchased') + '</div>';
+      _pvHtml += '<div style="position:relative;display:flex;align-items:center"><input type="date" value="' + (_pvD.datePurchased || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box;color-scheme:dark" oninput="wizard.data.datePurchased=this.value" id="pvDate"><button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;pvDate&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">📅</button></div></div>';
     }
-    
-    _pvHtml += '<div style="flex:1"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">What year if you know exactly?</div>';
-    if (_pvYears.length > 0 && _pvYears.length <= 10) {
-      _pvHtml += '<div style="display:flex;flex-wrap:wrap;gap:0.25rem">';
-      _pvYears.forEach(function(yr) {
-        var sel = String(yr) === String(_pvD.yearMade || '');
-        _pvHtml += '<button onclick="wizard.data.yearMade=String(' + yr + ');_pvRefreshYear(' + yr + ')" class="pv-yr-btn" data-yr="' + yr + '" style="padding:0.35rem 0.5rem;border-radius:6px;font-family:var(--font-mono);font-size:0.8rem;font-weight:600;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.15)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + '">' + yr + '</button>';
-      });
-      _pvHtml += '</div>';
-    } else {
-      _pvHtml += '<input type="number" value="' + (_pvD.yearMade || '') + '" placeholder="e.g. 1952" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-mono);font-size:0.95rem;outline:none;box-sizing:border-box" oninput="wizard.data.yearMade=this.value">';
-    }
-    _pvHtml += '</div></div>';
     
     // Estimated worth
     // Estimated worth — loco and normal only
