@@ -5940,7 +5940,8 @@ function buildWantPage() {
             : '')
         : '';
 
-      window._wantDescs[idx] = { title: (_isSet ? _setLabel : roadName) || w.itemNum, varDesc, fullDesc };
+      const refLink = master ? (master.refLink || '') : '';
+      window._wantDescs[idx] = { title: (_isSet ? _setLabel : roadName) || w.itemNum, varDesc, fullDesc, refLink };
       const pColor = priorityColor[w.priority] || 'var(--text-dim)';
       const shortVar = varDesc.length > 30 ? varDesc.substring(0, 30) + '…' : varDesc;
       const varCell = _isSet
@@ -6029,6 +6030,18 @@ function showWantDesc(idx) {
   descEl.style.cssText = 'font-size:0.85rem;color:var(--text-mid);line-height:1.7';
   descEl.textContent = d.fullDesc || d.title;
   box.appendChild(descEl);
+  if (d.refLink) {
+    const cottRow = document.createElement('div');
+    cottRow.style.cssText = 'margin-top:1rem;padding-top:0.75rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end';
+    const cottA = document.createElement('a');
+    cottA.href = d.refLink;
+    cottA.target = '_blank';
+    cottA.rel = 'noopener';
+    cottA.style.cssText = 'font-size:0.78rem;color:var(--accent2);text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.55rem;border:1px solid rgba(201,146,42,0.3);border-radius:6px;background:rgba(201,146,42,0.08)';
+    cottA.innerHTML = 'COTT &#8599;';
+    cottRow.appendChild(cottA);
+    box.appendChild(cottRow);
+  }
   overlay.appendChild(box);
   document.body.appendChild(overlay);
 }
