@@ -465,7 +465,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
       <div class="page" id="page-upgrade">
         <div class="page-title" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
           <span>Upgrade List</span>
-          <button onclick="showPage('browse', document.querySelector('.nav-item[onclick*=\"renderBrowse\"]'));filterOwned();" style="display:flex;align-items:center;gap:0.4rem;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b5cf6;color:#8b5cf6;background:rgba(139,92,246,0.1);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">
+          <button onclick="var _nav=document.querySelector('.nav-item[onclick*=\'filterOwned\']');showPage('browse',_nav);filterOwned();" style="display:flex;align-items:center;gap:0.4rem;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b5cf6;color:#8b5cf6;background:rgba(139,92,246,0.1);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
             Browse My Collection
           </button>
