@@ -2837,6 +2837,7 @@ function resetFilters() {
   document.getElementById('filter-type').value = '';
   document.getElementById('filter-road').value = '';
   updateFilterBadge();
+  if (state._browseTab && state._browseTab !== 'items') renderBrowseTab('items');
 }
 
 function filterOwned(qe) {
@@ -3050,6 +3051,121 @@ function onPageSearch(val, page) {
 function buildBrowse() { renderBrowse(); }
 
 let _lastBrowseHash = '';
+
+// ── Browse Tab Controller ─────────────────────────────────────────────────────
+function renderBrowseTab(tab) {
+  state._browseTab = tab || 'items';
+
+  // Update tab button styles
+  const tabs = { items: 'btab-items', sets: 'btab-sets', catalogs: 'btab-catalogs', is: 'btab-is' };
+  Object.entries(tabs).forEach(([key, id]) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    const active = key === state._browseTab;
+    btn.style.borderBottom = active ? '2px solid var(--accent)' : '2px solid transparent';
+    btn.style.color = active ? 'var(--accent)' : 'var(--text-dim)';
+  });
+
+  // Show/hide panels
+  const panels = { items: 'browse-items-panel', sets: 'browse-sets-panel', catalogs: 'browse-catalogs-panel', is: 'browse-is-panel' };
+  Object.entries(panels).forEach(([key, id]) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = key === state._browseTab ? '' : 'none';
+  });
+
+  // Show/hide filter bar and disclaimer (only on Items tab)
+  const filterBar = document.querySelector('#page-browse .filter-bar');
+  const disclaimer = document.getElementById('disclaimer-browse');
+  const identBtn = document.getElementById('identify-btn');
+  const onItems = state._browseTab === 'items';
+  if (filterBar) filterBar.style.display = onItems ? '' : 'none';
+  if (disclaimer) disclaimer.style.display = onItems ? '' : 'none';
+  if (identBtn) identBtn.style.display = onItems ? '' : 'none';
+
+  // Update page title
+  const titleEl = document.getElementById('browse-page-title');
+  const titles = { items: 'Master Catalog', sets: 'Set Master List', catalogs: 'Catalog List', is: 'Instruction Sheet List' };
+  if (titleEl) titleEl.textContent = titles[state._browseTab] || 'Master Catalog';
+
+  // Render the active tab
+  if (state._browseTab === 'items') renderBrowse();
+  else if (state._browseTab === 'sets') renderSetsTab();
+  else if (state._browseTab === 'catalogs') renderCatalogsTab();
+  else if (state._browseTab === 'is') renderISTab();
+}
+
+function renderSetsTab() {
+  const tbody = document.getElementById('sets-tbody');
+  const countEl = document.getElementById('sets-count');
+  if (!tbody) return;
+  const q = (document.getElementById('sets-search')?.value || '').trim().toLowerCase();
+  const sets = (state.setData || []).filter(s => {
+    if (!q) return true;
+    return (s.setNum + ' ' + s.setName + ' ' + s.year + ' ' + s.gauge).toLowerCase().includes(q);
+  });
+  if (countEl) countEl.textContent = sets.length.toLocaleString() + ' sets';
+  if (!sets.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">No sets found</td></tr>'; return; }
+
+  // Build owned set lookup from personal Set IDs
+  const ownedSetIds = new Set();
+  Object.values(state.personalData || {}).forEach(pd => {
+    if (pd.setId) ownedSetIds.add((pd.setId || '').replace(/^SET-/i, '').toLowerCase());
+  });
+
+  tbody.innerHTML = sets.map(s => {
+    const owned = ownedSetIds.has(s.setNum.toLowerCase());
+    const itemChips = s.items.slice(0, 6).map(n =>
+      `<span style="font-family:var(--font-mono);font-size:0.67rem;padding:1px 5px;border-radius:3px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim)">${n}</span>`
+    ).join(' ') + (s.items.length > 6 ? `<span style="font-size:0.67rem;color:var(--text-dim)"> +${s.items.length - 6}</span>` : '');
+    return `<tr>
+      <td><span style="font-family:var(--font-mono);color:var(--accent2)">${s.setNum}</span></td>
+      <td style="font-size:0.88rem">${s.setName || '—'}</td>
+      <td style="font-size:0.85rem;color:var(--text-mid)">${s.year || '—'}</td>
+      <td style="font-size:0.85rem;color:var(--text-mid)">${s.gauge || '—'}</td>
+      <td style="font-size:0.82rem">${itemChips || '—'}</td>
+      <td style="text-align:center">${owned ? '<span style="color:var(--green);font-size:0.75rem;font-weight:700">✓ Owned</span>' : '<span style="color:var(--text-dim);font-size:0.75rem">—</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderCatalogsTab() {
+  const tbody = document.getElementById('catalogs-tbody');
+  const countEl = document.getElementById('catalogs-count');
+  if (!tbody) return;
+  const q = (document.getElementById('catalogs-search')?.value || '').trim().toLowerCase();
+  const cats = (state.catalogRefData || []).filter(c => {
+    if (!q) return true;
+    return (c.id + ' ' + c.year + ' ' + c.type + ' ' + c.title).toLowerCase().includes(q);
+  });
+  if (countEl) countEl.textContent = cats.length.toLocaleString() + ' catalogs';
+  if (!cats.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-dim)">No catalogs found</td></tr>'; return; }
+  tbody.innerHTML = cats.map(c => `<tr>
+    <td><span style="font-family:var(--font-mono);color:var(--accent2)">${c.id}</span></td>
+    <td style="font-size:0.85rem;color:var(--text-mid)">${c.year || '—'}</td>
+    <td style="font-size:0.85rem">${c.type || '—'}</td>
+    <td style="font-size:0.88rem">${c.title || '—'}</td>
+  </tr>`).join('');
+}
+
+function renderISTab() {
+  const tbody = document.getElementById('is-tbody');
+  const countEl = document.getElementById('is-count');
+  if (!tbody) return;
+  const q = (document.getElementById('is-search')?.value || '').trim().toLowerCase();
+  const sheets = (state.isRefData || []).filter(s => {
+    if (!q) return true;
+    return (s.id + ' ' + s.itemNumber + ' ' + s.description + ' ' + s.category).toLowerCase().includes(q);
+  });
+  if (countEl) countEl.textContent = sheets.length.toLocaleString() + ' sheets';
+  if (!sheets.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-dim)">No instruction sheets found</td></tr>'; return; }
+  tbody.innerHTML = sheets.map(s => `<tr>
+    <td><span style="font-family:var(--font-mono);color:var(--accent2)">${s.id}</span></td>
+    <td style="font-family:var(--font-mono);font-size:0.85rem">${s.itemNumber || '—'}</td>
+    <td style="font-size:0.85rem">${s.description || '—'}</td>
+    <td style="font-size:0.82rem;color:var(--text-mid)">${s.category || '—'}</td>
+    <td style="font-size:0.82rem;color:var(--text-mid)">${s.variations || '—'}</td>
+  </tr>`).join('');
+}
 
 function renderBrowse() {
   const { type, road, owned, unowned, boxed, search } = state.filters;
