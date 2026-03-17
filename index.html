@@ -143,7 +143,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
       <!-- ── Browse ── -->
       <div class="page" id="page-browse">
         <div class="page-title" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
-          <span>Master Catalog</span>
+          <span id="browse-page-title">Master Catalog</span>
           <div style="display:flex;gap:0.5rem;align-items:center">
             <button class="btn" id="identify-btn" onclick="openIdentify(null)" style="display:flex;align-items:center;gap:0.4rem;border:1.5px solid var(--gold);color:var(--gold);background:rgba(212,168,67,0.1);font-weight:600;font-size:0.88rem;padding:0.6rem 1rem" title="Identify an unlabeled item by photo">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -154,6 +154,13 @@ document.addEventListener('touchmove', function(){}, {passive: true});
               Add to Collection
             </button>
           </div>
+        </div>
+
+        <div id="browse-tab-bar" style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:0.85rem">
+          <button id="btab-items"    onclick="renderBrowseTab('items')"    style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid var(--accent);margin-bottom:-2px;color:var(--accent);cursor:pointer">Items</button>
+          <button id="btab-sets"     onclick="renderBrowseTab('sets')"     style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Sets</button>
+          <button id="btab-catalogs" onclick="renderBrowseTab('catalogs')" style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Catalogs</button>
+          <button id="btab-is"       onclick="renderBrowseTab('is')"       style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Instr. Sheets</button>
         </div>
 
         <div id="disclaimer-browse" style="display:flex;align-items:flex-start;gap:0.6rem;background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.35);border-radius:9px;padding:0.6rem 0.85rem;margin-bottom:0.85rem;font-size:0.78rem;color:var(--text-dim);line-height:1.55">
@@ -177,6 +184,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
         </div>
 
         <div id="coll-icon-legend" style="display:none"></div>
+        <div id="browse-items-panel">
         <div class="table-wrap browse-table-wrap" style="max-height:calc(100vh - 220px);overflow-y:auto">
           <table class="item-table">
             <thead>
@@ -200,6 +208,38 @@ document.addEventListener('touchmove', function(){}, {passive: true});
             <div class="pagination-btns" id="pagination-btns"></div>
           </div>
         </div>
+        </div><!-- /browse-items-panel -->
+
+        <div id="browse-sets-panel" style="display:none">
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
+            <input id="sets-search" type="text" placeholder="Search sets…" oninput="renderSetsTab()" style="border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:0.35rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:220px">
+            <span id="sets-count" style="font-size:0.8rem;color:var(--text-dim);margin-left:auto"></span>
+          </div>
+          <div class="table-wrap" style="max-height:calc(100vh - 240px);overflow-y:auto">
+            <table class="item-table"><thead><tr><th>Set #</th><th>Name</th><th>Year</th><th>Gauge</th><th>Items</th><th>Owned</th></tr></thead><tbody id="sets-tbody"></tbody></table>
+          </div>
+        </div>
+
+        <div id="browse-catalogs-panel" style="display:none">
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
+            <input id="catalogs-search" type="text" placeholder="Search catalogs…" oninput="renderCatalogsTab()" style="border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:0.35rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:220px">
+            <span id="catalogs-count" style="font-size:0.8rem;color:var(--text-dim);margin-left:auto"></span>
+          </div>
+          <div class="table-wrap" style="max-height:calc(100vh - 240px);overflow-y:auto">
+            <table class="item-table"><thead><tr><th>ID</th><th>Year</th><th>Type</th><th>Title</th></tr></thead><tbody id="catalogs-tbody"></tbody></table>
+          </div>
+        </div>
+
+        <div id="browse-is-panel" style="display:none">
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
+            <input id="is-search" type="text" placeholder="Search instruction sheets…" oninput="renderISTab()" style="border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:0.35rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:240px">
+            <span id="is-count" style="font-size:0.8rem;color:var(--text-dim);margin-left:auto"></span>
+          </div>
+          <div class="table-wrap" style="max-height:calc(100vh - 240px);overflow-y:auto">
+            <table class="item-table"><thead><tr><th>IS ID</th><th>Item #</th><th>Description</th><th>Category</th><th>Variations</th></tr></thead><tbody id="is-tbody"></tbody></table>
+          </div>
+        </div>
+
       </div>
 
       <!-- ── Sold ── -->
