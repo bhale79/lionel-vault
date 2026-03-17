@@ -1234,24 +1234,6 @@ function renderWizardStep() {
     _qe1SlidersDiv.id = 'qe1-sliders';
     _qe1Wrap.appendChild(_qe1SlidersDiv);
 
-    // ── Photo checkbox ──
-    var _qe1PhotoCbRow = document.createElement('label');
-    _qe1PhotoCbRow.style.cssText = 'display:flex;align-items:center;gap:0.45rem;cursor:pointer;user-select:none';
-    var _qe1PhotoCb = document.createElement('input');
-    _qe1PhotoCb.type = 'checkbox';
-    _qe1PhotoCb.id = 'qe1-photo-cb';
-    _qe1PhotoCb.checked = localStorage.getItem('lv_qe_photo') !== 'false';
-    _qe1PhotoCb.style.cssText = 'width:15px;height:15px;accent-color:#3a9e68;cursor:pointer;flex-shrink:0';
-    _qe1PhotoCb.addEventListener('change', function() {
-      localStorage.setItem('lv_qe_photo', _qe1PhotoCb.checked ? 'true' : 'false');
-      _qe1RenderPhotoBtn();
-    });
-    var _qe1PhotoCbLbl = document.createElement('span');
-    _qe1PhotoCbLbl.textContent = 'Add quick entry photo';
-    _qe1PhotoCbLbl.style.cssText = 'font-size:0.82rem;color:var(--text-mid)';
-    _qe1PhotoCbRow.appendChild(_qe1PhotoCb);
-    _qe1PhotoCbRow.appendChild(_qe1PhotoCbLbl);
-    _qe1Wrap.appendChild(_qe1PhotoCbRow);
 
     // ── Worth + photo button row ──
     var _qe1WorthRow = document.createElement('div');
@@ -1283,14 +1265,11 @@ function renderWizardStep() {
     _qe1Wrap.appendChild(_qe1FilesDiv);
 
     // ── Action buttons ──
-    var _qe1ActionRow = document.createElement('div');
-    _qe1ActionRow.style.cssText = 'display:flex;gap:0.4rem;margin-top:0.15rem';
 
     var _qe1SaveBtn = document.createElement('button');
     _qe1SaveBtn.id = 'qe1-save-btn';
     _qe1SaveBtn.type = 'button';
-    _qe1SaveBtn.style.cssText = 'flex:1;padding:0.7rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.86rem;font-weight:600;cursor:pointer';
-    _qe1SaveBtn.textContent = '\u26a1 Save quick entry';
+    _qe1SaveBtn.style.cssText = 'width:100%;padding:0.7rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.86rem;font-weight:600;cursor:pointer;margin-top:0.15rem';
     _qe1SaveBtn.onclick = function() {
       if (wizard.data._qeSaving) return;
       var wv = document.getElementById('qe1-worth');
@@ -1321,19 +1300,21 @@ function renderWizardStep() {
       });
     };
 
+    var _qe1Divider = document.createElement('div');
+    _qe1Divider.style.cssText = 'text-align:center;font-size:0.78rem;color:var(--text-dim);padding:0.15rem 0';
+    _qe1Divider.textContent = 'or continue on with the:';
     var _qe1FullBtn = document.createElement('button');
     _qe1FullBtn.type = 'button';
-    _qe1FullBtn.style.cssText = 'flex:1;padding:0.7rem;border-radius:10px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.86rem;font-weight:700;cursor:pointer';
+    _qe1FullBtn.style.cssText = 'width:100%;padding:0.7rem;border-radius:10px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.86rem;font-weight:700;cursor:pointer';
     _qe1FullBtn.textContent = 'Full entry \u2192';
     _qe1FullBtn.onclick = function() {
       wizard.data.entryMode = 'full';
       renderWizardStep();
       setTimeout(function() { wizardNext(); }, 120);
     };
-
-    _qe1ActionRow.appendChild(_qe1SaveBtn);
-    _qe1ActionRow.appendChild(_qe1FullBtn);
-    _qe1Wrap.appendChild(_qe1ActionRow);
+    _qe1Wrap.appendChild(_qe1SaveBtn);
+    _qe1Wrap.appendChild(_qe1Divider);
+    _qe1Wrap.appendChild(_qe1FullBtn);
 
     body.innerHTML = '';
     body.appendChild(_qe1Wrap);
@@ -1456,13 +1437,11 @@ function renderWizardStep() {
     function _qe1RenderPhotoBtn() {
       var inner = document.getElementById('qe1-photo-btn-inner');
       if (!inner) return;
-      var cb = document.getElementById('qe1-photo-cb');
-      if (cb && !cb.checked) { inner.innerHTML = ''; return; }
       var grp = wizard.data._itemGrouping || 'single';
       var multi = grp === 'engine_tender' || grp === 'aa' || grp === 'ab' || grp === 'aba';
       var btnStyle = 'width:100%;min-height:38px;padding:0.42rem;border-radius:8px;border:1.5px dashed var(--border);background:rgba(212,168,67,0.07);color:var(--gold);font-family:var(--font-body);font-size:0.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.3rem';
       var camIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
-      inner.innerHTML = '<button type="button" id="qe1-photo-trigger" style="' + btnStyle + '">' + camIcon + (multi ? ' Add photos' : ' Add photo') + '</button>';
+      inner.innerHTML = '<button type="button" id="qe1-photo-trigger" style="' + btnStyle + '">' + camIcon + ' Quick entry photo only' + '</button>';
       var btn = document.getElementById('qe1-photo-trigger');
       if (!multi) {
         var fi = document.getElementById('qe1-file-engine');
