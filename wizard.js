@@ -1280,14 +1280,10 @@ function renderWizardStep() {
       _qe1RenderPhotoBtn();
     });
     var _qe1PhotoCbLbl = document.createElement('span');
-    _qe1PhotoCbLbl.textContent = 'Add photo';
+    _qe1PhotoCbLbl.textContent = 'Add quick entry photo';
     _qe1PhotoCbLbl.style.cssText = 'font-size:0.82rem;color:var(--text-mid)';
-    var _qe1PhotoCbHint = document.createElement('span');
-    _qe1PhotoCbHint.textContent = '(persists until unchecked)';
-    _qe1PhotoCbHint.style.cssText = 'font-size:0.72rem;color:var(--text-dim)';
     _qe1PhotoCbRow.appendChild(_qe1PhotoCb);
     _qe1PhotoCbRow.appendChild(_qe1PhotoCbLbl);
-    _qe1PhotoCbRow.appendChild(_qe1PhotoCbHint);
     _qe1Wrap.appendChild(_qe1PhotoCbRow);
 
     // ── Worth + photo button row ──
@@ -1331,7 +1327,13 @@ function renderWizardStep() {
     _qe1SaveBtn.onclick = function() {
       if (wizard.data._qeSaving) return;
       var wv = document.getElementById('qe1-worth');
-      if (wv && wv.value) wizard.data._qeEstWorth = wv.value;
+      if (!wv || !wv.value || parseFloat(wv.value) <= 0) {
+        if (wv) { wv.style.outline = '2px solid var(--accent)'; wv.focus(); }
+        showToast('Please enter an Est. Worth before saving', 3000);
+        return;
+      }
+      if (wv) wv.style.outline = '';
+      wizard.data._qeEstWorth = wv.value;
       var sl = document.getElementById('qe1-slider-lead');
       if (sl) wizard.data._qeCondition = parseInt(sl.value) || '';
       var ts = document.getElementById('qe1-slider-tender');
@@ -1476,7 +1478,8 @@ function renderWizardStep() {
           if (_mt.indexOf('tender') >= 0) iconKey = 'tender';
           else if (_mt.indexOf('freight') >= 0 || _mt.indexOf(' car') >= 0) iconKey = 'freight';
         }
-        html += _sl('qe1-slider-lead', iconKey, 'Condition', '#d4a843', '');
+        var _slLabel = wizard.data.boxOnly ? 'Box Condition' : 'Condition';
+        html += _sl('qe1-slider-lead', iconKey, _slLabel, '#d4a843', '');
       }
       html += '<div style="display:flex;justify-content:space-between;font-size:0.68rem;color:var(--text-dim);margin-top:-0.15rem"><span>Poor</span><span>Excellent</span></div>';
       cont.innerHTML = html;
@@ -1599,14 +1602,18 @@ function renderWizardStep() {
       _qe1RenderPhotoBtn();
     };
     window._qe1ToggleBoxOnly = function() {
-      toggleBoxOnly();
-      var bo = wizard.data.boxOnly || false;
+      // Flip boxOnly but do NOT call toggleBoxOnly() — that calls renderWizardStep()
+      // which blows away the QE screen. We just update state + UI in place.
+      wizard.data.boxOnly = !wizard.data.boxOnly;
+      var bo = wizard.data.boxOnly;
       var btn = document.getElementById('qe1-boxonly-btn');
       if (btn) {
         btn.style.background = bo ? 'rgba(201,146,42,0.12)' : 'var(--surface2)';
         btn.style.borderColor = bo ? 'var(--accent2)' : 'var(--border)';
         btn.innerHTML = '<div style="width:17px;height:17px;border-radius:4px;border:2px solid ' + (bo ? 'var(--accent2)' : 'var(--border)') + ';background:' + (bo ? 'var(--accent2)' : 'transparent') + ';display:flex;align-items:center;justify-content:center;font-size:0.68rem;color:white">' + (bo ? '\u2713' : '') + '</div>';
       }
+      // Re-render sliders so label updates to "Box Condition" when checked
+      _qe1RenderSliders();
     };
     window._qe1OnInput = function(val) {
       var num = val.trim();
