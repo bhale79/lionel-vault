@@ -264,36 +264,10 @@ function getSteps(tab) {
     // Box-only mode: create a standalone box inventory item, suggest grouping if item exists
     if (wizard.data.boxOnly) {
       return [
-        { id: 'itemCategory', title: 'What would you like to add?', type: 'itemCategory' },
-        { id: 'itemNum',       title: 'What is the Lionel item number?',    type: 'text',     placeholder: 'e.g. 726, 2046, 6464-1' },
-        { id: 'boxGroupSuggest', title: (d) => {
-            const num = (d.itemNum || '').trim();
-            const match = Object.values(state.personalData).find(pd => pd.itemNum === num && pd.owned);
-            if (match) return 'You have a ' + num + ' in your collection. Group this box with it?';
-            return 'Group this box with an item?';
-          },
-          type: 'choice2', choices: ['Yes','No'],
-          note: (d) => {
-            const num = (d.itemNum || '').trim();
-            const match = Object.values(state.personalData).find(pd => pd.itemNum === num && pd.owned);
-            if (match) return 'Grouping links the box and item together with a shared Group ID so they stay connected in your inventory.';
-            return 'The item is not in your collection yet. You can group it later when you add the item.';
-          },
-          skipIf: (d) => {
-            const num = (d.itemNum || '').trim();
-            return !Object.values(state.personalData).some(pd => pd.itemNum === num && pd.owned);
-          }
-        },
-        { id: 'boxCond',       title: (d) => 'What condition is the ' + getItemLabel(d) + ' box?',         type: 'slider',   min:1, max:10 },
-        { id: 'priceBox',      title: 'What did you pay for the box?',      type: 'money',    placeholder: '0.00', optional: true },
-        { id: 'purchaseDate',  title: 'When did you buy the box?',          type: 'date',     optional: true },
-        { id: 'userEstWorth',  title: 'Estimated worth (for insurance purposes)',  type: 'money',    placeholder: '0.00', optional: true },
-        { id: 'notes',         title: (d) => 'Any notes about this ' + getItemLabel(d) + ' box?',          type: 'textarea', optional: true },
-        { id: 'location',     title: 'Where will this box be stored?',
-          type: 'location', optional: true,
-          placeholder: 'e.g. Shelf 3, Tote 12, Display Case A',
-          skipIf: () => !_prefLocEnabled },
-        { id: 'confirm',       title: 'Ready to save box info!',            type: 'confirm' },
+        { id: 'itemNumGrouping',  title: 'Item Number',       type: 'itemNumGrouping' },
+        { id: 'boxCondDetails',   title: (d) => 'Box condition — ' + getItemLabel(d), type: 'boxCondDetails' },
+        { id: 'boxPurchaseValue', title: 'Purchase & Value',  type: 'boxPurchaseValue' },
+        { id: 'confirm',          title: 'Ready to save box info!', type: 'confirm' },
       ];
     }
     // Helper: is this a paired engine+tender set?
@@ -1657,6 +1631,155 @@ function renderWizardStep() {
 
     var nb = document.getElementById('wizard-next-btn');
     if (nb) nb.style.display = 'none';
+
+  } else if (s.type === 'boxCondDetails') {
+    // ── BOX: Condition + group-with-item (combined) ──
+    var _bcd = wizard.data;
+    var _bcdNum = (_bcd.itemNum || '').trim();
+    var _bcdMatch = _bcdNum ? Object.values(state.personalData).find(function(pd) { return pd.itemNum === _bcdNum && pd.owned; }) : null;
+    var _bcdGrp = _bcd._itemGrouping || 'single';
+    var _bcdDefCond = parseInt(localStorage.getItem('lv_default_cond') || '7');
+
+    function _bcdSlider(slId, label, accent) {
+      var cur = _bcd[slId] !== undefined ? _bcd[slId] : _bcdDefCond;
+      return '<div style="margin-bottom:0.7rem">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+        + '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim)">' + label + '</div>'
+        + '<span id="bcdv-' + slId + '" style="font-size:0.85rem;font-weight:700;color:' + accent + '">' + cur + '</span>'
+        + '</div>'
+        + '<input type="range" id="bcd-' + slId + '" min="1" max="10" value="' + cur + '" style="width:100%;accent-color:' + accent + '"'
+        + ' oninput="wizard.data[\'' + slId + '\']=parseInt(this.value);var v=document.getElementById(\'bcdv-' + slId + '\');if(v)v.textContent=this.value">'
+        + '</div>';
+    }
+
+    var _bcdHtml = '<div style="padding-top:0.35rem">';
+
+    if (_bcdGrp === 'engine_tender') {
+      _bcdHtml += _bcdSlider('boxCond', 'Engine Box Condition', '#d4a843');
+      _bcdHtml += _bcdSlider('tenderBoxCond', 'Tender Box Condition', '#8b5cf6');
+    } else if (_bcdGrp === 'aa') {
+      _bcdHtml += _bcdSlider('boxCond', 'A Powered Box Condition', '#d4a843');
+      _bcdHtml += _bcdSlider('unit2BoxCond', 'A Dummy Box Condition', '#6a5e48');
+    } else if (_bcdGrp === 'ab') {
+      _bcdHtml += _bcdSlider('boxCond', 'A Powered Box Condition', '#d4a843');
+      _bcdHtml += _bcdSlider('unit2BoxCond', 'B Unit Box Condition', '#8b5cf6');
+    } else if (_bcdGrp === 'aba') {
+      _bcdHtml += _bcdSlider('boxCond', 'A Powered Box Condition', '#d4a843');
+      _bcdHtml += _bcdSlider('unit2BoxCond', 'B Unit Box Condition', '#8b5cf6');
+      _bcdHtml += _bcdSlider('unit3BoxCond', 'A Dummy Box Condition', '#6a5e48');
+    } else {
+      _bcdHtml += _bcdSlider('boxCond', 'Box Condition', '#d4a843');
+    }
+    _bcdHtml += '<div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-dim);margin-top:-0.35rem;margin-bottom:0.75rem"><span>Poor</span><span>Excellent</span></div>';
+
+    if (_bcdMatch) {
+      var _bcdGrouped = _bcd.boxGroupSuggest === 'Yes';
+      _bcdHtml += '<div style="margin-bottom:0.75rem">'
+        + '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);margin-bottom:0.35rem">Group with item in collection?</div>'
+        + '<div style="display:flex;gap:0.4rem">'
+        + '<button type="button" id="bcd-grp-yes" onclick="_bcdSetGroup(&apos;Yes&apos;)" style="flex:1;padding:0.5rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:var(--font-body);border:2px solid ' + (_bcdGrouped ? 'var(--accent2)' : 'var(--border)') + ';background:' + (_bcdGrouped ? 'rgba(201,146,42,0.12)' : 'var(--surface2)') + ';color:' + (_bcdGrouped ? 'var(--accent2)' : 'var(--text-mid)') + '">Yes \u2014 link it</button>'
+        + '<button type="button" id="bcd-grp-no" onclick="_bcdSetGroup(&apos;No&apos;)" style="flex:1;padding:0.5rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:var(--font-body);border:2px solid var(--border);background:var(--surface2);color:var(--text-mid)">No</button>'
+        + '</div>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.3rem">Links this box to your ' + _bcdNum + ' with a shared Group ID.</div>'
+        + '</div>';
+    }
+
+    _bcdHtml += '<div style="margin-bottom:0.5rem">'
+      + '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);margin-bottom:0.35rem">Box photo (optional)</div>'
+      + '<button type="button" id="bcd-photo-btn" style="width:100%;padding:0.55rem;border-radius:9px;border:1.5px dashed var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.4rem">'
+      + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>'
+      + '<span id="bcd-photo-label">Add box photo</span>'
+      + '</button>'
+      + '<input type="file" id="bcd-photo-file" accept="image/*" capture="environment" style="display:none">'
+      + '</div>';
+
+    _bcdHtml += '</div>';
+    body.innerHTML = _bcdHtml;
+
+    setTimeout(function() {
+      var photoBtn = document.getElementById('bcd-photo-btn');
+      var photoFile = document.getElementById('bcd-photo-file');
+      if (photoBtn && photoFile) {
+        photoBtn.addEventListener('click', function() { photoFile.click(); });
+        photoFile.addEventListener('change', function() {
+          if (photoFile.files && photoFile.files[0]) {
+            wizard.data._boxPhotoFile = photoFile.files[0];
+            var lbl = document.getElementById('bcd-photo-label');
+            if (lbl) lbl.textContent = '\u2713 ' + photoFile.files[0].name.slice(0, 22);
+            if (photoBtn) { photoBtn.style.borderColor = '#3a9e68'; photoBtn.style.color = '#3a9e68'; }
+          }
+        });
+      }
+    }, 50);
+
+    window._bcdSetGroup = function(val) {
+      wizard.data.boxGroupSuggest = val;
+      var yesBtn = document.getElementById('bcd-grp-yes');
+      var noBtn  = document.getElementById('bcd-grp-no');
+      if (yesBtn) {
+        yesBtn.style.borderColor = val === 'Yes' ? 'var(--accent2)' : 'var(--border)';
+        yesBtn.style.background  = val === 'Yes' ? 'rgba(201,146,42,0.12)' : 'var(--surface2)';
+        yesBtn.style.color       = val === 'Yes' ? 'var(--accent2)' : 'var(--text-mid)';
+      }
+      if (noBtn) {
+        noBtn.style.borderColor = val === 'No' ? 'var(--accent)' : 'var(--border)';
+        noBtn.style.background  = val === 'No' ? 'rgba(232,64,28,0.1)' : 'var(--surface2)';
+        noBtn.style.color       = val === 'No' ? 'var(--accent)' : 'var(--text-mid)';
+      }
+    };
+
+  } else if (s.type === 'boxPurchaseValue') {
+    // ── BOX: Price + Worth + Date + Notes + Location (combined) ──
+    var _bpv = wizard.data;
+    var _bpvLocList = [];
+    Object.values(state.personalData).forEach(function(pd) {
+      if (pd.location && pd.location.trim() && !_bpvLocList.includes(pd.location.trim())) _bpvLocList.push(pd.location.trim());
+    });
+
+    var _bpvHtml = '<div style="padding-top:0.25rem;max-height:65vh;overflow-y:auto;-webkit-overflow-scrolling:touch">';
+
+    _bpvHtml += '<div style="margin-bottom:0.75rem">'
+      + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">What did you pay? ($)</div>'
+      + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">'
+      + '<span style="color:var(--text-dim);font-size:1.1rem">$</span>'
+      + '<input type="number" id="bpv-price" value="' + (_bpv.priceBox || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.priceBox=this.value">'
+      + '</div></div>';
+
+    _bpvHtml += '<div style="margin-bottom:0.75rem">'
+      + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Estimated Worth (for insurance)</div>'
+      + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">'
+      + '<span style="color:var(--text-dim);font-size:1.1rem">$</span>'
+      + '<input type="number" id="bpv-worth" value="' + (_bpv.userEstWorth || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.userEstWorth=this.value">'
+      + '</div></div>';
+
+    _bpvHtml += '<div style="margin-bottom:0.75rem">'
+      + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Date Purchased</div>'
+      + '<div style="position:relative;display:flex;align-items:center">'
+      + '<input type="date" id="bpvDate" value="' + (_bpv.purchaseDate || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box;color-scheme:dark" oninput="wizard.data.purchaseDate=this.value">'
+      + '<button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;bpvDate&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">\uD83D\uDCC5</button>'
+      + '</div></div>';
+
+    _bpvHtml += '<div style="margin-bottom:0.75rem">'
+      + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Notes (optional)</div>'
+      + '<textarea id="bpv-notes" placeholder="e.g. Missing one flap, faded graphics" style="width:100%;min-height:60px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + (_bpv.notes || '') + '</textarea></div>';
+
+    if (_prefLocEnabled) {
+      _bpvHtml += '<div style="margin-bottom:0.75rem">'
+        + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">\uD83D\uDCCD Storage Location</div>'
+        + '<input type="text" id="bpv-location" value="' + (_bpv.location || '').replace(/"/g, '&quot;') + '" placeholder="e.g. Shelf 3, Tote 12" autocomplete="off" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box" oninput="wizard.data.location=this.value">';
+      if (_bpvLocList.length > 0) {
+        _bpvHtml += '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;margin-top:0.35rem">';
+        _bpvLocList.slice(0, 8).forEach(function(loc) {
+          _bpvHtml += '<button type="button" onclick="document.getElementById(&apos;bpv-location&apos;).value=&apos;' + loc.replace(/'/g, '') + '&apos;;wizard.data.location=&apos;' + loc.replace(/'/g, '') + '&apos;;" style="padding:0.25rem 0.55rem;border-radius:12px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.75rem;cursor:pointer;font-family:var(--font-body)">' + loc + '</button>';
+        });
+        _bpvHtml += '</div>';
+      }
+      _bpvHtml += '</div>';
+    }
+
+    _bpvHtml += '</div>';
+    body.innerHTML = _bpvHtml;
+    setTimeout(function() { var i = document.getElementById('bpv-price'); if (i) i.focus(); }, 50);
 
   } else if (s.type === 'slider') {
     const val = wizard.data[s.id] || parseInt(localStorage.getItem('lv_default_cond') || '7');
@@ -4644,6 +4767,16 @@ async function _wizardNextCore() {
   if (s.type === 'purchaseValue') {
     // All fields optional, just commit
   }
+  // boxCondDetails: commit slider defaults if user never moved them
+  if (s.type === 'boxCondDetails') {
+    if (!wizard.data.boxCond) wizard.data.boxCond = 7;
+    var _bcg = wizard.data._itemGrouping || 'single';
+    if (_bcg === 'engine_tender' && !wizard.data.tenderBoxCond) wizard.data.tenderBoxCond = 7;
+    if ((_bcg === 'aa' || _bcg === 'ab') && !wizard.data.unit2BoxCond) wizard.data.unit2BoxCond = 7;
+    if (_bcg === 'aba') { if (!wizard.data.unit2BoxCond) wizard.data.unit2BoxCond = 7; if (!wizard.data.unit3BoxCond) wizard.data.unit3BoxCond = 7; }
+  }
+  // boxPurchaseValue: all optional
+  if (s.type === 'boxPurchaseValue') { /* all optional */ }
   if (s.type === 'money' && !s.optional && !wizard.data[s.id]) {
     showToast('Please enter a price.'); return;
   }
