@@ -1604,10 +1604,10 @@ function parseMasterRows(rows) {
     notes:        r[11] || '',
     marketVal:    r[12] || '',
   }));
-  // Deduplicate by itemNum+variation (keep first occurrence)
+  // Deduplicate by itemNum+roadName+variation — keep each road name variant
   const seen = new Set();
   state.masterData = mapped.filter(m => {
-    const key = m.itemNum + '|' + m.variation;
+    const key = m.itemNum + '|' + (m.roadName || '') + '|' + m.variation;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
