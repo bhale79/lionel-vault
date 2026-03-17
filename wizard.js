@@ -1308,9 +1308,12 @@ function renderWizardStep() {
     _qe1SaveBtn.style.cssText = 'width:100%;padding:0.7rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.86rem;font-weight:600;cursor:pointer;margin-top:0.15rem';
     _qe1SaveBtn.textContent = '\u26a1 Save quick entry';
     _qe1SaveBtn.onclick = function() {
-      if (wizard.data._qeSaving) return;
+      // Disable immediately to block double-tap on mobile
+      if (wizard.data._qeSaving || _qe1SaveBtn.disabled) return;
+      _qe1SaveBtn.disabled = true;
       var wv = document.getElementById('qe1-worth');
       if (!wv || !wv.value || parseFloat(wv.value) <= 0) {
+        _qe1SaveBtn.disabled = false;
         if (wv) { wv.style.outline = '2px solid var(--accent)'; wv.focus(); }
         showToast('Please enter an Est. Worth before saving', 3000);
         return;
