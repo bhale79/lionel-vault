@@ -3102,20 +3102,20 @@ function renderSetsTab() {
   const tbody = document.getElementById('sets-tbody');
   const countEl = document.getElementById('sets-count');
   if (!tbody) return;
+  const inColl = !!state.filters.owned;
   const q = (document.getElementById('sets-search')?.value || '').trim().toLowerCase();
-  const sets = (state.setData || []).filter(s => {
-    if (!q) return true;
-    return (s.setNum + ' ' + s.setName + ' ' + s.year + ' ' + s.gauge).toLowerCase().includes(q);
-  });
-  if (countEl) countEl.textContent = sets.length.toLocaleString() + ' sets';
-  if (!sets.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">No sets found</td></tr>'; return; }
-
-  // Build owned set lookup from personal Set IDs
   const ownedSetIds = new Set();
   Object.values(state.personalData || {}).forEach(pd => {
     if (pd.setId) ownedSetIds.add((pd.setId || '').replace(/^SET-/i, '').toLowerCase());
   });
-
+  const sets = (state.setData || []).filter(s => {
+    if (inColl && !ownedSetIds.has(s.setNum.toLowerCase())) return false;
+    if (!q) return true;
+    return (s.setNum + ' ' + s.setName + ' ' + s.year + ' ' + s.gauge).toLowerCase().includes(q);
+  });
+  const emptyMsg = inColl ? 'No sets in your collection yet' : 'No sets found';
+  if (countEl) countEl.textContent = sets.length.toLocaleString() + ' set' + (sets.length !== 1 ? 's' : '');
+  if (!sets.length) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">${emptyMsg}</td></tr>`; return; }
   tbody.innerHTML = sets.map(s => {
     const owned = ownedSetIds.has(s.setNum.toLowerCase());
     const itemChips = s.items.slice(0, 6).map(n =>
@@ -3136,19 +3136,31 @@ function renderCatalogsTab() {
   const tbody = document.getElementById('catalogs-tbody');
   const countEl = document.getElementById('catalogs-count');
   if (!tbody) return;
+  const inColl = !!state.filters.owned;
   const q = (document.getElementById('catalogs-search')?.value || '').trim().toLowerCase();
+  const ownedEphCats = inColl ? Object.values(state.ephemeraData?.catalogs || {}) : [];
+  const ownedCatIds = new Set(ownedEphCats.map(c => (c.itemNum||'').toLowerCase()));
   const cats = (state.catalogRefData || []).filter(c => {
+    if (inColl && !ownedCatIds.has(c.id.toLowerCase())) return false;
     if (!q) return true;
     return (c.id + ' ' + c.year + ' ' + c.type + ' ' + c.title).toLowerCase().includes(q);
   });
-  if (countEl) countEl.textContent = cats.length.toLocaleString() + ' catalogs';
-  if (!cats.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-dim)">No catalogs found</td></tr>'; return; }
+  const total = cats.length + ownedEphCats.length;
+  const emptyMsg = inColl ? 'No catalogs or paper items in your collection yet' : 'No catalogs found';
+  if (countEl) countEl.textContent = total.toLocaleString() + ' item' + (total !== 1 ? 's' : '');
+  if (!total) { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-dim)">${emptyMsg}</td></tr>`; return; }
+  const ephRows = ownedEphCats.map(c => `<tr>
+    <td><span style="font-family:var(--font-mono);color:var(--accent2)">${c.itemNum||'—'}</span></td>
+    <td style="font-size:0.85rem;color:var(--text-mid)">${c.year||'—'}</td>
+    <td style="font-size:0.85rem">${c.catType||'—'}</td>
+    <td style="font-size:0.88rem">${c.title||'—'}${c.hasMailer==='Yes'?' <span style="font-size:0.7rem;color:var(--accent2)">(w/ mailer)</span>':''}</td>
+  </tr>`).join('');
   tbody.innerHTML = cats.map(c => `<tr>
     <td><span style="font-family:var(--font-mono);color:var(--accent2)">${c.id}</span></td>
     <td style="font-size:0.85rem;color:var(--text-mid)">${c.year || '—'}</td>
     <td style="font-size:0.85rem">${c.type || '—'}</td>
     <td style="font-size:0.88rem">${c.title || '—'}</td>
-  </tr>`).join('');
+  </tr>`).join('') + ephRows;
 }
 
 function renderISTab() {
@@ -3168,6 +3180,34 @@ function renderISTab() {
     <td style="font-size:0.85rem">${s.description || '—'}</td>
     <td style="font-size:0.82rem;color:var(--text-mid)">${s.category || '—'}</td>
     <td style="font-size:0.82rem;color:var(--text-mid)">${s.variations || '—'}</td>
+  </tr>`).join('');
+}
+
+function renderMockupsOtherTab() {
+  const tbody = document.getElementById('mockups-tbody');
+  const countEl = document.getElementById('mockups-count');
+  if (!tbody) return;
+  const q = (document.getElementById('mockups-search')?.value || '').trim().toLowerCase();
+  const rows = [];
+  Object.values(state.ephemeraData?.mockups || {}).forEach(it => {
+    rows.push({ type:'Mock-Up', tc:'#9b59b6', id:it.title||it.itemNumRef||'—', desc:it.description||'—', year:it.year||'—', cond:it.condition||'—', val:it.estValue?'$'+parseFloat(it.estValue).toLocaleString():'—' });
+  });
+  Object.values(state.ephemeraData?.other || {}).forEach(it => {
+    rows.push({ type:'Other', tc:'#27ae60', id:it.title||it.itemNum||'—', desc:it.description||'—', year:it.year||'—', cond:it.condition||'—', val:it.estValue?'$'+parseFloat(it.estValue).toLocaleString():'—' });
+  });
+  const filtered = rows.filter(r => !q || (r.type+' '+r.id+' '+r.desc).toLowerCase().includes(q));
+  if (countEl) countEl.textContent = filtered.length.toLocaleString() + ' item' + (filtered.length!==1?'s':'');
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">${rows.length?'No items match':'No mock-ups or other items in your collection yet'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(r => `<tr>
+    <td><span style="font-size:0.72rem;font-weight:700;padding:2px 7px;border-radius:4px;background:${r.tc}22;color:${r.tc}">${r.type}</span></td>
+    <td style="font-size:0.88rem;color:var(--accent2)">${r.id}</td>
+    <td style="font-size:0.85rem;color:var(--text-mid)">${r.desc}</td>
+    <td style="font-size:0.85rem;color:var(--text-dim)">${r.year}</td>
+    <td style="font-size:0.85rem">${r.cond}</td>
+    <td style="font-size:0.85rem;color:var(--accent2)">${r.val}</td>
   </tr>`).join('');
 }
 
