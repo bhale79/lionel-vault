@@ -58,7 +58,7 @@ function buildToolsPage() {
         'Companion Suggester' +
       '</div>' +
       '<div class="tools-card-desc">Scans your entire collection for missing companions — tenders without their engine, B units without their A unit, and engines without their tender or B unit. Add any missing piece straight to your Want List.</div>' +
-      '<button onclick="runCompanionSuggester()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #3a9e68;background:rgba(58,158,104,0.1);color:#3a9e68;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan My Engines</button>' +
+      '<button onclick="runCompanionSuggester()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #3a9e68;background:rgba(58,158,104,0.1);color:#3a9e68;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan My Collection</button>' +
       '<div id="companion-suggester-results" style="margin-top:1rem"></div>' +
     '</div>';
 }
@@ -502,18 +502,49 @@ function runDuplicateChecker() {
       return (m.itemNum || '').trim().toUpperCase() === (g.itemNum || '').trim().toUpperCase();
     }) : -1;
 
-    g.copies.forEach(function(pd, i) {
-      var condStr = pd.condition ? 'Cond: ' + pd.condition + '/10' : 'No condition';
-      var invId   = pd.inventoryId || '—';
-      var isQE    = pd.quickEntry ? ' <span style="font-size:0.7rem;background:#27ae60;color:#fff;border-radius:3px;padding:1px 4px">⚡ Quick Entry</span>' : '';
-      var hasBox  = pd.hasBox === 'Yes' ? ' · 📦 Has box' : '';
-      // Reconstruct exact pdKey for this specific copy using its row number
-      var pdKey   = pd.itemNum + '|' + (pd.variation || '') + '|' + pd.row;
+    // Column header row
+    html += '<div style="display:grid;grid-template-columns:2rem 4rem 4.5rem 5rem 1fr auto;gap:0.4rem;padding:0.25rem 0.5rem;font-size:0.67rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--border);margin-top:0.25rem">' +
+      '<span>#</span>' +
+      '<span>Inv #</span>' +
+      '<span>Condition</span>' +
+      '<span>Price Paid</span>' +
+      '<span>Grouped?</span>' +
+      '<span></span>' +
+    '</div>';
 
-      html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.35rem 0.5rem;background:var(--surface);border-radius:7px;width:100%;box-sizing:border-box;cursor:pointer" onclick="window._detailReturn=&apos;tools&apos;;showItemDetailPage(' + masterIdx + ')" title="View details">' +
-        '<span style="font-size:0.75rem;color:var(--text-dim);flex-shrink:0">Copy ' + (i + 1) + '</span>' +
+    g.copies.forEach(function(pd, i) {
+      var invId    = pd.inventoryId || '—';
+      var condStr  = pd.condition ? pd.condition + '/10' : '—';
+      var condColor = pd.condition ? (pd.condition >= 8 ? '#2ecc71' : pd.condition >= 5 ? '#d4a843' : '#e74c3c') : 'var(--text-dim)';
+      var price    = pd.priceItem ? '$' + parseFloat(pd.priceItem).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+      var isQE     = pd.quickEntry ? ' <span style="font-size:0.65rem;background:#27ae60;color:#fff;border-radius:3px;padding:1px 4px;margin-left:3px">⚡QE</span>' : '';
+      var hasBox   = pd.hasBox === 'Yes' ? ' <span style="font-size:0.65rem;color:var(--text-dim)">📦</span>' : '';
+
+      // Grouped info — look up groupId in personalData to find partner
+      var groupedStr = '—';
+      if (pd.groupId) {
+        var partners = Object.values(state.personalData).filter(function(p) {
+          return p.groupId === pd.groupId && p.itemNum !== pd.itemNum;
+        });
+        if (partners.length > 0) {
+          groupedStr = partners.map(function(p){ return p.itemNum; }).join(', ');
+        } else if (pd.matchedTo) {
+          groupedStr = pd.matchedTo;
+        } else {
+          groupedStr = '<span style="color:var(--text-dim)">Yes</span>';
+        }
+      } else if (pd.matchedTo) {
+        groupedStr = pd.matchedTo;
+      }
+
+      var pdKey = pd.itemNum + '|' + (pd.variation || '') + '|' + pd.row;
+
+      html += '<div style="display:grid;grid-template-columns:2rem 4rem 4.5rem 5rem 1fr auto;gap:0.4rem;align-items:center;padding:0.35rem 0.5rem;background:var(--surface);border-radius:7px;width:100%;box-sizing:border-box;cursor:pointer;margin-top:0.2rem" onclick="window._detailReturn=&apos;tools&apos;;showItemDetailPage(' + masterIdx + ')" title="View details">' +
+        '<span style="font-size:0.75rem;color:var(--text-dim);font-weight:600">' + (i + 1) + '</span>' +
         '<span style="font-family:var(--font-mono);font-size:0.78rem;color:var(--text-mid)">' + invId + '</span>' +
-        '<span style="font-size:0.78rem;color:var(--text-dim);flex:1">' + condStr + hasBox + isQE + '</span>' +
+        '<span style="font-size:0.8rem;font-weight:700;color:' + condColor + '">' + condStr + hasBox + isQE + '</span>' +
+        '<span style="font-size:0.78rem;color:var(--text-mid)">' + price + '</span>' +
+        '<span style="font-size:0.75rem;color:var(--accent2);font-family:var(--font-mono)">' + groupedStr + '</span>' +
         '<button onclick="event.stopPropagation();listForSaleFromCollection(' + masterIdx + ',&apos;' + pdKey + '&apos;)" ' +
           'style="padding:0.2rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;white-space:nowrap;flex-shrink:0" ' +
           'title="List this copy for sale">🏷️ For Sale</button>' +
