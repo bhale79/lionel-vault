@@ -683,6 +683,7 @@ async function completeSetup() {
   // Initialize personal sheet headers
   try {
     await initPersonalSheet(personalId);
+    applySheetFormatting(personalId).catch(() => {});
     showApp();
     loadAllData();
   } catch(e) {
@@ -2053,6 +2054,7 @@ function showLoading() {
 
 // ── DASHBOARD ───────────────────────────────────────────────────
 
+
 async function forceRefreshData() {
   const btn  = document.getElementById('refresh-btn');
   const icon = document.getElementById('refresh-icon');
@@ -2076,6 +2078,8 @@ async function forceRefreshData() {
     renderBrowse();
     buildQuickEntryList && buildQuickEntryList();
     showToast('✓ Synced from Google Sheet');
+    // Update sheet dashboard in background — non-blocking
+    applySheetFormatting(state.personalSheetId).catch(() => {});
   } catch(e) {
     console.error('Sync error:', e);
     showToast('Sync failed: ' + e.message, 5000, true);
