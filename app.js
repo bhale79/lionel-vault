@@ -427,7 +427,7 @@ function _oauthRedirectUrl(prompt) {
     '&redirect_uri=' + encodeURIComponent(redir) +
     '&response_type=token' +
     '&scope=' + encodeURIComponent(SCOPES) +
-    '&prompt=' + (prompt || 'consent') +
+    '&prompt=' + (prompt || 'select_account') +
     '&include_granted_scopes=true';
 }
 
@@ -526,7 +526,8 @@ function initGoogle() {
 
 function handleSignIn() {
   // Redirect to Google sign-in (no popup needed)
-  window.location.href = _oauthRedirectUrl('consent');
+  // 'select_account' shows account picker but skips permission screens if already granted
+  window.location.href = _oauthRedirectUrl('select_account');
 }
 
 function onGoogleSignIn(response) {
@@ -557,7 +558,7 @@ function onTokenReceived(resp) {
     if (resp.error === 'interaction_required' || resp.error === 'login_required') {
       _tokenIsInitial = true;
       // Redirect to Google sign-in instead of popup
-      window.location.href = _oauthRedirectUrl('consent');
+      window.location.href = _oauthRedirectUrl('select_account');
     }
     return;
   }
