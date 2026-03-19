@@ -24,7 +24,7 @@ function getSteps(tab) {
     // ── Instruction Sheet flow ──
     if (tab === 'instrsheet') {
       return [
-        { id: 'is_linkedItem', title: 'What Lionel item # does this sheet go with?', type: 'text',
+        { id: 'is_linkedItem', title: 'What item # does this sheet go with?', type: 'text',
           placeholder: 'e.g. 726, 2046, 6464-1' },
         { id: 'is_groupChoice',
           title: (d) => {
@@ -249,7 +249,7 @@ function getSteps(tab) {
   }
 
   const base = [
-    { id: 'itemNum',    title: 'What is the Lionel item number?',       type: 'text',     placeholder: 'e.g. 726, 2046, 6464-1' },
+    { id: 'itemNum',    title: 'What is the item number?',       type: 'text',     placeholder: 'e.g. 726, 2046, 6464-1' },
     { id: 'variation',  title: 'Which variation is it?',                type: 'variation', optional: true,
         skipIf: (d) => { var num = d.itemNum || ''; var vars = state.masterData.filter(function(m) { return m.itemNum === num && m.variation; }); return vars.length === 0; } },
   ];
@@ -375,7 +375,7 @@ function getSteps(tab) {
   } else if (tab === 'forsale') {
     return [
       { id: 'tab',          title: 'What would you like to add?',         type: 'choice' },
-      { id: 'itemNum',      title: 'What is the Lionel item number?',      type: 'text',        placeholder: 'e.g. 726, 2046, 6464-1' },
+      { id: 'itemNum',      title: 'What is the item number?',      type: 'text',        placeholder: 'e.g. 726, 2046, 6464-1' },
       { id: 'pickForSaleItem', title: 'Which item are you listing?',       type: 'pickForSaleItem',
         skipIf: (d) => {
           const matches = Object.keys(state.personalData).filter(k => k.split('|')[0] === (d.itemNum||'').trim());
@@ -396,7 +396,7 @@ function getSteps(tab) {
   } else if (tab === 'sold') {
     return [
       { id: 'tab',          title: 'What would you like to add?',         type: 'choice' },
-      { id: 'itemNum',      title: 'What is the Lionel item number?',      type: 'text',        placeholder: 'e.g. 726, 2046, 6464-1' },
+      { id: 'itemNum',      title: 'What is the item number?',      type: 'text',        placeholder: 'e.g. 726, 2046, 6464-1' },
       { id: 'pickSoldItem', title: 'Which item are you selling?',          type: 'pickSoldItem',
         skipIf: (d) => {
           const matches = Object.keys(state.personalData).filter(k => k.split('|')[0] === (d.itemNum||'').trim());
@@ -1031,7 +1031,7 @@ function renderWizardStep() {
   if (s.type === 'itemCategory') {
     const _userTabs = state.userDefinedTabs || [];
     const _cats = [
-      { id: 'lionel',   label: 'Lionel Item #',  desc: 'Train, car, accessory with a Lionel catalog number', emoji: '🚂', color: 'var(--accent)' },
+      { id: 'lionel',   label: 'Item #',  desc: 'Train, car, accessory with a catalog number', emoji: '🚂', color: 'var(--accent)' },
       { id: 'set',      label: 'Complete Set',   desc: 'Outfit box with loco, cars & accessories grouped together', emoji: '🎁', color: '#e67e22' },
       { id: 'paper',    label: 'Paper Item',       desc: 'Catalog, ad, flyer, instruction sheet, article, box insert', emoji: '📄', color: '#3498db' },
       { id: 'mockups',  label: 'Mock-Up',          desc: 'Pre-production prototype',                          emoji: '🔩', color: '#9b59b6' },
@@ -1059,13 +1059,13 @@ function renderWizardStep() {
     // First step - choose tab
     body.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:0.75rem;padding-top:0.5rem">
-        ${[['collection','✓ My Collection','Add a Lionel train you own','var(--green)'],
+        ${[['collection','✓ My Collection','Add a train you own','var(--green)'],
            ['sold','$ Sold','Record a sold item','#9b59b6'],
            ['want','★ Want List','Add to your wish list','var(--accent2)'],
-           ['catalogs','📒 Catalogs','Lionel catalogs & publications','#e67e22'],
+           ['catalogs','📒 Catalogs','Catalogs & publications','#e67e22'],
            ['paper','📄 Paper Items','Ads, flyers, box inserts, articles','#3498db'],
            ['mockups','🔩 Mock-Ups','Pre-production prototypes','#9b59b6'],
-           ['other','📦 Other Lionel','Accessories, displays & more','#27ae60'],
+           ['other','📦 Other Items','Accessories, displays & more','#27ae60'],
           ].map(([val,label,desc,color]) => `
           <button onclick="wizardChooseTab('${val}')" style="
             display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;
@@ -4620,7 +4620,7 @@ function lookupItem(num) {
         <div style="margin-top:0.4rem;padding-top:0.4rem;border-top:1px solid rgba(255,255,255,0.08)">
           ${inCollection
             ? `<span style="color:var(--green)">✓ In your collection</span> · Condition: ${pd.condition || '?'} · Has box: ${pd.hasBox || 'No'}`
-            : `<span style="color:var(--accent2)">⚠ Box will be listed under Lionel Number ${trimmed}</span>`}
+            : `<span style="color:var(--accent2)">⚠ Box will be listed under Item Number ${trimmed}</span>`}
         </div>
       </div>`;
     } else {
