@@ -175,6 +175,52 @@ var state = {
 // ── GOOGLE IDENTITY / AUTH ──────────────────────────────────────
 var tokenClient;
 
+// ── BETA GATE ──────────────────────────────────────────────────
+const _BETA_CODE = 'BETA2026';
+
+function _buildBetaGate() {
+  var d = document.getElementById('beta-gate');
+  if (!d || d.dataset.built) return;
+  d.dataset.built = '1';
+  d.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem;background:var(--bg);text-align:center';
+  d.innerHTML =
+    '<div style="max-width:420px;width:100%">' +
+      '<div style="font-family:var(--font-head);font-size:2.4rem;font-weight:700;color:var(--cream);letter-spacing:0.07em;text-transform:uppercase;margin-bottom:0.5rem">The <span style="color:var(--accent)">Rail</span> Roster</div>' +
+      '<div style="font-size:0.75rem;letter-spacing:0.22em;color:var(--text-dim);text-transform:uppercase;font-family:var(--font-head);font-weight:400;margin-bottom:1.5rem">Postwar Collector\'s Inventory</div>' +
+      '<div style="background:var(--accent);color:#fff;font-family:var(--font-head);font-size:0.85rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:0.5rem 1.25rem;border-radius:6px;display:inline-block;margin-bottom:1.5rem">Beta Testing In Progress</div>' +
+      '<p style="font-size:0.9rem;color:var(--text-mid);line-height:1.6;margin-bottom:1.5rem">A web-based inventory tool built for serious Lionel train collectors. Track every item, variation, and box in your collection — from postwar classics to modern production.</p>' +
+      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;text-align:left">' +
+        '<label style="font-size:0.8rem;color:var(--text-mid);display:block;margin-bottom:0.5rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em">Enter Invite Code</label>' +
+        '<input type="text" id="beta-code-input" placeholder="Enter your beta access code" autocomplete="off" spellcheck="false" style="width:100%;padding:0.75rem 1rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.75rem" onkeydown="if(event.key===\'Enter\')_checkBetaCode()">' +
+        '<div id="beta-error" style="display:none;font-size:0.8rem;color:var(--accent);margin-bottom:0.75rem">Invalid code. Please check with your invite contact.</div>' +
+        '<button onclick="_checkBetaCode()" style="width:100%;padding:0.75rem;border:none;border-radius:8px;background:var(--accent);color:#fff;font-family:var(--font-body);font-size:0.95rem;font-weight:600;cursor:pointer;transition:background 0.15s" onmouseenter="this.style.background=\'#d84800\'" onmouseleave="this.style.background=\'var(--accent)\'">Enter Beta</button>' +
+      '</div>' +
+      '<p style="font-size:0.75rem;color:var(--text-dim);margin-top:1.25rem">Don\'t have a code? Contact <a href="mailto:bhale@ipd-llc.com" style="color:var(--accent2);text-decoration:none">bhale@ipd-llc.com</a> to request access.</p>' +
+    '</div>';
+}
+
+function _checkBetaCode() {
+  var input = document.getElementById('beta-code-input');
+  var code = (input.value || '').trim().toUpperCase();
+  if (code === _BETA_CODE) {
+    localStorage.setItem('lv_beta_verified', '1');
+    _showAppAfterBeta();
+  } else {
+    document.getElementById('beta-error').style.display = 'block';
+    input.style.borderColor = 'var(--accent)';
+    input.focus();
+  }
+}
+
+function _showAppAfterBeta() {
+  document.getElementById('beta-gate').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+}
+
+function _isBetaVerified() {
+  return localStorage.getItem('lv_beta_verified') === '1';
+}
+
 // ══════════════════════════════════════════════════════════════════
 // DYNAMIC UI BUILDERS — replaces static HTML in index.html
 // ══════════════════════════════════════════════════════════════════
@@ -205,7 +251,10 @@ function _buildAuthScreen() {
     '</div>' +
     '<div class="auth-card">' +
       '<h2>Sign in to get started</h2>' +
-      '<p>Your collection is stored in your own Google account \u2014 private, secure, and accessible on any device.</p>' +
+      '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-bottom:1rem;text-align:left">' +
+        '<div style="font-size:0.85rem;font-weight:600;color:var(--cream);margin-bottom:0.4rem">Why Google sign-in?</div>' +
+        '<p style="font-size:0.8rem;color:var(--text-mid);line-height:1.6;margin:0">This app stores your collection data in <strong style="color:var(--text)">your own Google Sheet</strong> and photos in <strong style="color:var(--text)">your own Google Drive</strong>. Nothing is stored on our servers \u2014 you own all your data and can access it anytime, even outside the app.</p>' +
+      '</div>' +
       '<button class="btn-google" onclick="handleSignIn()">' +
         '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' +
           '<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>' +
@@ -215,7 +264,7 @@ function _buildAuthScreen() {
         '</svg>' +
         'Continue with Google' +
       '</button>' +
-      '<p class="auth-note">Your personal collection data is stored in your own Google Sheet. The master inventory is shared read-only.</p>' +
+      '<p class="auth-note">You\'ll be asked to allow access to Google Sheets and Google Drive. This is how the app reads and saves your collection data. We never see your password.</p>' +
     '</div>';
 }
 
@@ -369,6 +418,7 @@ function _buildAppShell() {
 
 
 function initGoogle() {
+  _buildBetaGate();
   _buildAuthScreen();
   _buildSetupScreen();
   _buildAppShell();
@@ -385,12 +435,22 @@ function initGoogle() {
   localStorage.setItem('lv_master_id', state.masterSheetId);
 
   if (savedUser) {
+    // Returning user — skip beta gate, they already have access
+    document.getElementById('beta-gate').style.display = 'none';
     state.user = JSON.parse(savedUser);
     state.personalSheetId = savedPersonalId;
     showApp();
-    showLoading(); // show spinner — onTokenReceived will call loadAllData once token is ready
+    showLoading();
     const savedEmail = state.user?.email || '';
     tokenClient.requestAccessToken({ prompt: '', login_hint: savedEmail });
+  } else if (_isBetaVerified()) {
+    // Beta code already entered — show auth screen
+    document.getElementById('beta-gate').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+  } else {
+    // New user, no beta code — show the gate, hide auth
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('beta-gate').style.display = 'flex';
   }
 }
 
