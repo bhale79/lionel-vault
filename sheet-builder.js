@@ -328,7 +328,7 @@ async function _writeDashboardContent(sheetId) {
 
   const rows = [
     // Row 1: App title (A1), mascot formula (F1)
-    ['THE BOXCAR FILES', '', '', '', '', `=IMAGE("${CONDUCTOR_URL}",1)`],
+    ['THE RAIL ROSTER', '', '', '', '', `=IMAGE("${CONDUCTOR_URL}",1)`],
     // Row 2: User name
     [`${firstName}'s Collection`, '', '', '', '', ''],
     // Row 3: Last synced
@@ -345,7 +345,7 @@ async function _writeDashboardContent(sheetId) {
     // Row 10: spacer
     ['', '', '', '', '', ''],
     // Row 11: footer
-    ['Open The Boxcar Files app to manage your collection  ·  This sheet is read-only', '', '', '', '', ''],
+    ['Open The Rail Roster app to manage your collection  ·  This sheet is read-only', '', '', '', '', ''],
   ];
 
   await sheetsUpdate(sheetId, 'Dashboard!A1:F11', rows);
