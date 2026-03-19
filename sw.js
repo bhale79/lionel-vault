@@ -13,6 +13,7 @@ const SHELL_FILES = [
   './tutorial.css',
   './vault-styles.css',
   './app.js',
+  './sheets.js',
   './wizard.js',
   './tutorial.js',
   './vault.js',
