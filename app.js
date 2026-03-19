@@ -631,7 +631,7 @@ function showOnboarding() {
   ov.innerHTML = '<div style="background:var(--surface);border-radius:18px;max-width:380px;width:100%;padding:2rem;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5)">'
     + '<div style="margin-bottom:0.75rem;display:flex;justify-content:center"><img src="' + _RSV_PLACEHOLDER_PNG + '" style="width:90px;height:auto;opacity:0.9;border-radius:6px"></div>'
     + '<div style="font-family:var(--font-head);font-size:1.5rem;font-weight:700;margin-bottom:0.5rem;color:var(--text)">Welcome to <span style=\"color:var(--accent)\">The Boxcar Files</span></div>'
-    + '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.7;margin-bottom:1.5rem">Your personal postwar Lionel collection manager. Here\'s how it works:</div>'
+    + '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.7;margin-bottom:1.5rem">Your personal postwar train collection manager. Here\'s how it works:</div>'
     + '<div style="display:flex;flex-direction:column;gap:0.75rem;text-align:left;margin-bottom:1.5rem">'
     + '<div style="display:flex;gap:0.75rem;align-items:flex-start"><div style="background:var(--accent);color:white;border-radius:50%;width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem">1</div><div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:var(--text)">Browse the Master Catalog</strong><br>Over 2,000 postwar items pre-loaded — engines, cars, accessories and more.</div></div>'
     + '<div style="display:flex;gap:0.75rem;align-items:flex-start"><div style="background:var(--accent);color:white;border-radius:50%;width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem">2</div><div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:var(--text)">Add items you own</strong><br>Tap Add Item, enter the number, and answer a few simple questions.</div></div>'
@@ -1337,6 +1337,10 @@ async function sheetsGet(spreadsheetId, range) {
     ? {}
     : { Authorization: `Bearer ${accessToken}` };
   const res = await fetch(url, { headers });
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`Sheets read failed (${res.status}): ${errBody.slice(0, 200)}`);
+  }
   return res.json();
 }
 
@@ -2146,7 +2150,7 @@ const CARD_CATALOG = [
       const ownedNums = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
       const unique = [...ownedNums].filter(n=>catNums.has(n)).length;
       const pct = catNums.size > 0 ? (unique/catNums.size*100).toFixed(1) : 0;
-      return { value: unique.toLocaleString(), sub: pct + '% of all Lionel items cataloged' };
+      return { value: unique.toLocaleString(), sub: pct + '% of all items cataloged' };
     }
   },
   {
@@ -5008,7 +5012,7 @@ function openISDetail(rowKey) {
   box.appendChild(closeBtn);
   box.innerHTML += `
     <div style="font-family:var(--font-head);font-size:1rem;color:#16a085;margin-bottom:0.15rem">📋 Sheet # ${it.sheetNum}</div>
-    <div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:1.25rem">Instruction Sheet${it.linkedItem?' for Lionel No. '+it.linkedItem:''}</div>
+    <div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:1.25rem">Instruction Sheet${it.linkedItem?' for Item No. '+it.linkedItem:''}</div>
     <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.85rem">
       ${[
         ['Sheet #',       it.sheetNum||'—'],
