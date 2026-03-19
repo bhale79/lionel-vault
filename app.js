@@ -417,6 +417,66 @@ function _buildAppShell() {
 }
 
 
+// ── OAuth Redirect Flow (no popups) ────────────────────────────
+function _oauthRedirectUrl(prompt) {
+  var redir = window.location.origin + window.location.pathname;
+  // Strip trailing slash to match Google OAuth config exactly
+  redir = redir.replace(/\/+$/, '');
+  return 'https://accounts.google.com/o/oauth2/v2/auth' +
+    '?client_id=' + encodeURIComponent(CLIENT_ID) +
+    '&redirect_uri=' + encodeURIComponent(redir) +
+    '&response_type=token' +
+    '&scope=' + encodeURIComponent(SCOPES) +
+    '&prompt=' + (prompt || 'consent') +
+    '&include_granted_scopes=true';
+}
+
+function _checkOAuthRedirect() {
+  // Check if we're returning from a Google OAuth redirect
+  var hash = window.location.hash;
+  if (!hash || !hash.includes('access_token')) return false;
+
+  // Parse the token from the URL hash
+  var params = {};
+  hash.substring(1).split('&').forEach(function(pair) {
+    var kv = pair.split('=');
+    params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || '');
+  });
+
+  if (params.access_token) {
+    // Clean the hash from the URL so it doesn't linger
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+
+    // Store the token
+    accessToken = params.access_token;
+    var expiresIn = parseInt(params.expires_in || '3600');
+    localStorage.setItem('lv_token', accessToken);
+    localStorage.setItem('lv_token_expiry', String(Date.now() + (expiresIn - 300) * 1000));
+    return true;
+  }
+  return false;
+}
+
+function _finishRedirectSignIn() {
+  // Fetch user info since we don't have it from a popup callback
+  fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers: { Authorization: 'Bearer ' + accessToken }
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(info) {
+    state.user = { name: info.given_name || info.name || 'User', email: info.email };
+    localStorage.setItem('lv_user', JSON.stringify(state.user));
+    // Now run the normal post-token flow
+    _tokenIsInitial = true;
+    onTokenReceived({ access_token: accessToken });
+  })
+  .catch(function(e) {
+    console.error('[Auth] Failed to fetch user info after redirect:', e);
+    showToast('Sign-in failed. Please try again.', 3000, true);
+  });
+}
+
+
 function initGoogle() {
   _buildBetaGate();
   _buildAuthScreen();
@@ -433,6 +493,16 @@ function initGoogle() {
   const savedPersonalId = localStorage.getItem('lv_personal_id');
   state.masterSheetId = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
   localStorage.setItem('lv_master_id', state.masterSheetId);
+
+  // Check if returning from OAuth redirect (new sign-in)
+  if (_checkOAuthRedirect()) {
+    document.getElementById('beta-gate').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'none';
+    showApp();
+    showLoading();
+    _finishRedirectSignIn();
+    return;
+  }
 
   if (savedUser) {
     // Returning user — skip beta gate, they already have access
@@ -455,7 +525,8 @@ function initGoogle() {
 }
 
 function handleSignIn() {
-  tokenClient.requestAccessToken({ prompt: 'consent' });
+  // Redirect to Google sign-in (no popup needed)
+  window.location.href = _oauthRedirectUrl('consent');
 }
 
 function onGoogleSignIn(response) {
@@ -484,9 +555,9 @@ function onTokenReceived(resp) {
     console.error('Token error:', resp);
     // If silent token refresh failed, prompt user to sign in again
     if (resp.error === 'interaction_required' || resp.error === 'login_required') {
-      const hint = state.user?.email || '';
-      _tokenIsInitial = true; // next token will be a fresh sign-in
-      tokenClient.requestAccessToken({ prompt: 'consent', login_hint: hint });
+      _tokenIsInitial = true;
+      // Redirect to Google sign-in instead of popup
+      window.location.href = _oauthRedirectUrl('consent');
     }
     return;
   }
