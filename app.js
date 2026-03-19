@@ -9,7 +9,7 @@ let GEMINI_KEY = localStorage.getItem('lv_gemini_key') || '';
 // Sheet name is dynamic — built from user's first name at sign-in
 function _getPersonalSheetName() {
   const firstName = (state.user?.name || '').split(' ')[0] || 'My';
-  return `The Boxcar Files - ${firstName}'s Collection`;
+  return `The Rail Roster - ${firstName}'s Collection`;
 }
 const PERSONAL_HEADERS = [
   'Item Number','Variation','Condition (1-10)','All Original',
@@ -185,7 +185,7 @@ function _buildAuthScreen() {
   d.dataset.built = '1';
   d.innerHTML =
     '<div class="auth-logo" style="line-height:1.1">' +
-      '<div style="font-family:var(--font-head);font-size:2.4rem;font-weight:700;color:var(--cream);letter-spacing:0.07em;text-transform:uppercase">The <span style="color:var(--accent)">Boxcar</span> Files</div>' +
+      '<div style="font-family:var(--font-head);font-size:2.4rem;font-weight:700;color:var(--cream);letter-spacing:0.07em;text-transform:uppercase">The <span style="color:var(--accent)">Rail</span> Roster</div>' +
       '<div style="font-size:0.75rem;letter-spacing:0.22em;color:var(--text-dim);margin-top:7px;text-transform:uppercase;font-family:var(--font-head);font-weight:400">Postwar Collector\'s Inventory</div>' +
     '</div>' +
     '<div class="auth-sub">Postwar Collector\'s Inventory</div>' +
@@ -231,7 +231,7 @@ function _buildSetupScreen() {
         '<p>Enter the Master Inventory Sheet ID (get this from whoever shared the app with you).</p>' +
       '</div>' +
       '<div class="setup-step"><div class="setup-num">2</div>' +
-        '<p>Create a blank Google Sheet for your personal collection, then paste its ID below. Go to <a href="https://sheets.google.com" target="_blank" style="color:var(--accent2)">sheets.google.com</a>, create a blank sheet, name it "The Boxcar Files", and copy the ID from the URL.</p>' +
+        '<p>Create a blank Google Sheet for your personal collection, then paste its ID below. Go to <a href="https://sheets.google.com" target="_blank" style="color:var(--accent2)">sheets.google.com</a>, create a blank sheet, name it "The Rail Roster", and copy the ID from the URL.</p>' +
       '</div>' +
       '<div class="input-group"><label>Master Sheet ID</label>' +
         '<input id="master-sheet-input" type="text" placeholder="1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0">' +
@@ -253,7 +253,7 @@ function _buildAppShell() {
   header.className = 'header';
   header.innerHTML =
     '<div class="header-logo">' +
-      '<div style="font-family:var(--font-head);font-size:1.4rem;font-weight:700;color:var(--cream);letter-spacing:0.06em;text-transform:uppercase;line-height:1">The <span style="color:var(--accent)">Boxcar</span> Files</div>' +
+      '<div style="font-family:var(--font-head);font-size:1.4rem;font-weight:700;color:var(--cream);letter-spacing:0.06em;text-transform:uppercase;line-height:1">The <span style="color:var(--accent)">Rail</span> Roster</div>' +
     '</div>' +
     '<div class="header-right" style="position:relative">' +
       '<div class="user-chip" id="user-chip" onclick="toggleAccountMenu()" role="button" aria-haspopup="true">' +
@@ -630,7 +630,7 @@ function showOnboarding() {
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   ov.innerHTML = '<div style="background:var(--surface);border-radius:18px;max-width:380px;width:100%;padding:2rem;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5)">'
     + '<div style="margin-bottom:0.75rem;display:flex;justify-content:center"><img src="' + _RSV_PLACEHOLDER_PNG + '" style="width:90px;height:auto;opacity:0.9;border-radius:6px"></div>'
-    + '<div style="font-family:var(--font-head);font-size:1.5rem;font-weight:700;margin-bottom:0.5rem;color:var(--text)">Welcome to <span style=\"color:var(--accent)\">The Boxcar Files</span></div>'
+    + '<div style="font-family:var(--font-head);font-size:1.5rem;font-weight:700;margin-bottom:0.5rem;color:var(--text)">Welcome to <span style=\"color:var(--accent)\">The Rail Roster</span></div>'
     + '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.7;margin-bottom:1.5rem">Your personal postwar train collection manager. Here\'s how it works:</div>'
     + '<div style="display:flex;flex-direction:column;gap:0.75rem;text-align:left;margin-bottom:1.5rem">'
     + '<div style="display:flex;gap:0.75rem;align-items:flex-start"><div style="background:var(--accent);color:white;border-radius:50%;width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem">1</div><div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:var(--text)">Browse the Master Catalog</strong><br>Over 2,000 postwar items pre-loaded — engines, cars, accessories and more.</div></div>'
@@ -1486,7 +1486,7 @@ function buildApp() {
 
 function showLoading() {
   const tb = document.getElementById('browse-tbody');
-  if (tb) tb.innerHTML = '<tr><td colspan="9"><div class="loading" style="padding:3rem;flex-direction:column;gap:0.75rem"><div class="spinner" style="width:36px;height:36px;border-width:3px"></div><div style="font-size:0.9rem;color:var(--text-dim)">Loading The Boxcar Files…</div><div style="font-size:0.75rem;color:var(--text-dim);opacity:0.7">Fetching master inventory</div></div></td></tr>';
+  if (tb) tb.innerHTML = '<tr><td colspan="9"><div class="loading" style="padding:3rem;flex-direction:column;gap:0.75rem"><div class="spinner" style="width:36px;height:36px;border-width:3px"></div><div style="font-size:0.9rem;color:var(--text-dim)">Loading The Rail Roster…</div><div style="font-size:0.75rem;color:var(--text-dim);opacity:0.7">Fetching master inventory</div></div></td></tr>';
 }
 
 // ── DASHBOARD ───────────────────────────────────────────────────
@@ -5493,7 +5493,7 @@ function _showIOSInstallHint() {
   banner.innerHTML = `
     <div style="font-size:1.4rem;flex-shrink:0">📲</div>
     <div style="flex:1;font-family:var(--font-body);font-size:0.8rem;color:var(--text);line-height:1.4">
-      <strong style="color:var(--gold)">Install The Boxcar Files</strong><br>
+      <strong style="color:var(--gold)">Install The Rail Roster</strong><br>
       Tap <strong>Share</strong> <span style="font-size:1rem">⎙</span> then <strong>Add to Home Screen</strong> for the best experience.
     </div>
     <button onclick="localStorage.setItem('lv_ios_hint_dismissed','1');document.getElementById('ios-install-hint').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer;flex-shrink:0;padding:0;line-height:1">✕</button>
