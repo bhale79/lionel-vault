@@ -56,6 +56,13 @@ function buildPrefsPage() {
         </div>
         <button class="pref-btn" onclick="navigator.clipboard?.writeText('${sheetId}').then(()=>showToast('Copied'))">Copy</button>
       </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Rebuild Dashboard Tab</strong>
+          <span>Updates branding and mascot image on your Google Sheet's Dashboard tab</span>
+        </div>
+        <button class="pref-btn" onclick="_rebuildDashboardTab()">Rebuild</button>
+      </div>
     </div>
 
     <!-- ── 2. Collection Settings ─────────────── -->
@@ -642,5 +649,25 @@ async function _prefToggleLock() {
     btn.textContent = '⚠';
   } finally {
     btn.disabled = false;
+  }
+}
+
+// ── Rebuild Dashboard Tab ──────────────────────────────────────
+async function _rebuildDashboardTab() {
+  if (!state.personalSheetId) {
+    showToast('No personal sheet connected', 3000, true);
+    return;
+  }
+  if (typeof _writeDashboardContent !== 'function') {
+    showToast('Sheet builder not loaded — refresh and try again', 3000, true);
+    return;
+  }
+  try {
+    showToast('Rebuilding Dashboard tab...', 2000);
+    await _writeDashboardContent(state.personalSheetId);
+    showToast('Dashboard tab updated!');
+  } catch(e) {
+    console.error('Rebuild dashboard failed:', e);
+    showToast('Failed to rebuild: ' + e.message, 4000, true);
   }
 }
