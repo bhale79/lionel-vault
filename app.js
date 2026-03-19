@@ -148,7 +148,7 @@ function getMatchingLocos(tenderNum) { return TENDER_TO_LOCOS[tenderNum?.toStrin
 // ── Cached preference values (read once at startup, updated on change) ──
 let _prefLocEnabled = localStorage.getItem('lv_location_enabled') === 'true';
 
-let state = {
+var state = {
   user: null,
   masterSheetId: null,
   ephemeraData: {},   // keyed by tab name → { rowKey: record }
@@ -173,7 +173,7 @@ let state = {
 };
 
 // ── GOOGLE IDENTITY / AUTH ──────────────────────────────────────
-let tokenClient;
+var tokenClient;
 
 // ══════════════════════════════════════════════════════════════════
 // DYNAMIC UI BUILDERS — replaces static HTML in index.html
@@ -404,7 +404,7 @@ function onGoogleSignIn(response) {
   localStorage.setItem('lv_user', JSON.stringify(state.user));
 }
 
-let accessToken = null;
+var accessToken = null;
 
 // Restore token from localStorage (survives mobile page suspension)
 (function _restoreToken() {
