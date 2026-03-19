@@ -136,6 +136,7 @@ async function sheetsAppend(spreadsheetId, range, values) {
     }
     console.log('[Sheets] Wrote row to', writeRange);
   }
+  return nextRow;
 }
 
 async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber) {
