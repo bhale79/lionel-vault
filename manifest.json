@@ -1,6 +1,6 @@
 {
-  "name": "The Boxcar Files",
-  "short_name": "Boxcar Files",
+  "name": "The Rail Roster",
+  "short_name": "Rail Roster",
   "description": "Track your postwar train collection",
   "start_url": "./index.html",
   "display": "standalone",
