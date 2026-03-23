@@ -248,7 +248,7 @@ function renderBrowseTab(tab) {
   const identBtn = document.getElementById('identify-btn');
   const onItems = state._browseTab === 'items';
   if (filterBar) filterBar.style.display = onItems ? '' : 'none';
-  if (disclaimer) disclaimer.style.display = onItems ? '' : 'none';
+  if (disclaimer) disclaimer.style.display = (onItems && _prefGet('lv_show_disclaimer', 'true') === 'true') ? 'flex' : 'none';
   if (identBtn) identBtn.style.display = inCollection ? 'none' : (onItems ? '' : 'none');
 
   const titleEl = document.getElementById('browse-page-title');
