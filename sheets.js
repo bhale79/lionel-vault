@@ -8,6 +8,7 @@
 //  Exports (global functions):
 //    _encodeRange(range)
 //    sheetsGet(spreadsheetId, range)
+//    sheetsBatchGet(spreadsheetId, ranges)
 //    _withTokenRetry(fetchFn)
 //    sheetsUpdate(spreadsheetId, range, values)
 //    sheetsAppend(spreadsheetId, range, values)
@@ -34,6 +35,24 @@ async function sheetsGet(spreadsheetId, range) {
   if (!res.ok) {
     const errBody = await res.text().catch(() => '');
     throw new Error(`Sheets read failed (${res.status}): ${errBody.slice(0, 200)}`);
+  }
+  return res.json();
+}
+
+async function sheetsBatchGet(spreadsheetId, ranges) {
+  // Fetch multiple ranges in a single API call
+  // Returns { valueRanges: [ { range, values }, ... ] }
+  const isMaster = spreadsheetId === state.masterSheetId;
+  const useApiKey = isMaster && API_KEY && API_KEY !== 'YOUR_API_KEY';
+  const params = ranges.map(r => 'ranges=' + _encodeRange(r)).join('&');
+  const url = useApiKey
+    ? `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${params}&key=${API_KEY}`
+    : `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${params}`;
+  const headers = useApiKey ? {} : { Authorization: `Bearer ${accessToken}` };
+  const res = await fetch(url, { headers });
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`Sheets batchGet failed (${res.status}): ${errBody.slice(0, 200)}`);
   }
   return res.json();
 }
