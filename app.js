@@ -3317,6 +3317,85 @@ function browseRowClick(event, idx) {
   document.body.appendChild(overlay);
 }
 
+// ── Detail popup for Sets, Catalogs, and Instruction Sheets ──
+function showRefItemPopup(type, idx) {
+  var title = '', subtitle = '', details = [];
+  if (type === 'set') {
+    var s = (window._browseFilteredSets || [])[idx];
+    if (!s) return;
+    title = 'Set ' + s.setNum;
+    subtitle = s.setName || '';
+    details = [
+      ['Year', s.year || '—'],
+      ['Gauge', s.gauge || '—'],
+      ['Price', s.price || '—'],
+      ['Items', s.items.join(', ') || '—'],
+    ];
+  } else if (type === 'catalog') {
+    var c = (window._browseFilteredCats || [])[idx];
+    if (!c) return;
+    title = c.id;
+    subtitle = c.title || '';
+    details = [
+      ['Year', c.year || '—'],
+      ['Type', c.type || '—'],
+      ['Has Mailer', c.hasMailer || '—'],
+    ];
+  } else if (type === 'is') {
+    var s2 = (window._browseFilteredIS || [])[idx];
+    if (!s2) return;
+    title = s2.id;
+    subtitle = s2.description || '';
+    details = [
+      ['Item #', s2.itemNumber || '—'],
+      ['Category', s2.category || '—'],
+      ['Variations', s2.variations || '—'],
+    ];
+  } else return;
+
+  var existing = document.getElementById('browse-add-prompt');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'browse-add-prompt';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  var box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(232,64,28,0.4);border-radius:16px;max-width:480px;width:100%;padding:1.75rem;position:relative;max-height:80vh;overflow-y:auto';
+  // Header
+  var hdr = document.createElement('div');
+  hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--accent);margin-bottom:0.25rem';
+  hdr.textContent = title;
+  box.appendChild(hdr);
+  if (subtitle) {
+    var sub = document.createElement('div');
+    sub.style.cssText = 'font-size:0.88rem;color:var(--text-mid);margin-bottom:1rem';
+    sub.textContent = subtitle;
+    box.appendChild(sub);
+  }
+  // Detail rows
+  details.forEach(function(r) {
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;padding:0.35rem 0;border-bottom:1px solid var(--border)';
+    var lbl = document.createElement('div');
+    lbl.style.cssText = 'width:100px;font-size:0.78rem;color:var(--text-dim);font-weight:600;flex-shrink:0';
+    lbl.textContent = r[0];
+    var val = document.createElement('div');
+    val.style.cssText = 'font-size:0.82rem;color:var(--text);word-break:break-word';
+    val.textContent = r[1];
+    row.appendChild(lbl);
+    row.appendChild(val);
+    box.appendChild(row);
+  });
+  // Close button
+  var closeBtn = document.createElement('button');
+  closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
+  closeBtn.textContent = '✕';
+  closeBtn.onclick = function() { overlay.remove(); };
+  box.appendChild(closeBtn);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
 function addFromBrowse(idx) {
   const item = state.masterData[idx];
   if (!item) return;
