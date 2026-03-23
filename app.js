@@ -16,7 +16,8 @@ const PERSONAL_HEADERS = [
   'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
   'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes',
   'Date Purchased','User Est. Worth','Matched Tender/Engine','Set ID','Year Made',
-  'Is Error','Error Description','Quick Entry','Inventory ID','Group ID','Location'
+  'Is Error','Error Description','Quick Entry','Inventory ID','Group ID','Location',
+  'Era','Manufacturer'
 ];
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
@@ -132,6 +133,8 @@ function _buildGroupBoxRow(unitNum, boxCond, boxPhotoLink, groupId, datePurchase
     nextInventoryId(),     // Inventory ID — unique
     groupId,               // Group ID — shared with group
     '',                    // Location (col W) — blank for box rows
+    '',                    // Era (col X) — inherits from lead item context
+    '',                    // Manufacturer (col Y) — inherits from lead item context
   ];
 }
 function genSetId(baseNum) {
@@ -853,10 +856,10 @@ async function initPersonalSheet(sheetId) {
   if (rows.length === 0 || !rows[0] || rows[0].length === 0) {
     // Brand new sheet — write title row 1 and headers row 2
     await sheetsUpdate(sheetId, 'My Collection!A1:A1', [['My Collection']]);
-    await sheetsUpdate(sheetId, 'My Collection!A2:W2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:Y2', [PERSONAL_HEADERS]);
   } else if (rows.length === 1 || !rows[1] || rows[1].length < 13) {
     // Has title but missing/old headers — rewrite row 2
-    await sheetsUpdate(sheetId, 'My Collection!A2:W2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:Y2', [PERSONAL_HEADERS]);
   }
   // Get existing sheet tab names
   const metaRes = await fetch(
@@ -937,14 +940,14 @@ async function ensurePersonalHeaders(sheetId) {
       console.log('[Setup] Created missing tabs:', toCreate.map(t => t.addSheet.properties.title).join(', '));
     }
 
-    // Fetch current row 2 headers (A2:W2 — 23 cols)
-    const res = await sheetsGet(sheetId, 'My Collection!A2:W2');
+    // Fetch current row 2 headers (A2:Y2 — 25 cols)
+    const res = await sheetsGet(sheetId, 'My Collection!A2:Y2');
     const current = (res.values && res.values[0]) || [];
 
     // Check each expected header — write the full row if anything is missing or wrong
     const needsUpdate = PERSONAL_HEADERS.some((h, i) => current[i] !== h);
     if (needsUpdate) {
-      await sheetsUpdate(sheetId, 'My Collection!A2:W2', [PERSONAL_HEADERS]);
+      await sheetsUpdate(sheetId, 'My Collection!A2:Y2', [PERSONAL_HEADERS]);
       console.log('[Headers] My Collection headers repaired');
     }
 
@@ -1058,7 +1061,7 @@ async function createPersonalSheet() {
 
   // 3. Write headers and create all tabs
   await sheetsUpdate(state.personalSheetId, 'My Collection!A1:A1', [['My Collection']]);
-  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:W2', [PERSONAL_HEADERS]);
+  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:Y2', [PERSONAL_HEADERS]);
   await initPersonalSheet(state.personalSheetId);
 
   // 4. Move the sheet file into the vault folder
@@ -1413,7 +1416,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // Fetch all tabs in parallel
   const [collRes, soldRes, forSaleRes, wantRes, upgradeRes,
          catRes, paperRes, mockRes, otherRes, isRes] = await Promise.all([
-    sheetsGet(sheetId, 'My Collection!A3:W').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'My Collection!A3:Y').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Sold!A3:H').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'For Sale!A3:H').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Want List!A3:E').catch(() => ({values:[]})),
@@ -1444,6 +1447,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       quickEntry: r[19] === 'Yes',
       inventoryId: r[20]||'', groupId: r[21]||'',
       location: r[22]||'',
+      era: r[23]||'', manufacturer: r[24]||'',
     };
   });
 
@@ -2480,8 +2484,8 @@ async function removeCollectionItem(itemNum, variation, row) {
         var sibKey = findPDKey(sib.itemNum, sib.variation);
         if (sib.row) {
           try {
-            await sheetsUpdate(state.personalSheetId, 'My Collection!A' + sib.row + ':W' + sib.row,
-              [['','','','','','','','','','','','','','','','','','','','','','','']]);
+            await sheetsUpdate(state.personalSheetId, 'My Collection!A' + sib.row + ':Y' + sib.row,
+              [['','','','','','','','','','','','','','','','','','','','','','','','','']]);
           } catch(e) { console.warn('Remove group row error:', sib.itemNum, e); }
         }
         var sibFsKey = sib.itemNum + '|' + (sib.variation || '');
@@ -2510,8 +2514,8 @@ async function removeCollectionItem(itemNum, variation, row) {
   // ── Remove single item ──
   if (row) {
     try {
-      await sheetsUpdate(state.personalSheetId, 'My Collection!A' + row + ':W' + row,
-        [['','','','','','','','','','','','','','','','','','','','','','','']]);
+      await sheetsUpdate(state.personalSheetId, 'My Collection!A' + row + ':Y' + row,
+        [['','','','','','','','','','','','','','','','','','','','','','','','','']]);
     } catch(e) { console.error('Remove row error:', e); showToast('Error removing item — please try again', 3000, true); return; }
   }
   // Also remove from For Sale if listed
@@ -3058,9 +3062,11 @@ function showItemPanel(idx, pdKey, mode) {
         pd.quickEntry ? 'Yes' : '',
         pd.inventoryId || '', pd.groupId || '',
         pd.location || '',  // Location (col W)
+        pd.era || '',        // Era (col X)
+        pd.manufacturer || '', // Manufacturer (col Y)
       ];
       try {
-        await sheetsUpdate(state.personalSheetId, 'My Collection!A' + pd.row + ':W' + pd.row, [newRow]);
+        await sheetsUpdate(state.personalSheetId, 'My Collection!A' + pd.row + ':Y' + pd.row, [newRow]);
         state.personalData[pdKey] = Object.assign({}, pd, { priceComplete: calc > 0 ? calc.toFixed(2) : '' });
         overlay.remove();
         showToast('✓ Item updated!');
@@ -3570,10 +3576,12 @@ async function saveItem() {
       _ex.inventoryId || nextInventoryId(),  // auto-assign if new
       _ex.groupId || '',
       _ex.location || '',  // Location (col W)
+      _ex.era || '',        // Era (col X)
+      _ex.manufacturer || '', // Manufacturer (col Y)
     ];
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:W${existing.row}`, [ownedRow]);
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:Y${existing.row}`, [ownedRow]);
     } else {
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [ownedRow]);
     }
@@ -3626,7 +3634,7 @@ async function saveItem() {
     // Remove from My Collection
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:W${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','','','']]);  // 23 cols A-W
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:Y${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]);  // 25 cols A-Y
     }
     // Remove from For Sale if it was there
     const fsEntry3 = state.forSaleData[key];
@@ -3652,7 +3660,7 @@ async function saveItem() {
     // Remove from My Collection if present
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:W${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','','','']]);  // 23 cols A-W
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:Y${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]);  // 25 cols A-Y
     }
     // Write/update Want List tab
     const wantRow = [
@@ -4773,7 +4781,7 @@ async function markForSaleAsSold(itemNum, variation, askingPrice) {
   const collKey = Object.keys(state.personalData).find(k => k.split('|')[0] === itemNum && (state.personalData[k].variation || '') === variation);
   const collEntry = collKey ? state.personalData[collKey] : null;
   if (collEntry?.row) {
-    await sheetsUpdate(state.personalSheetId, `My Collection!A${collEntry.row}:W${collEntry.row}`, [['','','','','','','','','','','','','','','','','','','','','','','']]);
+    await sheetsUpdate(state.personalSheetId, `My Collection!A${collEntry.row}:Y${collEntry.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]);
     delete state.personalData[collKey];
   }
 
@@ -4812,7 +4820,7 @@ async function removeForSaleAndCollection(itemNum, variation, fsRow) {
   // Remove from My Collection tab
   const collEntry = state.personalData[key];
   if (collEntry && collEntry.row) {
-    await sheetsUpdate(state.personalSheetId, `My Collection!A${collEntry.row}:W${collEntry.row}`, [['','','','','','','','','','','','','','','','','','','','','','','']]);  // 23 cols A-W
+    await sheetsUpdate(state.personalSheetId, `My Collection!A${collEntry.row}:Y${collEntry.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]);  // 25 cols A-Y
   }
   delete state.personalData[key];
   _cachePersonalData();
