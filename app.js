@@ -1114,9 +1114,19 @@ async function loadAllData() {
   }
 }
 
+// ── Multi-tab master sheet tab names ──────────────────────────
+const MASTER_TABS = [
+  'Lionel Postwar - Items',
+  'Lionel Postwar - Science',
+  'Lionel Postwar - Construction',
+  'Lionel Postwar - Paper',
+  'Lionel Postwar - Other',
+  'Lionel Postwar - Service Tools',
+];
+
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '16';
+  const _CACHE_VER = '17';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -1134,13 +1144,10 @@ async function loadMasterData() {
   if (cached && cacheAge < CACHE_TTL) {
     try {
       state.masterData = JSON.parse(cached);
-      // Refresh in background without blocking
-      sheetsGet(state.masterSheetId, 'Master Inventory!A2:O').then(res => {
-        if (!res.values) return sheetsGet(state.masterSheetId, 'Sheet1!A2:O');
-        return res;
-      }).then(res => {
-        if (res && res.values) {
-          parseMasterRows(res.values);
+      // Background refresh from multi-tab
+      _fetchMasterTabs().then(allRows => {
+        if (allRows.length) {
+          state.masterData = _deduplicateMaster(allRows);
           localStorage.setItem('lv_master_cache', JSON.stringify(state.masterData));
           localStorage.setItem('lv_master_cache_ts', Date.now().toString());
           if (typeof renderBrowse === 'function') renderBrowse();
@@ -1150,23 +1157,46 @@ async function loadMasterData() {
     } catch(e) {}
   }
 
-  let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:O');
-  if (!res.values) {
-    res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:O');
-  }
-  const rows = res.values || [];
-  parseMasterRows(rows);
+  const allRows = await _fetchMasterTabs();
+  state.masterData = _deduplicateMaster(allRows);
   localStorage.setItem('lv_master_cache', JSON.stringify(state.masterData));
   localStorage.setItem('lv_master_cache_ts', Date.now().toString());
 }
 
-function parseMasterRows(rows) {
-  const mapped = rows.map(r => ({
+async function _fetchMasterTabs() {
+  // Try multi-tab batchGet first, fall back to old single-tab
+  try {
+    const ranges = MASTER_TABS.map(t => `${t}!A2:P`);
+    const res = await sheetsBatchGet(state.masterSheetId, ranges);
+    const allRows = [];
+    (res.valueRanges || []).forEach((vr, i) => {
+      const tabName = MASTER_TABS[i];
+      (vr.values || []).forEach(r => {
+        allRows.push(parseMasterRow(r, tabName));
+      });
+    });
+    if (allRows.length > 0) return allRows;
+  } catch(e) {
+    console.warn('[Master] batchGet failed, trying legacy single tab:', e.message);
+  }
+  // Fallback: old single-tab approach
+  try {
+    let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:O');
+    if (!res.values) res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:O');
+    return (res.values || []).map(r => parseMasterRow(r, 'Lionel Postwar - Items'));
+  } catch(e2) {
+    console.warn('[Master] Legacy fallback also failed:', e2.message);
+    return [];
+  }
+}
+
+function parseMasterRow(r, tabName) {
+  return {
     itemNum:      r[0]  || '',
     itemType:     r[1]  || '',
     subType:      r[2]  || '',
-    unit:         r[3]  || '',   // A or B (new col D)
-    poweredDummy: r[4]  || '',   // P or D (new col E)
+    unit:         r[3]  || '',
+    poweredDummy: r[4]  || '',
     roadName:     r[5]  || '',
     description:  r[6]  || '',
     yearProd:     r[7]  || '',
@@ -1177,15 +1207,27 @@ function parseMasterRows(rows) {
     marketVal:    r[12] || '',
     source:       r[13] || '',
     cottCode:     r[14] || '',
-  }));
-  // Deduplicate by itemNum+roadName+variation — keep each road name variant
+    originalDesc: r[15] || '',
+    _tab:         tabName,
+  };
+}
+
+function _deduplicateMaster(rows) {
   const seen = new Set();
-  state.masterData = mapped.filter(m => {
-    const key = m.itemNum + '|' + (m.roadName || '') + '|' + m.variation;
+  return rows.filter(m => {
+    if (!m.itemNum) return false;
+    const key = m.itemNum + '|' + (m.roadName || '') + '|' + m.variation + '|' + (m.poweredDummy || '');
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+}
+
+// Keep parseMasterRows for any external callers (backwards compat)
+function parseMasterRows(rows) {
+  state.masterData = _deduplicateMaster(
+    rows.map(r => parseMasterRow(r, 'Lionel Postwar - Items'))
+  );
 }
 
 async function loadCatalogRefData() {
@@ -1200,7 +1242,9 @@ async function loadCatalogRefData() {
     try { state.catalogRefData = JSON.parse(cached); return; } catch(e) {}
   }
   try {
-    const res = await sheetsGet(state.masterSheetId, 'catalogs!A2:D');
+    let res;
+    try { res = await sheetsGet(state.masterSheetId, 'Lionel Postwar - Catalogs!A2:D'); }
+    catch(_) { res = await sheetsGet(state.masterSheetId, 'catalogs!A2:D'); }
     const rows = (res && res.values) || [];
     state.catalogRefData = rows
       .filter(r => r[0] && r[3] && r[0] !== 'Catalog ID') // skip header/empty
@@ -1230,7 +1274,9 @@ async function loadISRefData() {
     try { state.isRefData = JSON.parse(cached); return; } catch(e) {}
   }
   try {
-    const res = await sheetsGet(state.masterSheetId, 'Instruction Sheets!A2:F');
+    let res;
+    try { res = await sheetsGet(state.masterSheetId, 'Lionel Postwar - Instruction Sheets!A2:F'); }
+    catch(_) { res = await sheetsGet(state.masterSheetId, 'Instruction Sheets!A2:F'); }
     const rows = (res && res.values) || [];
     state.isRefData = rows
       .filter(r => r[0] && r[2] && r[0] !== 'Instruction Sheet ID')
@@ -1257,7 +1303,7 @@ async function loadSetData() {
     if (cached && (Date.now() - cachedAt) < 24*60*60*1000) {
       state.setData = JSON.parse(cached);
       // Background refresh
-      sheetsGet(state.masterSheetId, 'Master Set list!A2:U').then(res => {
+      sheetsGet(state.masterSheetId, 'Lionel Postwar - Sets!A2:U').catch(() => sheetsGet(state.masterSheetId, 'Master Set list!A2:U')).then(res => {
         if (res && res.values) {
           parseSetRows(res.values);
           localStorage.setItem('lv_set_cache', JSON.stringify(state.setData));
@@ -1266,7 +1312,9 @@ async function loadSetData() {
       }).catch(() => {});
       return;
     }
-    const res = await sheetsGet(state.masterSheetId, 'Master Set list!A2:U');
+    let res;
+    try { res = await sheetsGet(state.masterSheetId, 'Lionel Postwar - Sets!A2:U'); }
+    catch(_) { res = await sheetsGet(state.masterSheetId, 'Master Set list!A2:U'); }
     parseSetRows((res && res.values) || []);
     localStorage.setItem('lv_set_cache', JSON.stringify(state.setData));
     localStorage.setItem('lv_set_cache_ts', Date.now().toString());
@@ -1279,7 +1327,7 @@ async function loadCompanionData() {
     const cachedAt = parseInt(localStorage.getItem('lv_companion_cache_ts') || '0');
     if (cached && (Date.now() - cachedAt) < 24*60*60*1000) {
       state.companionData = JSON.parse(cached);
-      sheetsGet(state.masterSheetId, 'Companions!A2:E').then(res => {
+      sheetsGet(state.masterSheetId, 'Lionel Postwar - Companions!A2:E').catch(() => sheetsGet(state.masterSheetId, 'Companions!A2:E')).then(res => {
         if (res && res.values) {
           parseCompanionRows(res.values);
           localStorage.setItem('lv_companion_cache', JSON.stringify(state.companionData));
@@ -1288,7 +1336,9 @@ async function loadCompanionData() {
       }).catch(() => {});
       return;
     }
-    const res = await sheetsGet(state.masterSheetId, 'Companions!A2:E');
+    let res;
+    try { res = await sheetsGet(state.masterSheetId, 'Lionel Postwar - Companions!A2:E'); }
+    catch(_) { res = await sheetsGet(state.masterSheetId, 'Companions!A2:E'); }
     parseCompanionRows((res && res.values) || []);
     localStorage.setItem('lv_companion_cache', JSON.stringify(state.companionData));
     localStorage.setItem('lv_companion_cache_ts', Date.now().toString());
