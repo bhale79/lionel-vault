@@ -119,7 +119,7 @@ function resetFilters() {
   if (idBtn) idBtn.style.display = '';
   // Restore table headers to default
   const thead = document.querySelector('#page-browse .item-table thead tr');
-  if (thead) thead.innerHTML = '<th>Item #</th><th>Type</th><th>Road / Name</th><th>Var.</th><th>Var. Descr.</th><th>Year</th><th>Owned</th>';
+  if (thead) thead.innerHTML = '<th>Item #</th><th>Type</th><th>Road / Name</th><th>Descr.</th><th>Var.</th><th>Var. Descr.</th><th>Year</th><th>Owned</th>';
   var _tbl = document.querySelector('#page-browse .item-table');
   if (_tbl) _tbl.classList.remove('collection-view');
   var _leg = document.getElementById('collection-icon-legend');
@@ -556,7 +556,7 @@ function renderBrowse() {
   let _ephRowsHtml = '';
   if (_ephemeraRows.length) {
     _ephRowsHtml = _ephemeraRows.map(r => {
-      if (r._divider) return `<tr><td colspan="${state.filters.owned ? '6' : '7'}" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
+      if (r._divider) return `<tr><td colspan="${state.filters.owned ? '7' : '8'}" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
       const it = r.item;
       const cond = it.condition ? parseInt(it.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
@@ -775,6 +775,7 @@ function renderBrowse() {
         </td>
         <td><span class="tag">${item.itemType || '—'}</span></td>
         <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
+        <td>${item.description || '<span class="text-dim">—</span>'}</td>
         <td>${item.variation || '<span class="text-dim">—</span>'}</td>
         <td>${vdCell}</td>
         <td class="text-dim">${item.yearProd || '—'}</td>
@@ -785,7 +786,7 @@ function renderBrowse() {
 
   const emptyHtml = isMobile
     ? '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔍</div><p>No items match your filters</p></div>'
-    : '<tr><td colspan="' + (state.filters.owned ? '6' : '7') + '"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div></td></tr>';
+    : '<tr><td colspan="' + (state.filters.owned ? '7' : '8') + '"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div></td></tr>';
 
   if (isMobile) {
     let _ephCardsHtml = '';
