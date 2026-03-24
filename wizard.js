@@ -91,6 +91,13 @@ function getSteps(tab) {
           },
           type: 'setEntryMode' },
 
+        // QE Photo page — only shown when user clicks photo button on entry mode
+        { id: 'set_photos',
+          title: 'Add photos of the set',
+          type: 'drivePhotos', label: 'Item',
+          optional: true,
+          skipIf: d => !d._setWantPhotos },
+
         // Walk through each item individually (Full Entry only)
         { id: 'set_walkItems',
           title: d => {
@@ -1394,29 +1401,14 @@ function renderWizardStep() {
       + '<span style="font-size:0.82rem;color:' + (_seBoxChecked ? 'var(--accent2)' : 'var(--text-mid)') + '">📦</span></label>';
     threeRow.appendChild(worthCol);
     threeRow.appendChild(boxCol);
+    // QE Photo button
+    const photoCol = document.createElement('div');
+    photoCol.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:3px';
+    photoCol.innerHTML = '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)">&nbsp;</div>'
+      + '<button type="button" id="se-photo-btn" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.5rem;color:var(--text-mid);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.3rem">'
+      + '<span>📷</span> QE Photo</button>';
+    threeRow.appendChild(photoCol);
     wrap.appendChild(threeRow);
-
-    // ── Photo views grid (Top, Left, Front, Right, Back, Bottom) ──
-    const photoSection = document.createElement('div');
-    photoSection.style.cssText = 'margin-top:0.2rem';
-    photoSection.innerHTML = '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:4px">Photos (optional)</div>';
-    const photoGrid = document.createElement('div');
-    photoGrid.id = 'se-photo-grid';
-    photoGrid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:0.35rem';
-    const _seViews = [
-      { key: 'TV', label: 'Top' }, { key: 'LSV', label: 'Left Side' }, { key: 'FV', label: 'Front' },
-      { key: 'RSV', label: 'Right Side' }, { key: 'BKV', label: 'Back' }, { key: 'BV', label: 'Bottom' },
-    ];
-    _seViews.forEach(v => {
-      const slot = document.createElement('div');
-      slot.id = 'se-photo-slot-' + v.key;
-      slot.style.cssText = 'background:var(--bg);border:1.5px dashed var(--border);border-radius:8px;padding:0.4rem;text-align:center;cursor:pointer;transition:all 0.15s;min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px';
-      slot.innerHTML = '<span style="font-size:1rem;opacity:0.5">📷</span><span style="font-size:0.65rem;color:var(--text-dim)">' + v.label + '</span>';
-      slot.dataset.viewKey = v.key;
-      photoGrid.appendChild(slot);
-    });
-    photoSection.appendChild(photoGrid);
-    wrap.appendChild(photoSection);
 
     // ── Quick Entry Save button + note ──
     const qeSaveBtn = document.createElement('button');
@@ -1463,33 +1455,27 @@ function renderWizardStep() {
         if (lbl) lbl.style.borderColor = boxCB.checked ? 'var(--accent2)' : 'var(--border)';
       };
 
-      // QE photos — wire up each view slot
-      if (!wizard.data._setQEPhotos) wizard.data._setQEPhotos = {};
-      const photoSlots = document.querySelectorAll('#se-photo-grid [data-view-key]');
-      photoSlots.forEach(slot => {
-        const vk = slot.dataset.viewKey;
-        // Restore state if already picked
-        if (wizard.data._setQEPhotos[vk]) {
-          const lbl = slot.querySelector('span:last-child');
-          const lblText = lbl ? lbl.textContent : vk;
-          slot.innerHTML = '<span style="font-size:1rem">\u2705</span><span style="font-size:0.65rem;color:var(--green)">' + lblText + '</span>';
-          slot.style.borderColor = 'var(--green)';
+      // QE Photo button — opens the full photo page
+      const photoBtn = document.getElementById('se-photo-btn');
+      if (photoBtn) photoBtn.onclick = () => {
+        const condSlider = document.getElementById('se-cond-slider');
+        const worthInp = document.getElementById('se-worth');
+        wizard.data._setCondition = condSlider ? parseInt(condSlider.value) : 7;
+        wizard.data._setWorth = worthInp ? worthInp.value : '';
+        // Lock in set box choice
+        const pBoxCB = document.getElementById('se-setbox');
+        wizard.data._setHasBoxChecked = pBoxCB ? pBoxCB.checked : false;
+        wizard.data.set_hasBox = (pBoxCB && pBoxCB.checked) ? 'Yes' : 'No';
+        // Flag to show the photos step
+        wizard.data._setWantPhotos = true;
+        wizard.data._setPhotoThenSave = true;
+        // Advance to set_photos step
+        wizard.step++;
+        while (wizard.step < wizard.steps.length - 1 && wizard.steps[wizard.step].skipIf && wizard.steps[wizard.step].skipIf(wizard.data)) {
+          wizard.step++;
         }
-        slot.onclick = () => {
-          const fi = document.createElement('input');
-          fi.type = 'file'; fi.accept = 'image/*'; fi.style.display = 'none';
-          document.body.appendChild(fi);
-          fi.onchange = () => {
-            if (fi.files && fi.files[0]) {
-              wizard.data._setQEPhotos[vk] = fi.files[0];
-              slot.innerHTML = '<span style="font-size:1rem">\u2705</span><span style="font-size:0.65rem;color:var(--green)">' + vk + '</span>';
-              slot.style.borderColor = 'var(--green)';
-            }
-            fi.remove();
-          };
-          fi.click();
-        };
-      });
+        renderWizardStep();
+      };
 
       // Quick Entry save
       const saveBtn = document.getElementById('se-qe-save');
@@ -1514,7 +1500,7 @@ function renderWizardStep() {
         saveBtn.disabled = true;
         saveBtn.textContent = 'Saving\u2026';
         try {
-          await _quickEntrySaveSet(cond, worth, wizard.data._setQEPhotos || {});
+          await _quickEntrySaveSet(cond, worth, {});
         } catch(e) {
           saveBtn.disabled = false;
           saveBtn.textContent = '\u26a1 Save quick entry';
@@ -5356,6 +5342,26 @@ async function _wizardNextCore() {
     // This path is reached if entryMode=full was set and Next was clicked
     wizard.data._setEntryMode = wizard.data._setEntryMode || 'full';
     wizardAdvance();
+    return;
+  }
+
+  // set_photos — after photos step, if came from QE Photo button, save and close
+  if (s.id === 'set_photos' && wizard.data._setPhotoThenSave) {
+    if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving\u2026'; }
+    try {
+      // Convert drivePhotos data to file objects for upload
+      const photoData = wizard.data.set_photos || {};
+      const photoFiles = {};
+      Object.keys(photoData).forEach(k => {
+        if (photoData[k] && photoData[k].file) photoFiles[k] = photoData[k].file;
+      });
+      const cond = wizard.data._setCondition || 7;
+      const worth = wizard.data._setWorth || '';
+      await _quickEntrySaveSet(cond, worth, photoFiles);
+    } catch(e) {
+      if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Next \u2192'; }
+      showToast('\u274c Save failed: ' + e.message, 5000);
+    }
     return;
   }
 
