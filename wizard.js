@@ -89,12 +89,25 @@ function getSteps(tab) {
             const label = s ? 'Set ' + s.setNum : 'your set';
             return 'How would you like to add ' + label + '?';
           },
-          type: 'entryMode' },
+          type: 'setEntryMode' },
 
-        // Set box — asked after all items are saved (wizard returns here)
+        // Walk through each item individually (Full Entry only)
+        { id: 'set_walkItems',
+          title: d => {
+            const s = d._resolvedSet;
+            const items = d._setFinalItems || [];
+            const idx = d._setItemIndex || 0;
+            return 'Adding items from ' + (s ? 'Set ' + s.setNum : 'your set') + ' (' + (idx + 1) + ' of ' + items.length + ')';
+          },
+          type: 'setWalkItems',
+          skipIf: d => d._setEntryMode === 'quick' },
+
+        // Set box — asked after all items are walked through
+        // Skip if user already checked "Set Box" on the entry mode step
         { id: 'set_hasBox',
           title: 'Does it have the original set box?',
-          type: 'choice2', choices: ['Yes','No'] },
+          type: 'choice2', choices: ['Yes','No'],
+          skipIf: d => !!d._setHasBoxChecked },
         { id: 'set_boxCond',
           title: 'Set box condition (1–10)',
           type: 'slider', min:1, max:10,
@@ -117,7 +130,8 @@ function getSteps(tab) {
         { id: 'set_confirm',
           title: d => {
             const count = (d._setItemsSaved || []).length;
-            return `Set saved — ${count} item${count!==1?'s':''} in collection. Save set box info?`;
+            const setNum = d._resolvedSet ? d._resolvedSet.setNum : (d.set_num || 'Set');
+            return count > 0 ? `${setNum} — ${count} item${count!==1?'s':''} ready` : 'Review your set';
           },
           type: 'confirm' },
       ];
@@ -1329,7 +1343,160 @@ function renderWizardStep() {
       if (_showCollPicker) _filterCollPicker('');
     }, 50);
 
-  } else if (s.type === 'entryMode') {
+
+  } else if (s.type === 'setEntryMode') {
+    // ── SET ENTRY MODE — condition slider + est worth + set box + QE/Full buttons ──
+    const _seD = wizard.data;
+    const _seSet = _seD._resolvedSet;
+    const _seItems = _seD._setFinalItems || (_seSet ? _seSet.items : []);
+    const _seCondVal = _seD._setCondition || 7;
+
+    body.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;gap:0.65rem;padding-top:0.25rem';
+
+    // ── Set info banner ──
+    const banner = document.createElement('div');
+    banner.style.cssText = 'background:var(--surface2);border:1px solid var(--accent2);border-radius:8px;padding:0.5rem 0.8rem';
+    const setLabel = _seSet ? _seSet.setNum + (_seSet.setName ? ' — ' + _seSet.setName : '') : 'Set';
+    banner.innerHTML = '<div style="font-family:var(--font-mono);font-weight:700;color:var(--accent2);font-size:0.92rem">' + setLabel + '</div>'
+      + '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:2px">' + _seItems.length + ' items · ' + (_seSet && _seSet.year ? _seSet.year : '') + ' · ' + (_seSet && _seSet.gauge ? _seSet.gauge : '') + '</div>';
+    wrap.appendChild(banner);
+
+    // ── Condition slider ──
+    const condWrap = document.createElement('div');
+    condWrap.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">'
+      + '<span style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)">Overall Condition</span>'
+      + '<span id="se-cond-val" style="font-family:var(--font-mono);font-size:1.1rem;color:var(--accent);font-weight:700">' + _seCondVal + '</span></div>'
+      + '<input type="range" id="se-cond-slider" min="1" max="10" value="' + _seCondVal + '" style="width:100%;accent-color:var(--accent)">'
+      + '<div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--text-dim)"><span>Poor</span><span>Excellent</span></div>';
+    wrap.appendChild(condWrap);
+
+    // ── Three-column row: Est Worth | Set Box checkbox | QE Photo ──
+    const threeRow = document.createElement('div');
+    threeRow.style.cssText = 'display:flex;gap:0.4rem;align-items:stretch';
+    // Est Worth
+    const worthCol = document.createElement('div');
+    worthCol.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:3px';
+    worthCol.innerHTML = '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)">Est. Worth</div>'
+      + '<div style="display:flex;align-items:center;gap:0.4rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.6rem;flex:1">'
+      + '<span style="color:var(--text-dim);font-size:0.85rem">$</span>'
+      + '<input type="number" id="se-worth" placeholder="0.00" min="0" step="0.01" value="' + (_seD._setWorth || '') + '"'
+      + ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.9rem;min-width:0">'
+      + '</div>';
+    // Set Box checkbox
+    const boxCol = document.createElement('div');
+    boxCol.style.cssText = 'flex:0.8;display:flex;flex-direction:column;gap:3px';
+    const _seBoxChecked = _seD._setHasBoxChecked || false;
+    boxCol.innerHTML = '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)">Set Box</div>'
+      + '<label style="display:flex;align-items:center;justify-content:center;gap:0.4rem;background:var(--bg);border:1px solid ' + (_seBoxChecked ? 'var(--accent2)' : 'var(--border)') + ';border-radius:8px;padding:0.45rem 0.5rem;flex:1;cursor:pointer">'
+      + '<input type="checkbox" id="se-setbox" ' + (_seBoxChecked ? 'checked' : '') + ' style="accent-color:var(--accent2);width:18px;height:18px;cursor:pointer">'
+      + '<span style="font-size:0.82rem;color:' + (_seBoxChecked ? 'var(--accent2)' : 'var(--text-mid)') + '">📦</span></label>';
+    // QE Photo button
+    const photoCol = document.createElement('div');
+    photoCol.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:3px';
+    photoCol.innerHTML = '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)">&nbsp;</div>'
+      + '<button type="button" id="se-photo-btn" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.5rem;color:var(--text-mid);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.3rem">'
+      + '<span>📷</span> QE Photo</button>';
+    threeRow.appendChild(worthCol);
+    threeRow.appendChild(boxCol);
+    threeRow.appendChild(photoCol);
+    wrap.appendChild(threeRow);
+
+    // ── Quick Entry Save button + note ──
+    const qeSaveBtn = document.createElement('button');
+    qeSaveBtn.type = 'button';
+    qeSaveBtn.id = 'se-qe-save';
+    qeSaveBtn.style.cssText = 'width:100%;padding:0.7rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.86rem;font-weight:600;cursor:pointer;margin-top:0.15rem';
+    qeSaveBtn.textContent = '\u26a1 Save quick entry';
+    wrap.appendChild(qeSaveBtn);
+
+    const qeNote = document.createElement('div');
+    qeNote.style.cssText = 'font-size:0.72rem;color:var(--text-dim);line-height:1.5;text-align:center;padding:0 0.5rem';
+    qeNote.textContent = 'All items get the same condition. Price stored under the engine row. All items share a Group ID.';
+    wrap.appendChild(qeNote);
+
+    // ── Divider + Full Entry button ──
+    const divider = document.createElement('div');
+    divider.style.cssText = 'text-align:center;font-size:0.78rem;color:var(--text-dim);padding:0.2rem 0';
+    divider.textContent = 'or continue on with the:';
+    wrap.appendChild(divider);
+
+    const fullBtn = document.createElement('button');
+    fullBtn.type = 'button';
+    fullBtn.style.cssText = 'width:100%;padding:0.7rem;border-radius:10px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.86rem;font-weight:700;cursor:pointer';
+    fullBtn.textContent = 'Full entry \u2192';
+    wrap.appendChild(fullBtn);
+
+    body.appendChild(wrap);
+
+    // Hide the wizard Next button — our buttons handle navigation
+    if (nextBtn) nextBtn.style.display = 'none';
+
+    // ── Wire up slider ──
+    setTimeout(() => {
+      const slider = document.getElementById('se-cond-slider');
+      const valEl = document.getElementById('se-cond-val');
+      if (slider) slider.oninput = () => { valEl.textContent = slider.value; wizard.data._setCondition = parseInt(slider.value); };
+
+      const boxCB = document.getElementById('se-setbox');
+      if (boxCB) boxCB.onchange = () => {
+        wizard.data._setHasBoxChecked = boxCB.checked;
+        wizard.data.set_hasBox = boxCB.checked ? 'Yes' : 'No';
+        // Re-style the label
+        const lbl = boxCB.closest('label');
+        if (lbl) lbl.style.borderColor = boxCB.checked ? 'var(--accent2)' : 'var(--border)';
+      };
+
+      // QE photo — hidden file input
+      let _sePhotoFile = null;
+      const photoBtn = document.getElementById('se-photo-btn');
+      const fileInp = document.createElement('input');
+      fileInp.type = 'file'; fileInp.accept = 'image/*'; fileInp.capture = 'environment'; fileInp.style.display = 'none';
+      document.body.appendChild(fileInp);
+      fileInp.onchange = () => {
+        if (fileInp.files && fileInp.files[0]) {
+          _sePhotoFile = fileInp.files[0];
+          wizard.data._setQEPhoto = _sePhotoFile;
+          if (photoBtn) { photoBtn.innerHTML = '<span>\u2705</span> Photo ready'; photoBtn.style.borderColor = 'var(--green)'; photoBtn.style.color = 'var(--green)'; }
+        }
+      };
+      if (photoBtn) photoBtn.onclick = () => fileInp.click();
+
+      // Quick Entry save
+      const saveBtn = document.getElementById('se-qe-save');
+      if (saveBtn) saveBtn.onclick = async () => {
+        const worthInp = document.getElementById('se-worth');
+        const condSlider = document.getElementById('se-cond-slider');
+        const cond = condSlider ? parseInt(condSlider.value) : 7;
+        const worth = worthInp ? worthInp.value : '';
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving\u2026';
+        try {
+          await _quickEntrySaveSet(cond, worth, wizard.data._setQEPhoto || null);
+        } catch(e) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = '\u26a1 Save quick entry';
+          showToast('\u274c Save failed: ' + e.message, 5000);
+        }
+      };
+
+      // Full Entry
+      if (fullBtn) fullBtn.onclick = () => {
+        const condSlider = document.getElementById('se-cond-slider');
+        const worthInp = document.getElementById('se-worth');
+        wizard.data._setCondition = condSlider ? parseInt(condSlider.value) : 7;
+        wizard.data._setWorth = worthInp ? worthInp.value : '';
+        wizard.data._setEntryMode = 'full';
+        wizard.data.entryMode = 'full';
+        // Advance to next step (set_hasBox or set_boxCond etc)
+        wizardNext();
+      };
+    }, 50);
+
+
+    } else if (s.type === 'entryMode') {
     // ── QE Step 1: Combined item number + condition + save screen ──
     var _qe1D = wizard.data;
     var _qe1ItemNum = (_qe1D.itemNum || '').trim();
@@ -3779,6 +3946,122 @@ function renderWizardStep() {
     body.innerHTML = _pvHtml;
     setTimeout(function() { var i = document.getElementById('pv-price'); if(i) i.focus(); }, 50);
 
+  } else if (s.type === 'confirm' && wizard.tab === 'set') {
+    // ── SET CONFIRM / SUMMARY SCREEN ──
+    const _scD = wizard.data;
+    const _scSet = _scD._resolvedSet;
+    const _scSaved = _scD._setItemsSaved || [];
+    const _scGroupId = _scD._setGroupId || '';
+    const _scSetNum = _scSet ? _scSet.setNum : (_scD.set_num || '');
+    const _scItems = _scD._setFinalItems || [];
+    const _scMode = _scD._setEntryMode || 'full';
+    const _scHasBox = _scD.set_hasBox === 'Yes';
+    const _scBoxCond = _scD.set_boxCond || '';
+    const _scNotes = _scD.set_notes || '';
+
+    body.innerHTML = '';
+    const scWrap = document.createElement('div');
+    scWrap.style.cssText = 'display:flex;flex-direction:column;gap:0.6rem';
+
+    // Header
+    const scHdr = document.createElement('div');
+    scHdr.style.cssText = 'background:rgba(39,174,96,0.1);border:1.5px solid #27ae60;border-radius:10px;padding:0.65rem 0.9rem';
+    scHdr.innerHTML = '<div style="font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#27ae60">Set Complete \u2713</div>'
+      + '<div style="font-family:var(--font-mono);font-size:1rem;font-weight:700;color:var(--accent2)">' + _scSetNum + '</div>'
+      + '<div style="font-size:0.75rem;color:var(--text-dim)">' + _scSaved.length + ' item' + (_scSaved.length !== 1 ? 's' : '') + ' saved · Group: ' + _scGroupId + '</div>';
+    scWrap.appendChild(scHdr);
+
+    // Items list
+    const scListHdr = document.createElement('div');
+    scListHdr.style.cssText = 'font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-top:0.2rem';
+    scListHdr.textContent = 'Saved Items';
+    scWrap.appendChild(scListHdr);
+
+    const scList = document.createElement('div');
+    scList.style.cssText = 'display:flex;flex-direction:column;gap:0.3rem';
+
+    _scItems.forEach(function(itemNum, idx) {
+      const isSaved = _scSaved.includes(itemNum);
+      const master = state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum); });
+      const mType = master ? (master.itemType || '') : '';
+      const mDesc = master ? (master.description || master.roadName || '') : '';
+      const isEngine = (idx === 0);
+
+      // Find the saved personal data for this item
+      let pdCond = '';
+      let pdWorth = '';
+      let pdHasBox = 'No';
+      Object.keys(state.personalData).forEach(function(k) {
+        const pd = state.personalData[k];
+        if (pd && pd.groupId === _scGroupId && normalizeItemNum(pd.itemNum) === normalizeItemNum(itemNum)) {
+          pdCond = pd.condition || '';
+          pdWorth = pd.userEstWorth || pd.priceItem || '';
+          pdHasBox = pd.hasBox || 'No';
+        }
+      });
+
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:0.5rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.7rem';
+      row.innerHTML = '<div style="flex:1">'
+        + '<div style="display:flex;align-items:baseline;gap:0.4rem;flex-wrap:wrap">'
+        + '<span style="font-family:var(--font-mono);font-size:0.85rem;font-weight:700;color:' + (isSaved ? 'var(--accent)' : 'var(--text-dim)') + '">' + itemNum + '</span>'
+        + (mType ? '<span style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em">' + mType + '</span>' : '')
+        + (isEngine ? '<span style="font-size:0.65rem;padding:1px 5px;border-radius:4px;background:rgba(212,168,67,0.2);color:var(--accent2)">Engine</span>' : '')
+        + '</div>'
+        + '<div style="display:flex;gap:0.6rem;font-size:0.72rem;color:var(--text-dim);margin-top:2px">'
+        + (pdCond ? '<span>Cond: <strong style="color:var(--text-mid)">' + pdCond + '</strong></span>' : '')
+        + (pdWorth ? '<span>Worth: <strong style="color:var(--gold)">$' + pdWorth + '</strong></span>' : '')
+        + (pdHasBox === 'Yes' ? '<span>\ud83d\udce6 Box</span>' : '')
+        + (isSaved ? '<span style="color:#27ae60">\u2713 Saved</span>' : '<span style="color:var(--accent)">\u2717 Not saved</span>')
+        + '</div></div>'
+        + '<button type="button" onclick="window._scEditItem(\'' + itemNum + '\')" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:0.25rem" title="Edit">\u270f\ufe0f</button>';
+      scList.appendChild(row);
+    });
+    scWrap.appendChild(scList);
+
+    // Set box info
+    if (_scHasBox) {
+      const boxInfo = document.createElement('div');
+      boxInfo.style.cssText = 'display:flex;align-items:center;gap:0.5rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.7rem';
+      boxInfo.innerHTML = '<span style="font-size:1.1rem">\ud83d\udce6</span>'
+        + '<div><div style="font-size:0.8rem;color:var(--text)">Set Box</div>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim)">Condition: ' + (_scBoxCond || '\u2014') + '</div></div>';
+      scWrap.appendChild(boxInfo);
+    }
+
+    // Notes
+    if (_scNotes) {
+      const notesDiv = document.createElement('div');
+      notesDiv.style.cssText = 'font-size:0.8rem;color:var(--text-mid);font-style:italic;padding:0.3rem 0.5rem;background:var(--surface2);border-radius:8px';
+      notesDiv.textContent = _scNotes;
+      scWrap.appendChild(notesDiv);
+    }
+
+    body.appendChild(scWrap);
+
+    // Edit item handler — opens the item detail modal
+    window._scEditItem = function(itemNum) {
+      // Find the pd key for this item in this group
+      let targetKey = null;
+      Object.keys(state.personalData).forEach(function(k) {
+        const pd = state.personalData[k];
+        if (pd && pd.groupId === _scGroupId && normalizeItemNum(pd.itemNum) === normalizeItemNum(itemNum)) {
+          targetKey = k;
+        }
+      });
+      if (targetKey) {
+        openItem(targetKey);
+      } else {
+        showToast('Item not found — it may not have been saved');
+      }
+    };
+
+    // Save button shows as "✓ Save" via the standard confirm logic
+    if (nextBtn) {
+      nextBtn.textContent = '\u2713 Done';
+      nextBtn.style.display = 'inline-flex';
+    }
+
   } else if (s.type === 'confirm') {
     const item = wizard.matchedItem;
     const _isEph = ['catalogs','paper','mockups','other',...(state.userDefinedTabs||[]).map(t=>t.id)].includes(wizard.tab);
@@ -5005,7 +5288,15 @@ async function _wizardNextCore() {
 
   // Set entry mode — store choice and launch first item
   if (s.id === 'set_entryMode') {
-    wizard.data._setEntryMode = wizard.data.entryMode || 'full';
+    // setEntryMode type handles its own save/advance via button handlers
+    // This path is reached if entryMode=full was set and Next was clicked
+    wizard.data._setEntryMode = wizard.data._setEntryMode || 'full';
+    wizardAdvance();
+    return;
+  }
+
+  // set_walkItems — launch per-item wizard for Full Entry
+  if (s.id === 'set_walkItems') {
     launchSetItemWizard();
     return;
   }
@@ -5133,6 +5424,114 @@ function generatePaperItemNum(paperType, year) {
   return yr ? typeCode + '-' + yr + '-' + seq : typeCode + '-' + seq;
 }
 
+
+// ── Quick Entry Save for Sets — batch saves all items ──
+async function _quickEntrySaveSet(condition, worth, photoFile) {
+  const d = wizard.data;
+  const resolvedSet = d._resolvedSet;
+  const items = d._setFinalItems || (resolvedSet ? resolvedSet.items : []);
+  const setNum = resolvedSet ? resolvedSet.setNum : (d.set_num || '');
+  const groupId = d._setGroupId || ('SET-' + setNum + '-' + Date.now());
+  d._setGroupId = groupId;
+  const setId = 'SET-' + setNum;
+  const year = resolvedSet ? (resolvedSet.year || '') : '';
+
+  if (!items.length) { showToast('No items to save'); return; }
+
+  // Upload QE photo if provided
+  let photoLink = '';
+  if (photoFile) {
+    try {
+      await driveEnsureSetup();
+      const folderName = setNum || groupId;
+      const parentId = driveCache.vaultId || await driveFindOrCreateFolder('The Rail Roster', null);
+      const folderId = await driveFindOrCreateFolder(folderName, parentId);
+      const fname = folderName + ' QE.' + (photoFile.name.split('.').pop() || 'jpg');
+      const uploaded = await driveUploadPhoto(photoFile, fname, folderId);
+      if (uploaded && uploaded.webViewLink) photoLink = uploaded.webViewLink;
+    } catch(e) { console.warn('QE photo upload:', e); }
+  }
+
+  const savedItems = [];
+  for (let i = 0; i < items.length; i++) {
+    const itemNum = items[i];
+    const isEngine = (i === 0);
+    const invId = nextInventoryId();
+
+    // Match to master data for metadata
+    const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum));
+    const variation = master ? (master.variation || '') : '';
+
+    // Build personal sheet row (25 columns A-Y)
+    const row = [
+      itemNum,                           // A: Item Number
+      variation,                         // B: Variation
+      String(condition),                 // C: Condition
+      '',                                // D: All Original
+      isEngine ? worth : '',             // E: Item Only Price
+      '',                                // F: Box Only Price
+      '',                                // G: Item+Box Complete
+      'No',                              // H: Has Box
+      '',                                // I: Box Condition
+      photoLink,                         // J: Item Photo Link
+      '',                                // K: Box Photo Link
+      isEngine ? '' : ('Part of set ' + setNum + ' \u2014 price on ' + items[0]), // L: Notes
+      '',                                // M: Date Purchased
+      isEngine ? worth : '',             // N: User Est. Worth
+      '',                                // O: Matched Tender/Engine
+      setId,                             // P: Set ID
+      year,                              // Q: Year Made
+      '',                                // R: Is Error
+      '',                                // S: Error Description
+      'Yes',                             // T: Quick Entry
+      invId,                             // U: Inventory ID
+      groupId,                           // V: Group ID
+      '',                                // W: Location
+      'Postwar',                         // X: Era
+      'Lionel',                          // Y: Manufacturer
+    ];
+
+    try {
+      const actualRow = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
+      const pdKey = itemNum + '|' + variation + '|' + actualRow;
+      state.personalData[pdKey] = {
+        row: actualRow, itemNum, variation, condition: String(condition),
+        allOriginal: '', priceItem: isEngine ? worth : '', priceBox: '',
+        priceComplete: '', hasBox: 'No', boxCondition: '', itemPhoto: photoLink,
+        boxPhoto: '', notes: row[11], datePurchased: '', userEstWorth: isEngine ? worth : '',
+        matchedTo: '', setId, yearMade: year, isError: '', errorDesc: '',
+        quickEntry: 'Yes', inventoryId: invId, groupId, location: '',
+        era: 'Postwar', manufacturer: 'Lionel', owned: true,
+      };
+      savedItems.push(itemNum);
+    } catch(e) {
+      console.warn('Error saving set item ' + itemNum + ':', e);
+    }
+  }
+
+  d._setItemsSaved = savedItems;
+  d._setEntryMode = 'quick';
+
+  // Handle set box
+  if (d._setHasBoxChecked) {
+    // Advance to set_boxCond step
+    wizard.tab = 'set';
+    wizard.steps = getSteps('set');
+    wizard.step = wizard.steps.findIndex(s => s.id === 'set_boxCond');
+    if (wizard.step < 0) wizard.step = wizard.steps.findIndex(s => s.id === 'set_notes');
+    if (wizard.step < 0) wizard.step = wizard.steps.length - 1;
+    renderWizardStep();
+  } else {
+    // All done
+    localStorage.removeItem('lv_personal_cache');
+    localStorage.removeItem('lv_personal_cache_ts');
+    showToast('\u2713 ' + setNum + ' saved \u2014 ' + savedItems.length + ' item' + (savedItems.length !== 1 ? 's' : '') + ' in your collection!');
+    closeWizard();
+    buildDashboard();
+    renderBrowse();
+  }
+}
+
 // Launch the standard collection wizard for one item in a set
 function launchSetItemWizard() {
   const d = wizard.data;
@@ -5200,6 +5599,9 @@ function launchSetItemWizard() {
       datePurchased: _setDate,
       userEstWorth:  _setWorth,
     } : {}),
+    // Pre-fill condition from set-level slider
+    _prefilledCondition: d._setCondition || 7,
+    condition: d._setCondition || 7,
   };
   wizard.steps = getSteps('collection');
   wizard.matchedItem = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum)) || null;
