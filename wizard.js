@@ -123,8 +123,8 @@ function getSteps(tab) {
           title: 'Add photos of the set box',
           type: 'drivePhotos', label: 'SETBOX',
           views: [
-            { key: 'SETBOX-LABEL', label: 'Label Side', abbr: 'Label' },
-            { key: 'SETBOX-ISO',   label: 'Iso Shot',   abbr: 'Iso'   },
+            { key: 'SETBOX-LABEL', label: 'Box Label Side', abbr: 'Box Label' },
+            { key: 'SETBOX-ISO',   label: 'Box Iso Shot',   abbr: 'Box Iso'   },
           ], optional: true,
           skipIf: d => d.set_hasBox !== 'Yes' },
 
@@ -573,10 +573,77 @@ function openWizard(tab) {
 }
 
 function closeWizard() {
+  // If in set mode with saved items, confirm before canceling
+  const _savedItems = wizard && wizard.data && wizard.data._setItemsSaved;
+  const _groupId = wizard && wizard.data && wizard.data._setGroupId;
+  if (_savedItems && _savedItems.length > 0 && _groupId) {
+    _confirmSetCancel();
+    return;
+  }
+  _doCloseWizard();
+}
+
+function _doCloseWizard() {
   const returnTo = wizard && wizard.data && wizard.data._returnPage;
   document.getElementById('wizard-modal').classList.remove('open');
   document.body.style.overflow = '';
   if (returnTo) showPage(returnTo);
+}
+
+async function _confirmSetCancel() {
+  const saved = wizard.data._setItemsSaved || [];
+  const groupId = wizard.data._setGroupId || '';
+
+  // Build confirm overlay
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--accent);border-radius:14px;max-width:400px;width:100%;padding:1.5rem;text-align:center';
+  box.innerHTML = '<div style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent);margin-bottom:0.75rem">Cancel Set Entry?</div>'
+    + '<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-bottom:1.25rem">Are you sure? All ' + saved.length + ' item' + (saved.length !== 1 ? 's' : '') + ' you\'ve already entered for this set will be deleted.</div>'
+    + '<div style="display:flex;gap:0.5rem;justify-content:center">'
+    + '<button id="set-cancel-back" style="padding:0.55rem 1.1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Go Back</button>'
+    + '<button id="set-cancel-confirm" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid var(--accent);background:rgba(240,80,8,0.15);color:var(--accent);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Yes, Delete All</button>'
+    + '</div>';
+  overlay.appendChild(box);
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+
+  document.getElementById('set-cancel-back').onclick = function() { overlay.remove(); };
+  document.getElementById('set-cancel-confirm').onclick = async function() {
+    const btn = document.getElementById('set-cancel-confirm');
+    btn.disabled = true;
+    btn.textContent = 'Deleting\u2026';
+
+    // Delete saved items from personal sheet (reverse order to keep row numbers valid)
+    const keysToDelete = [];
+    Object.keys(state.personalData).forEach(function(k) {
+      const pd = state.personalData[k];
+      if (pd && pd.groupId === groupId) keysToDelete.push(k);
+    });
+    // Sort by row descending so deletes don't shift row numbers
+    keysToDelete.sort(function(a, b) {
+      return (state.personalData[b].row || 0) - (state.personalData[a].row || 0);
+    });
+
+    for (const key of keysToDelete) {
+      try {
+        const pd = state.personalData[key];
+        if (pd && pd.row) {
+          await sheetsDeleteRow(state.personalSheetId, 'My Collection', pd.row);
+        }
+        delete state.personalData[key];
+      } catch(e) { console.warn('Error deleting set item:', e); }
+    }
+
+    localStorage.removeItem('lv_personal_cache');
+    localStorage.removeItem('lv_personal_cache_ts');
+    overlay.remove();
+    showToast('Set entry canceled \u2014 ' + keysToDelete.length + ' item' + (keysToDelete.length !== 1 ? 's' : '') + ' removed');
+    _doCloseWizard();
+    buildDashboard();
+    renderBrowse();
+  };
 }
 
 function completeQuickEntry(itemNum, variation, globalIdx, pdRow) {
@@ -3799,6 +3866,16 @@ function renderWizardStep() {
       let html = '<div class="cd-col" style="flex:1;min-width:' + (_isMobile ? '100%' : '200px') + ';background:var(--surface2);border-radius:10px;padding:0.85rem;border:1px solid var(--border)">';
       html += '<div style="font-weight:700;font-size:0.85rem;color:var(--accent2);margin-bottom:0.75rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border)">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.78rem\">(' + col.sublabel + ')</span>' : '') + '</div>';
       
+      // Condition slider — shown in set mode (pre-filled from set-level, editable per item)
+      if (wizard.data._setMode) {
+        html += '<div style="margin-bottom:0.65rem"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">'
+          + '<span style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em">Condition</span>'
+          + '<span id="cd-cond-val-' + col.id + '" style="font-family:var(--font-mono);font-size:1.1rem;color:var(--accent);font-weight:700">' + condVal + '</span></div>'
+          + '<input type="range" min="1" max="10" value="' + condVal + '" style="width:100%;accent-color:var(--accent)"'
+          + ' oninput="wizard.data[\'' + condKey + '\']=parseInt(this.value);document.getElementById(\'cd-cond-val-' + col.id + '\').textContent=this.value">'
+          + '<div style="display:flex;justify-content:space-between;font-size:0.6rem;color:var(--text-dim)"><span>Poor</span><span>Excellent</span></div></div>';
+      }
+
       // All Original
       html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">All Original?</div>';
       html += '<div style="display:flex;gap:0.3rem">';
@@ -4092,13 +4169,7 @@ function renderWizardStep() {
       scWrap.appendChild(boxInfo);
     }
 
-    // Notes
-    if (_scNotes) {
-      const notesDiv = document.createElement('div');
-      notesDiv.style.cssText = 'font-size:0.8rem;color:var(--text-mid);font-style:italic;padding:0.3rem 0.5rem;background:var(--surface2);border-radius:8px';
-      notesDiv.textContent = _scNotes;
-      scWrap.appendChild(notesDiv);
-    }
+    // Notes shown in Set Box row — no separate display needed
 
     body.appendChild(scWrap);
 
@@ -5634,6 +5705,10 @@ function launchSetItemWizard() {
     // All items done — return to set wizard at set_hasBox step
     wizard.tab   = 'set';
     wizard.data._setMode = false;  // Clear per-item mode so header doesn't show "ITEM X of Y"
+    // Pre-fill set box condition from set-level condition
+    if (!wizard.data.set_boxCond && wizard.data._setCondition) {
+      wizard.data.set_boxCond = wizard.data._setCondition;
+    }
     wizard.steps = getSteps('set');
     // Advance to set_hasBox step
     wizard.step  = wizard.steps.findIndex(s => s.id === 'set_hasBox');
@@ -5668,6 +5743,7 @@ function launchSetItemWizard() {
     itemNum: itemNum,
     entryMode: _setEntryMode,
     _setMode: true,
+    _itemGrouping: 'single',  // Each set item is standalone — no paired columns
     _setGroupId,
     _setFinalItems,
     _setItemIndex:  idx,
@@ -5684,6 +5760,8 @@ function launchSetItemWizard() {
     set_notes: _setNotes,
     _returnPage,
     _existingGroupId: _setGroupId,
+    tenderMatch: 'none',  // Prevent paired engine+tender detection
+    setMatch: '',          // Prevent set detection
     // For the locomotive (item 0): pre-fill purchase fields
     ...(idx === 0 ? {} : {
       // Non-loco items: no price/date/worth — note will be added on save
