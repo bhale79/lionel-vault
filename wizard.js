@@ -1452,7 +1452,7 @@ function renderWizardStep() {
       let _sePhotoFile = null;
       const photoBtn = document.getElementById('se-photo-btn');
       const fileInp = document.createElement('input');
-      fileInp.type = 'file'; fileInp.accept = 'image/*'; fileInp.capture = 'environment'; fileInp.style.display = 'none';
+      fileInp.type = 'file'; fileInp.accept = 'image/*'; fileInp.style.display = 'none';
       document.body.appendChild(fileInp);
       fileInp.onchange = () => {
         if (fileInp.files && fileInp.files[0]) {
@@ -1470,6 +1470,14 @@ function renderWizardStep() {
         const condSlider = document.getElementById('se-cond-slider');
         const cond = condSlider ? parseInt(condSlider.value) : 7;
         const worth = worthInp ? worthInp.value : '';
+
+        // Require Est. Worth
+        if (!worth || parseFloat(worth) <= 0) {
+          if (worthInp) { worthInp.style.outline = '2px solid var(--accent)'; worthInp.focus(); }
+          showToast('Please enter an Est. Worth before saving', 3000);
+          return;
+        }
+        if (worthInp) worthInp.style.outline = '';
 
         saveBtn.disabled = true;
         saveBtn.textContent = 'Saving\u2026';
@@ -1490,8 +1498,12 @@ function renderWizardStep() {
         wizard.data._setWorth = worthInp ? worthInp.value : '';
         wizard.data._setEntryMode = 'full';
         wizard.data.entryMode = 'full';
-        // Advance to next step (set_hasBox or set_boxCond etc)
-        wizardNext();
+        // Manually advance past this step (wizardNext would loop)
+        wizard.step++;
+        while (wizard.step < wizard.steps.length - 1 && wizard.steps[wizard.step].skipIf && wizard.steps[wizard.step].skipIf(wizard.data)) {
+          wizard.step++;
+        }
+        renderWizardStep();
       };
     }, 50);
 
