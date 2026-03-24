@@ -3419,13 +3419,13 @@ function showRefItemPopup(type, idx) {
       _buildWizardModal();
       wizard = {
         step: 0, tab: 'collection',
-        data: { tab: 'collection', itemNum: _itemNum, variation: '' },
+        data: { tab: 'collection', itemNum: _itemNum, variation: '', itemCategory: 'lionel' },
         steps: getSteps('collection'),
         matchedItem: { itemNum: _itemNum, itemType: _itemType, description: _description, yearProd: _year, roadName: '', variation: '' }
       };
       document.getElementById('wizard-modal').classList.add('open');
       document.body.style.overflow = 'hidden';
-      var autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemPicker', 'itemCategory']);
+      var autoSkip = new Set(['tab', 'itemNum', 'itemNumGrouping', 'variation', 'itemPicker', 'itemCategory', 'entryMode']);
       while (wizard.step < wizard.steps.length - 1) {
         var ws = wizard.steps[wizard.step];
         if (autoSkip.has(ws.id) || (ws.skipIf && ws.skipIf(wizard.data))) {
@@ -3443,13 +3443,13 @@ function showRefItemPopup(type, idx) {
 function addFromBrowse(idx) {
   const item = state.masterData[idx];
   if (!item) return;
+  _buildWizardModal();
   // Open the collection wizard with itemNum + variation pre-filled
-  wizard = { step: 0, tab: 'collection', data: { tab: 'collection', itemNum: item.itemNum, variation: item.variation || '' }, steps: getSteps('collection'), matchedItem: item };
+  wizard = { step: 0, tab: 'collection', data: { tab: 'collection', itemNum: item.itemNum, variation: item.variation || '', itemCategory: 'lionel' }, steps: getSteps('collection'), matchedItem: item };
   document.getElementById('wizard-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
-  // Skip the tab picker (step 0) and itemNum step — advance past any steps
-  // whose id is 'itemNum' or 'variation' (already known)
-  const autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemPicker', 'itemCategory']);
+  // Skip all steps before condition — item number, variation, and entry mode are already known
+  const autoSkip = new Set(['tab', 'itemNum', 'itemNumGrouping', 'variation', 'itemPicker', 'itemCategory', 'entryMode']);
   while (wizard.step < wizard.steps.length - 1) {
     const s = wizard.steps[wizard.step];
     if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) {
