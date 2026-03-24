@@ -107,7 +107,7 @@ function getSteps(tab) {
         { id: 'set_hasBox',
           title: 'Does it have the original set box?',
           type: 'choice2', choices: ['Yes','No'],
-          skipIf: d => !!d._setHasBoxChecked },
+          skipIf: d => d.set_hasBox === 'Yes' || d.set_hasBox === 'No' },
         { id: 'set_boxCond',
           title: 'Set box condition (1–10)',
           type: 'slider', min:1, max:10,
@@ -1392,16 +1392,31 @@ function renderWizardStep() {
       + '<label style="display:flex;align-items:center;justify-content:center;gap:0.4rem;background:var(--bg);border:1px solid ' + (_seBoxChecked ? 'var(--accent2)' : 'var(--border)') + ';border-radius:8px;padding:0.45rem 0.5rem;flex:1;cursor:pointer">'
       + '<input type="checkbox" id="se-setbox" ' + (_seBoxChecked ? 'checked' : '') + ' style="accent-color:var(--accent2);width:18px;height:18px;cursor:pointer">'
       + '<span style="font-size:0.82rem;color:' + (_seBoxChecked ? 'var(--accent2)' : 'var(--text-mid)') + '">📦</span></label>';
-    // QE Photo button
-    const photoCol = document.createElement('div');
-    photoCol.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:3px';
-    photoCol.innerHTML = '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)">&nbsp;</div>'
-      + '<button type="button" id="se-photo-btn" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.5rem;color:var(--text-mid);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.3rem">'
-      + '<span>📷</span> QE Photo</button>';
     threeRow.appendChild(worthCol);
     threeRow.appendChild(boxCol);
-    threeRow.appendChild(photoCol);
     wrap.appendChild(threeRow);
+
+    // ── Photo views grid (Top, Left, Front, Right, Back, Bottom) ──
+    const photoSection = document.createElement('div');
+    photoSection.style.cssText = 'margin-top:0.2rem';
+    photoSection.innerHTML = '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:4px">Photos (optional)</div>';
+    const photoGrid = document.createElement('div');
+    photoGrid.id = 'se-photo-grid';
+    photoGrid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:0.35rem';
+    const _seViews = [
+      { key: 'TV', label: 'Top' }, { key: 'LSV', label: 'Left Side' }, { key: 'FV', label: 'Front' },
+      { key: 'RSV', label: 'Right Side' }, { key: 'BKV', label: 'Back' }, { key: 'BV', label: 'Bottom' },
+    ];
+    _seViews.forEach(v => {
+      const slot = document.createElement('div');
+      slot.id = 'se-photo-slot-' + v.key;
+      slot.style.cssText = 'background:var(--bg);border:1.5px dashed var(--border);border-radius:8px;padding:0.4rem;text-align:center;cursor:pointer;transition:all 0.15s;min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px';
+      slot.innerHTML = '<span style="font-size:1rem;opacity:0.5">📷</span><span style="font-size:0.65rem;color:var(--text-dim)">' + v.label + '</span>';
+      slot.dataset.viewKey = v.key;
+      photoGrid.appendChild(slot);
+    });
+    photoSection.appendChild(photoGrid);
+    wrap.appendChild(photoSection);
 
     // ── Quick Entry Save button + note ──
     const qeSaveBtn = document.createElement('button');
@@ -1448,20 +1463,33 @@ function renderWizardStep() {
         if (lbl) lbl.style.borderColor = boxCB.checked ? 'var(--accent2)' : 'var(--border)';
       };
 
-      // QE photo — hidden file input
-      let _sePhotoFile = null;
-      const photoBtn = document.getElementById('se-photo-btn');
-      const fileInp = document.createElement('input');
-      fileInp.type = 'file'; fileInp.accept = 'image/*'; fileInp.style.display = 'none';
-      document.body.appendChild(fileInp);
-      fileInp.onchange = () => {
-        if (fileInp.files && fileInp.files[0]) {
-          _sePhotoFile = fileInp.files[0];
-          wizard.data._setQEPhoto = _sePhotoFile;
-          if (photoBtn) { photoBtn.innerHTML = '<span>\u2705</span> Photo ready'; photoBtn.style.borderColor = 'var(--green)'; photoBtn.style.color = 'var(--green)'; }
+      // QE photos — wire up each view slot
+      if (!wizard.data._setQEPhotos) wizard.data._setQEPhotos = {};
+      const photoSlots = document.querySelectorAll('#se-photo-grid [data-view-key]');
+      photoSlots.forEach(slot => {
+        const vk = slot.dataset.viewKey;
+        // Restore state if already picked
+        if (wizard.data._setQEPhotos[vk]) {
+          const lbl = slot.querySelector('span:last-child');
+          const lblText = lbl ? lbl.textContent : vk;
+          slot.innerHTML = '<span style="font-size:1rem">\u2705</span><span style="font-size:0.65rem;color:var(--green)">' + lblText + '</span>';
+          slot.style.borderColor = 'var(--green)';
         }
-      };
-      if (photoBtn) photoBtn.onclick = () => fileInp.click();
+        slot.onclick = () => {
+          const fi = document.createElement('input');
+          fi.type = 'file'; fi.accept = 'image/*'; fi.style.display = 'none';
+          document.body.appendChild(fi);
+          fi.onchange = () => {
+            if (fi.files && fi.files[0]) {
+              wizard.data._setQEPhotos[vk] = fi.files[0];
+              slot.innerHTML = '<span style="font-size:1rem">\u2705</span><span style="font-size:0.65rem;color:var(--green)">' + vk + '</span>';
+              slot.style.borderColor = 'var(--green)';
+            }
+            fi.remove();
+          };
+          fi.click();
+        };
+      });
 
       // Quick Entry save
       const saveBtn = document.getElementById('se-qe-save');
@@ -1479,10 +1507,14 @@ function renderWizardStep() {
         }
         if (worthInp) worthInp.style.outline = '';
 
+        // Lock in set box choice from checkbox
+        const qeBoxCB = document.getElementById('se-setbox');
+        wizard.data.set_hasBox = (qeBoxCB && qeBoxCB.checked) ? 'Yes' : 'No';
+
         saveBtn.disabled = true;
         saveBtn.textContent = 'Saving\u2026';
         try {
-          await _quickEntrySaveSet(cond, worth, wizard.data._setQEPhoto || null);
+          await _quickEntrySaveSet(cond, worth, wizard.data._setQEPhotos || {});
         } catch(e) {
           saveBtn.disabled = false;
           saveBtn.textContent = '\u26a1 Save quick entry';
@@ -1494,11 +1526,27 @@ function renderWizardStep() {
       if (fullBtn) fullBtn.onclick = () => {
         const condSlider = document.getElementById('se-cond-slider');
         const worthInp = document.getElementById('se-worth');
+        const worth = worthInp ? worthInp.value : '';
+
+        // Require Est. Worth
+        if (!worth || parseFloat(worth) <= 0) {
+          if (worthInp) { worthInp.style.outline = '2px solid var(--accent)'; worthInp.focus(); }
+          showToast('Please enter an Est. Worth before continuing', 3000);
+          return;
+        }
+        if (worthInp) worthInp.style.outline = '';
+
         wizard.data._setCondition = condSlider ? parseInt(condSlider.value) : 7;
-        wizard.data._setWorth = worthInp ? worthInp.value : '';
+        wizard.data._setWorth = worth;
         wizard.data._setEntryMode = 'full';
         wizard.data.entryMode = 'full';
-        // Manually advance past this step (wizardNext would loop)
+
+        // Lock in set box choice from checkbox
+        const boxCB = document.getElementById('se-setbox');
+        wizard.data._setHasBoxChecked = boxCB ? boxCB.checked : false;
+        wizard.data.set_hasBox = (boxCB && boxCB.checked) ? 'Yes' : 'No';
+
+        // Manually advance past this step
         wizard.step++;
         while (wizard.step < wizard.steps.length - 1 && wizard.steps[wizard.step].skipIf && wizard.steps[wizard.step].skipIf(wizard.data)) {
           wizard.step++;
@@ -1507,6 +1555,10 @@ function renderWizardStep() {
       };
     }, 50);
 
+  } else if (s.type === 'setWalkItems') {
+    // Immediately launch the per-item wizard — no separate UI for this step
+    launchSetItemWizard();
+    return;
 
     } else if (s.type === 'entryMode') {
     // ── QE Step 1: Combined item number + condition + save screen ──
@@ -5438,7 +5490,7 @@ function generatePaperItemNum(paperType, year) {
 
 
 // ── Quick Entry Save for Sets — batch saves all items ──
-async function _quickEntrySaveSet(condition, worth, photoFile) {
+async function _quickEntrySaveSet(condition, worth, photoFiles) {
   const d = wizard.data;
   const resolvedSet = d._resolvedSet;
   const items = d._setFinalItems || (resolvedSet ? resolvedSet.items : []);
@@ -5450,17 +5502,22 @@ async function _quickEntrySaveSet(condition, worth, photoFile) {
 
   if (!items.length) { showToast('No items to save'); return; }
 
-  // Upload QE photo if provided
+  // Upload QE photos if provided
   let photoLink = '';
-  if (photoFile) {
+  const photoKeys = Object.keys(photoFiles || {});
+  if (photoKeys.length > 0) {
     try {
       await driveEnsureSetup();
       const folderName = setNum || groupId;
       const parentId = driveCache.vaultId || await driveFindOrCreateFolder('The Rail Roster', null);
       const folderId = await driveFindOrCreateFolder(folderName, parentId);
-      const fname = folderName + ' QE.' + (photoFile.name.split('.').pop() || 'jpg');
-      const uploaded = await driveUploadPhoto(photoFile, fname, folderId);
-      if (uploaded && uploaded.webViewLink) photoLink = uploaded.webViewLink;
+      photoLink = 'https://drive.google.com/drive/folders/' + folderId;
+      for (const vk of photoKeys) {
+        const file = photoFiles[vk];
+        if (!file) continue;
+        const fname = folderName + ' ' + vk + '.' + (file.name.split('.').pop() || 'jpg');
+        await driveUploadPhoto(file, fname, folderId).catch(e => console.warn(e));
+      }
     } catch(e) { console.warn('QE photo upload:', e); }
   }
 
@@ -5524,24 +5581,13 @@ async function _quickEntrySaveSet(condition, worth, photoFile) {
   d._setItemsSaved = savedItems;
   d._setEntryMode = 'quick';
 
-  // Handle set box
-  if (d._setHasBoxChecked) {
-    // Advance to set_boxCond step
-    wizard.tab = 'set';
-    wizard.steps = getSteps('set');
-    wizard.step = wizard.steps.findIndex(s => s.id === 'set_boxCond');
-    if (wizard.step < 0) wizard.step = wizard.steps.findIndex(s => s.id === 'set_notes');
-    if (wizard.step < 0) wizard.step = wizard.steps.length - 1;
-    renderWizardStep();
-  } else {
-    // All done
-    localStorage.removeItem('lv_personal_cache');
-    localStorage.removeItem('lv_personal_cache_ts');
-    showToast('\u2713 ' + setNum + ' saved \u2014 ' + savedItems.length + ' item' + (savedItems.length !== 1 ? 's' : '') + ' in your collection!');
-    closeWizard();
-    buildDashboard();
-    renderBrowse();
-  }
+  // Quick Entry always closes — no follow-up questions
+  localStorage.removeItem('lv_personal_cache');
+  localStorage.removeItem('lv_personal_cache_ts');
+  showToast('\u2713 ' + setNum + ' saved \u2014 ' + savedItems.length + ' item' + (savedItems.length !== 1 ? 's' : '') + ' in your collection!');
+  closeWizard();
+  buildDashboard();
+  renderBrowse();
 }
 
 // Launch the standard collection wizard for one item in a set
