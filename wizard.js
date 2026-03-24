@@ -123,9 +123,8 @@ function getSteps(tab) {
           title: 'Add photos of the set box',
           type: 'drivePhotos', label: 'SETBOX',
           views: [
-            { key: 'SETBOX-TOP',    label: 'Top',    abbr: 'Top'    },
-            { key: 'SETBOX-SIDE',   label: 'Side',   abbr: 'Side'   },
-            { key: 'SETBOX-DETAIL', label: 'Detail', abbr: 'Detail' },
+            { key: 'SETBOX-LABEL', label: 'Label Side', abbr: 'Label' },
+            { key: 'SETBOX-ISO',   label: 'Iso Shot',   abbr: 'Iso'   },
           ], optional: true,
           skipIf: d => d.set_hasBox !== 'Yes' },
 
@@ -346,7 +345,8 @@ function getSteps(tab) {
       { id: 'conditionDetails', title: 'Condition & Details', type: 'conditionDetails' },
 
       // ── SCREEN 4: Purchase & Value (combined) ──
-      { id: 'purchaseValue', title: 'Purchase & Value', type: 'purchaseValue' },
+      { id: 'purchaseValue', title: 'Purchase & Value', type: 'purchaseValue',
+        skipIf: d => !!d._setMode },
 
       // ── SCREEN 5+: Photos (one per subject, color-coded banners) ──
       { id: 'photosItem', title: (d) => 'Add photos of the ' + getItemLabel(d),
@@ -3847,7 +3847,8 @@ function renderWizardStep() {
         html += '<input type="range" min="1" max="10" value="' + isCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data.is_condition=parseInt(this.value);document.getElementById(\'cd-is-cond-val\').textContent=this.value"></div>';
         html += '</div></div>';
 
-        // Master Box — main column only, shown for all items
+        // Master Box — main column only, hidden in set mode
+        if (!wizard.data._setMode) {
         const mbVal2 = wizard.data.hasMasterBox || '';
         html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Master (Outer) Box?</div>';
         html += '<div style="display:flex;gap:0.3rem">';
@@ -3856,9 +3857,11 @@ function renderWizardStep() {
           html += '<button onclick="wizard.data.hasMasterBox=\'' + c + '\';_pvToggleMasterBox(\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
         });
         html += '</div></div>';
-      }
+      } // end master box
+      } // end if !_setMode (master box)
       
-      // Error item toggle — shown on every item column
+      // Error item toggle — hidden in set mode
+      if (!wizard.data._setMode) {
       {
         const errKey = p ? p + 'IsError' : 'isError';
         const errDescKey = p ? p + 'ErrorDesc' : 'errorDesc';
@@ -3874,8 +3877,16 @@ function renderWizardStep() {
         html += '<div id="cd-error-reveal-' + col.id + '" style="margin-top:0.4rem;display:' + (errVal === 'Yes' ? 'block' : 'none') + '">';
         html += '<textarea placeholder="Describe the error…" style="width:100%;min-height:45px;background:var(--bg);border:1px solid #e74c3c44;border-radius:6px;padding:0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + errDescKey + '\']=this.value">' + errDescVal + '</textarea></div>';
         html += '</div>';
-      }
+      } // end error block
+      } // end if !_setMode (error)
       
+      // Notes field — shown in set mode only (replaces separate purchaseValue notes)
+      if (wizard.data._setMode && col.id === 'main') {
+        const _setNoteVal = wizard.data.notes || '';
+        html += '<div style="margin-top:0.4rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Notes (optional)</div>';
+        html += '<textarea placeholder="e.g. minor rust on trucks, runs well" style="width:100%;min-height:55px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + _setNoteVal + '</textarea></div>';
+      }
+
       html += '</div>';
       return html;
     }
@@ -4073,9 +4084,10 @@ function renderWizardStep() {
     if (_scHasBox) {
       const boxInfo = document.createElement('div');
       boxInfo.style.cssText = 'display:flex;align-items:center;gap:0.5rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.7rem';
-      boxInfo.innerHTML = '<span style="font-size:1.1rem">\ud83d\udce6</span>'
-        + '<div><div style="font-size:0.8rem;color:var(--text)">Set Box</div>'
-        + '<div style="font-size:0.72rem;color:var(--text-dim)">Condition: ' + (_scBoxCond || '\u2014') + '</div></div>';
+      boxInfo.innerHTML = '<div style="flex:1"><div style="display:flex;align-items:center;gap:0.4rem"><span style="font-size:1.1rem">\ud83d\udce6</span><span style="font-size:0.8rem;color:var(--text)">Set Box</span></div>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:2px">Condition: <strong style="color:var(--text-mid)">' + (_scBoxCond || '\u2014') + '</strong>'
+        + (_scNotes ? ' \u00b7 Notes: <em>' + _scNotes + '</em>' : '') + '</div></div>'
+        + '<button type="button" onclick="window._scEditSetBox()" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:0.25rem" title="Edit">\u270f\ufe0f</button>';
       scWrap.appendChild(boxInfo);
     }
 
@@ -4088,6 +4100,13 @@ function renderWizardStep() {
     }
 
     body.appendChild(scWrap);
+
+    // Edit set box — go back to set_boxCond step
+    window._scEditSetBox = function() {
+      wizard.step = wizard.steps.findIndex(function(s) { return s.id === 'set_boxCond'; });
+      if (wizard.step < 0) wizard.step = wizard.steps.length - 2;
+      renderWizardStep();
+    };
 
     // Edit item handler — opens the item detail modal
     window._scEditItem = function(itemNum) {
@@ -4152,7 +4171,7 @@ function renderWizardStep() {
       priority:'Priority', expectedPrice:'Expected Price',
       salePrice:'Sale Price', dateSold:'Date Sold',
     };
-    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos']);
+    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes']);
     const _summaryEntries = Object.entries(wizard.data).filter(function(e) {
       return !_skipKeys.has(e[0]) && e[1] && e[1] !== '' && !e[0].startsWith('photos') && !Array.isArray(e[1]) && typeof e[1] !== 'object';
     });
@@ -5604,6 +5623,7 @@ function launchSetItemWizard() {
   if (idx >= items.length) {
     // All items done — return to set wizard at set_hasBox step
     wizard.tab   = 'set';
+    wizard.data._setMode = false;  // Clear per-item mode so header doesn't show "ITEM X of Y"
     wizard.steps = getSteps('set');
     // Advance to set_hasBox step
     wizard.step  = wizard.steps.findIndex(s => s.id === 'set_hasBox');
