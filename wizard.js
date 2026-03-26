@@ -1240,9 +1240,12 @@ function renderWizardStep() {
       '<div style="display:flex;flex-direction:column;gap:0.75rem;padding-top:0.25rem">' +
         '<div>' +
           '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Date Purchased</label>' +
-          '<input type="date" value="' + (d.datePurchased || '') + '"' +
+          '<div style="position:relative;display:flex;align-items:center">' +
+          '<input type="date" id="manual-date" value="' + (d.datePurchased || '') + '"' +
             ' onchange="wizard.data.datePurchased=this.value"' +
-            ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.88rem;box-sizing:border-box">' +
+            ' style="width:100%;padding:0.55rem 2.5rem 0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.88rem;box-sizing:border-box;color-scheme:dark">' +
+          '<button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;manual-date&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">\uD83D\uDCC5</button>' +
+          '</div>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem">' +
           '<div>' +
@@ -2527,9 +2530,12 @@ function renderWizardStep() {
       + '</div>'
       + '<div>'
       +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Date Acquired</div>'
+      +   '<div style="position:relative;display:flex;align-items:center">'
       +   '<input type="date" id="pe-date" value="' + da + '"'
-      +   ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none"'
+      +   ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;color-scheme:dark"'
       +   ' oninput="wizard.data.eph_dateAcquired=this.value">'
+      +   '<button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;pe-date&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">\uD83D\uDCC5</button>'
+      +   '</div>'
       + '</div>'
       + '<div>'
       +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Notes</div>'
@@ -2577,9 +2583,12 @@ function renderWizardStep() {
       + '</div>'
       + '<div>'
       +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Date Acquired</div>'
+      +   '<div style="position:relative;display:flex;align-items:center">'
       +   '<input type="date" id="cat-date" value="' + _catDate + '"'
-      +   ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none"'
+      +   ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;color-scheme:dark"'
       +   ' oninput="wizard.data.cat_dateAcquired=this.value">'
+      +   '<button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;cat-date&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">\uD83D\uDCC5</button>'
+      +   '</div>'
       + '</div>'
       + '<div>'
       +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Notes</div>'
@@ -4173,9 +4182,12 @@ function renderWizardStep() {
         + ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.95rem"'
         + ' oninput="wizard.data.userEstWorth=this.value"></div></div>';
       _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">Date Acquired</div>'
-        + '<input type="date" value="' + _scDate + '"'
-        + ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none"'
-        + ' oninput="wizard.data.dateAcquired=this.value"></div>';
+        + '<div style="position:relative;display:flex;align-items:center">'
+        + '<input type="date" id="cd-sc-date" value="' + _scDate + '"'
+        + ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.5rem 2.5rem 0.5rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;color-scheme:dark"'
+        + ' oninput="wizard.data.dateAcquired=this.value">'
+        + '<button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;cd-sc-date&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">\uD83D\uDCC5</button>'
+        + '</div></div>';
       _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">Notes</div>'
         + '<textarea rows="2" placeholder="e.g. Complete set, all pieces present"'
         + ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;resize:none"'
