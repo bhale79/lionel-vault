@@ -413,6 +413,18 @@ const PANEL_CATALOG = [
           ephs.push({ ...it, _src:'eph', tabId, _ephEmoji: ephMap[tabId]||'⭐' });
         });
       });
+      // Instruction Sheets
+      Object.values(state.isData || {}).forEach(is => {
+        ephs.push({ ...is, _src:'eph', tabId:'is', _ephEmoji:'📋', title: 'IS ' + (is.sheetNum||''), estValue: is.estValue||'' });
+      });
+      // Science Sets
+      Object.values(state.scienceData || {}).forEach(s => {
+        ephs.push({ ...s, _src:'eph', tabId:'science', _ephEmoji:'🔬', title: s.itemNum + ' ' + (s.description||''), estValue: s.estValue||'' });
+      });
+      // Construction Sets
+      Object.values(state.constructionData || {}).forEach(s => {
+        ephs.push({ ...s, _src:'eph', tabId:'construction', _ephEmoji:'🔧', title: s.itemNum + ' ' + (s.description||''), estValue: s.estValue||'' });
+      });
       return [...trains, ...ephs]
         .sort((a, b) => (b.row || 0) - (a.row || 0))
         .slice(0, 8)
