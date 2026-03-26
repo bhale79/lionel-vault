@@ -6517,6 +6517,7 @@ async function _saveScienceConstructionItem(sheetTabName, stateKey) {
   const d = wizard.data;
   const master = wizard.matchedItem || {};
   const itemNum = (d.itemNum || '').trim();
+  const variation = String(d.variation || master.variation || '').trim();
   const description = master.description || master.roadName || master.itemType || '';
   const year = master.yearProd || d.yearMade || '';
   const condition = d.condition || 7;
@@ -6551,28 +6552,29 @@ async function _saveScienceConstructionItem(sheetTabName, stateKey) {
 
   const row = [
     itemNum,           // A: Item Number
-    description,       // B: Description
-    year,              // C: Year
-    String(condition), // D: Condition
-    allOriginal,       // E: All Original
-    hasCase,           // F: Has Case/Box
-    caseCond,          // G: Case/Box Condition
-    pricePaid,         // H: Price Paid
-    estWorth,          // I: Est. Worth
-    photoLink,         // J: Photo Link
-    notes,             // K: Notes
-    dateAcquired,      // L: Date Acquired
-    invId,             // M: Inventory ID
-    groupId,           // N: Group ID
+    variation,         // B: Variation
+    description,       // C: Description
+    year,              // D: Year
+    String(condition), // E: Condition
+    allOriginal,       // F: All Original
+    hasCase,           // G: Has Case/Box
+    caseCond,          // H: Case/Box Condition
+    pricePaid,         // I: Price Paid
+    estWorth,          // J: Est. Worth
+    photoLink,         // K: Photo Link
+    notes,             // L: Notes
+    dateAcquired,      // M: Date Acquired
+    invId,             // N: Inventory ID
+    groupId,           // O: Group ID
   ];
 
   await ensureEphemeraSheets(state.personalSheetId);
-  await sheetsAppend(state.personalSheetId, sheetTabName + '!A:N', [row]);
+  await sheetsAppend(state.personalSheetId, sheetTabName + '!A:O', [row]);
 
   // Update local state
   const newKey = Date.now();
   state[stateKey][newKey] = {
-    row: newKey, itemNum, description, year,
+    row: newKey, itemNum, variation, description, year,
     condition: String(condition), allOriginal, hasCase, caseCond,
     pricePaid, estValue: estWorth, photoLink, notes, dateAcquired,
     inventoryId: invId, groupId,
