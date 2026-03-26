@@ -3979,7 +3979,17 @@ function renderWizardStep() {
     const _defIsError  = _prefGet('lv_def_isError',     'No');
     const _defMasterBox = _prefGet('lv_def_masterBox',  'No');
     // In set mode, only pre-populate main item (no tender/unit2/unit3)
-    const _allPrefixes = wizard.data._setMode ? [''] : ['', 'tender', 'unit2', 'unit3'];
+    // For regular items, only pre-populate prefixes that match the grouping
+    let _allPrefixes = [''];
+    if (wizard.data._setMode) {
+      _allPrefixes = [''];
+    } else if (_cdGrouping === 'engine_tender') {
+      _allPrefixes = ['', 'tender'];
+    } else if (_cdGrouping === 'aa' || _cdGrouping === 'ab') {
+      _allPrefixes = ['', 'unit2'];
+    } else if (_cdGrouping === 'aba') {
+      _allPrefixes = ['', 'unit2', 'unit3'];
+    }
     if (!_cdIsPaperLike) {
       _allPrefixes.forEach(function(p) {
         const origKey  = p ? p + 'AllOriginal' : 'allOriginal';
@@ -4491,6 +4501,34 @@ function renderWizardStep() {
        'hasMasterBox','masterBoxCond','masterBoxNotes',
        'priceItem','userEstWorth','datePurchased','pricePaid','location','yearMade',
        'variation','itemNum','_existingGroupId'].forEach(k => _skipKeys.add(k));
+    }
+    // Hide tender/unit fields that don't apply based on actual grouping
+    const _cfGrouping = wizard.data._itemGrouping || 'single';
+    if (!_isEph && !wizard.data._setMode) {
+      // Single items: hide all tender + unit fields
+      if (_cfGrouping === 'single') {
+        ['tenderAllOriginal','tenderHasBox','tenderCondition','tenderBoxCond','tenderIsError','tenderErrorDesc','tenderNotOriginalDesc',
+         'unit2AllOriginal','unit2HasBox','unit2Condition','unit2BoxCond','unit2IsError','unit2ErrorDesc','unit2NotOriginalDesc',
+         'unit3AllOriginal','unit3HasBox','unit3Condition','unit3BoxCond','unit3IsError','unit3ErrorDesc','unit3NotOriginalDesc'
+        ].forEach(k => _skipKeys.add(k));
+      }
+      // Engine+tender: hide unit2/unit3 fields
+      if (_cfGrouping === 'engine_tender') {
+        ['unit2AllOriginal','unit2HasBox','unit2Condition','unit2BoxCond','unit2IsError','unit2ErrorDesc','unit2NotOriginalDesc',
+         'unit3AllOriginal','unit3HasBox','unit3Condition','unit3BoxCond','unit3IsError','unit3ErrorDesc','unit3NotOriginalDesc'
+        ].forEach(k => _skipKeys.add(k));
+      }
+      // AA/AB: hide unit3 and tender fields
+      if (_cfGrouping === 'aa' || _cfGrouping === 'ab') {
+        ['tenderAllOriginal','tenderHasBox','tenderCondition','tenderBoxCond','tenderIsError','tenderErrorDesc','tenderNotOriginalDesc',
+         'unit3AllOriginal','unit3HasBox','unit3Condition','unit3BoxCond','unit3IsError','unit3ErrorDesc','unit3NotOriginalDesc'
+        ].forEach(k => _skipKeys.add(k));
+      }
+      // ABA: hide tender fields only
+      if (_cfGrouping === 'aba') {
+        ['tenderAllOriginal','tenderHasBox','tenderCondition','tenderBoxCond','tenderIsError','tenderErrorDesc','tenderNotOriginalDesc'
+        ].forEach(k => _skipKeys.add(k));
+      }
     }
     // Collection wizard with special item types (Paper/Other/Service/Science/Construction from Browse):
     // hide tender/unit/error/IS/masterBox fields that don't apply
