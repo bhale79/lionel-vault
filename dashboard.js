@@ -30,8 +30,9 @@ const CARD_CATALOG = [
       }).length;
       let ephCount = 0;
       Object.values(state.ephemeraData||{}).forEach(b => { ephCount += Object.keys(b).length; });
-      const total = allOwned + ephCount;
-      return { value: total.toLocaleString(), sub: ephCount > 0 ? 'incl. ' + ephCount + ' other items' : 'including variations' };
+      const isCount = Object.keys(state.isData||{}).length;
+      const total = allOwned + ephCount + isCount;
+      return { value: total.toLocaleString(), sub: (ephCount + isCount) > 0 ? 'incl. ' + (ephCount + isCount) + ' other items' : 'including variations' };
     }
   },
   {
@@ -42,6 +43,7 @@ const CARD_CATALOG = [
         if (pd.userEstWorth) total += parseFloat(pd.userEstWorth)||0;
       });
       Object.values(state.ephemeraData||{}).forEach(b => { Object.values(b).forEach(it => { if (it.estValue) total += parseFloat(it.estValue)||0; }); });
+      Object.values(state.isData||{}).forEach(is => { if (is.estValue) total += parseFloat(is.estValue)||0; });
       return { value: total > 0 ? '$' + Math.round(total).toLocaleString() : '—', sub: 'estimated worth' };
     }
   },
@@ -269,6 +271,12 @@ function buildDashboard() {
       if (item.estValue) totalValue += parseFloat(item.estValue) || 0;
     });
   });
+  // Add instruction sheet values
+  let isCount = 0;
+  Object.values(state.isData || {}).forEach(is => {
+    isCount++;
+    if (is.estValue) totalValue += parseFloat(is.estValue) || 0;
+  });
 
   allOwned.forEach(pd => {
     if (pd.condition && pd.condition !== 'N/A') { const c = parseInt(pd.condition); if (!isNaN(c)) { condSum += c; condCount++; } }
@@ -276,7 +284,7 @@ function buildDashboard() {
     if (pd.allOriginal === 'Yes') origCount++;
   });
 
-  const totalOwned = owned + ephemeraCount;
+  const totalOwned = owned + ephemeraCount + isCount;
   // ── Render dashboard stat cards (slot-based) ─────────────────
   const _statsGrid = document.getElementById('stats-grid');
   if (_statsGrid) {
