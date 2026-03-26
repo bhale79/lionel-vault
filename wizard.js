@@ -4756,7 +4756,12 @@ function wizardPickIS(idx) {
 function findPD(itemNum, variation) {
   const prefix = `${itemNum}|${variation || ''}|`;
   const k = Object.keys(state.personalData).find(k => k.startsWith(prefix));
-  return k ? state.personalData[k] : null;
+  if (k) return state.personalData[k];
+  // Fallback: try with -P and -D suffixes (AA/AB units stored as 210-P, 210-D)
+  const kP = Object.keys(state.personalData).find(k => k.startsWith(`${itemNum}-P|${variation || ''}|`));
+  if (kP) return state.personalData[kP];
+  const kD = Object.keys(state.personalData).find(k => k.startsWith(`${itemNum}-D|${variation || ''}|`));
+  return kD ? state.personalData[kD] : null;
 }
 // Find a collection item by item number (for IS grouping logic)
 function _findCollectionItemByNum(itemNum) {
@@ -4769,7 +4774,13 @@ function _findCollectionItemByNum(itemNum) {
 
 function findPDKey(itemNum, variation) {
   const prefix = `${itemNum}|${variation || ''}|`;
-  return Object.keys(state.personalData).find(k => k.startsWith(prefix)) || null;
+  const k = Object.keys(state.personalData).find(k => k.startsWith(prefix));
+  if (k) return k;
+  // Fallback: try with -P and -D suffixes
+  const kP = Object.keys(state.personalData).find(k => k.startsWith(`${itemNum}-P|${variation || ''}|`));
+  if (kP) return kP;
+  const kD = Object.keys(state.personalData).find(k => k.startsWith(`${itemNum}-D|${variation || ''}|`));
+  return kD || null;
 }
 
 // ── PHOTO UPLOAD HANDLERS ───────────────────────────────────────
