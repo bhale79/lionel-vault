@@ -2445,14 +2445,26 @@ function _showSpecialOwnedMenu(idx, item, ownedItems) {
   document.body.appendChild(overlay);
 }
 
-function collectionActionForSale(globalIdx, itemNum, variation) {
-  var pdKey = findPDKey(itemNum, variation);
+function collectionActionForSale(globalIdx, itemNum, variation, pdRow) {
+  var pdKey;
+  if (pdRow) {
+    pdKey = `${itemNum}|${variation||''}|${pdRow}`;
+    if (!state.personalData[pdKey]) pdKey = findPDKey(itemNum, variation);
+  } else {
+    pdKey = findPDKey(itemNum, variation);
+  }
   if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
   _checkSetBeforeAction(pdKey, () => listForSaleFromCollection(globalIdx, pdKey));
 }
 
-function collectionActionSold(globalIdx, itemNum, variation) {
-  var pdKey = findPDKey(itemNum, variation);
+function collectionActionSold(globalIdx, itemNum, variation, pdRow) {
+  var pdKey;
+  if (pdRow) {
+    pdKey = `${itemNum}|${variation||''}|${pdRow}`;
+    if (!state.personalData[pdKey]) pdKey = findPDKey(itemNum, variation);
+  } else {
+    pdKey = findPDKey(itemNum, variation);
+  }
   if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
   _checkSetBeforeAction(pdKey, () => sellFromCollection(globalIdx, pdKey));
 }
@@ -5870,9 +5882,13 @@ function _upgradeViewMine(itemNum, variation) {
   }
 }
 
-function showAddToUpgradeModal(itemNum, variation) {
+function showAddToUpgradeModal(itemNum, variation, pdRow) {
   const existing = state.upgradeData[`${itemNum}|${variation||''}`] || {};
-  const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === itemNum && (p.variation||'') === (variation||''));
+  let pd;
+  if (pdRow) {
+    pd = state.personalData[`${itemNum}|${variation||''}|${pdRow}`];
+  }
+  if (!pd) pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === itemNum && (p.variation||'') === (variation||''));
   const master = state.masterData.find(m => m.itemNum === itemNum);
   const name = master ? (master.roadName || master.itemType || itemNum) : itemNum;
   const myCond = pd && pd.condition ? pd.condition : '';
@@ -5914,7 +5930,7 @@ function showAddToUpgradeModal(itemNum, variation) {
           <label style="font-size:0.78rem;color:var(--text-dim);display:block;margin-bottom:0.25rem">Notes</label>
           <textarea id="upg-notes" rows="2" placeholder="e.g. needs to have original box" style="width:100%;box-sizing:border-box;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;resize:vertical">${existing.notes||''}</textarea>
         </div>
-        <button onclick="saveUpgradeItem('${itemNum}','${(variation||'').replace(/'/g,"\\'")}',${existing.row||0})" style="padding:0.6rem;border-radius:8px;background:#8b5cf6;color:#fff;border:none;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-top:0.25rem">
+        <button onclick="saveUpgradeItem('${itemNum}','${(variation||'').replace(/'/g,"\\'")}',${existing.row||0},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" style="padding:0.6rem;border-radius:8px;background:#8b5cf6;color:#fff;border:none;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-top:0.25rem">
           ${existing.row ? 'Update Upgrade Entry' : '+ Add to Upgrade List'}
         </button>
       </div>
@@ -5922,15 +5938,12 @@ function showAddToUpgradeModal(itemNum, variation) {
   document.body.appendChild(overlay);
 }
 
-async function saveUpgradeItem(itemNum, variation, existingRow) {
+async function saveUpgradeItem(itemNum, variation, existingRow, invId) {
   const priority = document.getElementById('upg-priority')?.value || 'Medium';
   const targetCond = document.getElementById('upg-target-cond')?.value || '';
   const maxPrice = document.getElementById('upg-max-price')?.value || '';
   const notes = document.getElementById('upg-notes')?.value || '';
-  // Find the personalData entry to get its inventoryId
-  const _upgPd = Object.values(state.personalData).find(p => p.owned && p.itemNum === itemNum && (p.variation||'') === (variation||''));
-  const invId = _upgPd ? (_upgPd.inventoryId || '') : '';
-  const row = [itemNum, variation||'', priority, targetCond, maxPrice, notes, invId];
+  const row = [itemNum, variation||'', priority, targetCond, maxPrice, notes, invId || ''];
   const key = `${itemNum}|${variation||''}`;
   const sheetId = state.personalSheetId;
   if (!sheetId) { showToast('Not connected to a sheet'); return; }

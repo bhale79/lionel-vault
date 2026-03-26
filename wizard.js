@@ -6990,19 +6990,21 @@ async function saveWizardItem() {
         fsNotes,
         fsOrigPrice,
         fsEstWorth,
+        collectionEntry?.inventoryId || '',
       ];
       const fsKey = `${itemNum}|${fsVariation}`;
       const existingFs = state.forSaleData[fsKey];
       if (existingFs?.row) {
-        await sheetsUpdate(state.personalSheetId, `For Sale!A${existingFs.row}:H${existingFs.row}`, [row]);
+        await sheetsUpdate(state.personalSheetId, `For Sale!A${existingFs.row}:I${existingFs.row}`, [row]);
       } else {
-        await sheetsAppend(state.personalSheetId, 'For Sale!A:A', [row]);
+        await sheetsAppend(state.personalSheetId, 'For Sale!A:I', [row]);
       }
       // Optimistic update
       state.forSaleData[fsKey] = {
         row: existingFs?.row || 99999, itemNum, variation: fsVariation,
         condition: fsCondition, askingPrice: d.askingPrice || '',
         dateListed: row[4], notes: row[5], originalPrice: fsOrigPrice, estWorth: fsEstWorth,
+        inventoryId: collectionEntry?.inventoryId || '',
       };
 
     } else if (tab === 'sold') {
@@ -7018,13 +7020,14 @@ async function saveWizardItem() {
         d.salePrice || '',
         d.dateSold || '',
         ( d.notes || '' ).trim(),
+        collectionEntry?.inventoryId || '',
       ];
       const soldKey = `${itemNum}|${soldVariation}`;
       const existingSold = state.soldData[soldKey];
       if (existingSold?.row) {
-        await sheetsUpdate(state.personalSheetId, `Sold!A${existingSold.row}:H${existingSold.row}`, [row]);
+        await sheetsUpdate(state.personalSheetId, `Sold!A${existingSold.row}:I${existingSold.row}`, [row]);
       } else {
-        await sheetsAppend(state.personalSheetId, 'Sold!A:A', [row]);
+        await sheetsAppend(state.personalSheetId, 'Sold!A:I', [row]);
       }
       // Delete the row from My Collection
       if (collectionEntry?.row) {
