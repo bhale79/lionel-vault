@@ -270,6 +270,11 @@ function buildPrefsPage() {
         <button class="pref-btn" id="hc-copy-btn" onclick="_copyHealthCheckScript()">Copy Script</button>
       </div>
       <div id="health-check-output" style="display:none;margin-top:0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0.85rem 1rem;font-size:0.75rem;font-family:var(--font-mono);line-height:1.8;max-height:320px;overflow-y:auto"></div>
+      <div class="pref-row" style="margin-top:0.25rem">
+        <div class="pref-row-label"><strong>Backfill Inventory IDs</strong><span>Fix legacy For Sale / Sold / Upgrade entries missing per-copy Inventory IDs</span></div>
+        <button class="pref-btn" id="backfill-invid-btn" onclick="_runBackfillInventoryIds()">Run Backfill</button>
+      </div>
+      <div id="backfill-invid-output" style="display:none;margin-top:0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0.85rem 1rem;font-size:0.75rem;font-family:var(--font-mono);line-height:1.8;max-height:320px;overflow-y:auto"></div>
     </div>
 
         <div class="pref-section">
@@ -670,4 +675,121 @@ async function _rebuildDashboardTab() {
     console.error('Rebuild dashboard failed:', e);
     showToast('Failed to rebuild: ' + e.message, 4000, true);
   }
+}
+
+// ── Backfill Inventory IDs ──────────────────────────────────────
+// Finds For Sale / Sold / Upgrade entries with no Inventory ID,
+// matches them to the correct My Collection copy, and writes
+// the ID back to the sheet.
+async function _runBackfillInventoryIds() {
+  var btn = document.getElementById('backfill-invid-btn');
+  var out = document.getElementById('backfill-invid-output');
+  if (!out) return;
+  out.style.display = 'block';
+  out.innerHTML = '<span style="color:var(--text-dim)">Scanning…</span>';
+  if (btn) { btn.disabled = true; btn.textContent = 'Running…'; }
+
+  var lines = [];
+  var fixed = 0;
+  var skipped = 0;
+
+  try {
+    var sheetId = state.personalSheetId;
+    if (!sheetId) throw new Error('No personal sheet ID');
+
+    // Build set of inventoryIds already claimed by existing list entries
+    var claimed = {};
+    Object.values(state.forSaleData || {}).forEach(function(e) { if (e.inventoryId) claimed[e.inventoryId] = 'ForSale'; });
+    Object.values(state.soldData || {}).forEach(function(e) { if (e.inventoryId) claimed[e.inventoryId] = 'Sold'; });
+    Object.values(state.upgradeData || {}).forEach(function(e) { if (e.inventoryId) claimed[e.inventoryId] = 'Upgrade'; });
+
+    // Helper: find best matching personalData copy
+    function findBestMatch(itemNum, variation, claimedSet) {
+      var candidates = Object.values(state.personalData).filter(function(pd) {
+        return pd.itemNum === itemNum && (pd.variation || '') === (variation || '') && pd.owned;
+      });
+      if (candidates.length === 0) return null;
+      // Prefer a copy whose inventoryId is NOT already claimed
+      var unclaimed = candidates.filter(function(c) { return c.inventoryId && !claimedSet[c.inventoryId]; });
+      if (unclaimed.length > 0) return unclaimed[0];
+      // Fall back to first copy that has an inventoryId at all
+      var withId = candidates.filter(function(c) { return !!c.inventoryId; });
+      if (withId.length > 0) return withId[0];
+      return null;
+    }
+
+    // ── For Sale ──
+    var fsEntries = Object.keys(state.forSaleData || {});
+    for (var i = 0; i < fsEntries.length; i++) {
+      var fsKey = fsEntries[i];
+      var fs = state.forSaleData[fsKey];
+      if (fs.inventoryId) continue; // already has one
+      var match = findBestMatch(fs.itemNum, fs.variation, claimed);
+      if (match && match.inventoryId) {
+        await sheetsUpdate(sheetId, 'For Sale!I' + fs.row, [[match.inventoryId]]);
+        fs.inventoryId = match.inventoryId;
+        claimed[match.inventoryId] = 'ForSale';
+        lines.push('✅ For Sale: ' + fs.itemNum + ' → ' + match.inventoryId);
+        fixed++;
+      } else {
+        lines.push('⚠️ For Sale: ' + fs.itemNum + ' — no matching collection copy found');
+        skipped++;
+      }
+    }
+
+    // ── Sold ──
+    var soldEntries = Object.keys(state.soldData || {});
+    for (var j = 0; j < soldEntries.length; j++) {
+      var soldKey = soldEntries[j];
+      var sold = state.soldData[soldKey];
+      if (sold.inventoryId) continue;
+      var soldMatch = findBestMatch(sold.itemNum, sold.variation, claimed);
+      if (soldMatch && soldMatch.inventoryId) {
+        await sheetsUpdate(sheetId, 'Sold!I' + sold.row, [[soldMatch.inventoryId]]);
+        sold.inventoryId = soldMatch.inventoryId;
+        claimed[soldMatch.inventoryId] = 'Sold';
+        lines.push('✅ Sold: ' + sold.itemNum + ' → ' + soldMatch.inventoryId);
+        fixed++;
+      } else {
+        lines.push('⚠️ Sold: ' + sold.itemNum + ' — no matching collection copy found');
+        skipped++;
+      }
+    }
+
+    // ── Upgrade ──
+    var ugEntries = Object.keys(state.upgradeData || {});
+    for (var k = 0; k < ugEntries.length; k++) {
+      var ugKey = ugEntries[k];
+      var ug = state.upgradeData[ugKey];
+      if (ug.inventoryId) continue;
+      var ugMatch = findBestMatch(ug.itemNum, ug.variation, claimed);
+      if (ugMatch && ugMatch.inventoryId) {
+        await sheetsUpdate(sheetId, 'Upgrade List!G' + ug.row, [[ugMatch.inventoryId]]);
+        ug.inventoryId = ugMatch.inventoryId;
+        claimed[ugMatch.inventoryId] = 'Upgrade';
+        lines.push('✅ Upgrade: ' + ug.itemNum + ' → ' + ugMatch.inventoryId);
+        fixed++;
+      } else {
+        lines.push('⚠️ Upgrade: ' + ug.itemNum + ' — no matching collection copy found');
+        skipped++;
+      }
+    }
+
+    if (fixed === 0 && skipped === 0) {
+      lines.push('✅ All entries already have Inventory IDs — nothing to fix!');
+    } else {
+      lines.push('');
+      lines.push('Done: ' + fixed + ' fixed, ' + skipped + ' skipped');
+    }
+
+    // Refresh browse to update button states
+    if (fixed > 0) renderBrowse();
+
+  } catch(e) {
+    lines.push('❌ Error: ' + e.message);
+    console.error('Backfill error:', e);
+  }
+
+  out.innerHTML = lines.join('<br>');
+  if (btn) { btn.disabled = false; btn.textContent = 'Run Backfill'; }
 }
