@@ -1177,7 +1177,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '22';
+  const _CACHE_VER = '23';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -2462,7 +2462,155 @@ function collectionActionForSale(globalIdx, itemNum, variation, pdRow) {
     pdKey = findPDKey(itemNum, variation);
   }
   if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
-  _checkSetBeforeAction(pdKey, () => listForSaleFromCollection(globalIdx, pdKey));
+  _checkGroupBeforeForSale(globalIdx, pdKey);
+}
+
+function _checkGroupBeforeForSale(globalIdx, pdKey) {
+  const pd = state.personalData[pdKey] || {};
+  // No group? Proceed normally
+  if (!pd.groupId) { listForSaleFromCollection(globalIdx, pdKey); return; }
+  // Find siblings in same group
+  const siblings = Object.entries(state.personalData)
+    .filter(([k, p]) => k !== pdKey && p.groupId === pd.groupId && p.owned);
+  // No siblings? Proceed normally
+  if (!siblings.length) { listForSaleFromCollection(globalIdx, pdKey); return; }
+
+  // Build item list for display
+  const allItems = [[pdKey, pd], ...siblings];
+  const itemList = allItems.map(([, p]) => p.itemNum).join(', ');
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border-radius:16px;padding:1.5rem;max-width:420px;width:100%;border:1px solid var(--border)">
+      <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.4rem">This is a grouped item</div>
+      <div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:0.5rem">
+        <strong style="color:var(--text)">${allItems.length} items</strong> in this group: <span style="font-family:var(--font-mono);color:var(--accent)">${itemList}</span>
+      </div>
+      <div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:1.25rem">
+        Are you selling this as a set or individually?
+      </div>
+      <div id="_grpfs-set-section" style="display:flex;flex-direction:column;gap:0.5rem">
+        <button id="_grpfs-set" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
+          Sell as a set<br>
+          <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">List all ${allItems.length} items together for one price</span>
+        </button>
+        <button id="_grpfs-indiv" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid var(--accent);background:rgba(232,64,28,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
+          Sell individually<br>
+          <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">List only No. ${pd.itemNum} and break up the group</span>
+        </button>
+        <button id="_grpfs-cancel" style="padding:0.75rem;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>
+      </div>
+      <div id="_grpfs-price-section" style="display:none;flex-direction:column;gap:0.6rem">
+        <div style="font-size:0.84rem;color:var(--text-mid)">Enter the asking price for the entire set:</div>
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <span style="font-size:1.1rem;color:var(--text-dim)">$</span>
+          <input id="_grpfs-price-input" type="number" min="0" step="0.01" placeholder="0.00" style="flex:1;padding:0.6rem 0.8rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem;outline:none">
+        </div>
+        <button id="_grpfs-price-save" style="padding:0.75rem 1rem;border-radius:10px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:700;cursor:pointer">List all ${allItems.length} items for sale</button>
+        <button id="_grpfs-price-back" style="padding:0.65rem;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Back</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  // Cancel
+  document.getElementById('_grpfs-cancel').onclick = () => overlay.remove();
+
+  // ── SELL AS A SET ──
+  document.getElementById('_grpfs-set').onclick = () => {
+    document.getElementById('_grpfs-set-section').style.display = 'none';
+    const priceSection = document.getElementById('_grpfs-price-section');
+    priceSection.style.display = 'flex';
+    setTimeout(() => document.getElementById('_grpfs-price-input').focus(), 100);
+  };
+
+  // Back from price input
+  document.getElementById('_grpfs-price-back').onclick = () => {
+    document.getElementById('_grpfs-price-section').style.display = 'none';
+    document.getElementById('_grpfs-set-section').style.display = 'flex';
+  };
+
+  // Save set listing
+  document.getElementById('_grpfs-price-save').onclick = async () => {
+    const priceInput = document.getElementById('_grpfs-price-input');
+    const askingPrice = priceInput ? priceInput.value : '';
+    if (!askingPrice || parseFloat(askingPrice) <= 0) {
+      if (priceInput) { priceInput.style.borderColor = 'var(--accent)'; priceInput.focus(); }
+      showToast('Please enter an asking price', 3000);
+      return;
+    }
+    const saveBtn = document.getElementById('_grpfs-price-save');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const sheetId = state.personalSheetId;
+      // Lead item gets full price
+      for (let i = 0; i < allItems.length; i++) {
+        const [aKey, aPd] = allItems[i];
+        const isLead = i === 0;
+        const fsKey = aPd.itemNum + '|' + (aPd.variation || '');
+        const fsRow = [
+          aPd.itemNum, aPd.variation || '',
+          aPd.condition || '',
+          isLead ? askingPrice : '',
+          today,
+          isLead ? 'Set sale: ' + itemList : 'Set price on ' + pd.itemNum + ' — set sale: ' + itemList,
+          aPd.priceItem || '',
+          aPd.userEstWorth || '',
+          aPd.inventoryId || '',
+        ];
+        const existingFs = state.forSaleData[fsKey];
+        if (existingFs && existingFs.row) {
+          await sheetsUpdate(sheetId, 'For Sale!A' + existingFs.row + ':I' + existingFs.row, [fsRow]);
+        } else {
+          await sheetsAppend(sheetId, 'For Sale!A:I', [fsRow]);
+        }
+        state.forSaleData[fsKey] = {
+          row: existingFs ? existingFs.row : 99999,
+          itemNum: aPd.itemNum, variation: aPd.variation || '',
+          condition: aPd.condition || '', askingPrice: isLead ? askingPrice : '',
+          dateListed: today,
+          notes: fsRow[5], originalPrice: aPd.priceItem || '',
+          estWorth: aPd.userEstWorth || '',
+          inventoryId: aPd.inventoryId || '',
+        };
+      }
+      overlay.remove();
+      _cachePersonalData();
+      buildForSalePage();
+      renderBrowse();
+      showToast('✓ ' + allItems.length + ' items listed for sale as a set!');
+    } catch(e) {
+      console.error('Group for sale error:', e);
+      showToast('❌ Error: ' + e.message, 5000, true);
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'List all ' + allItems.length + ' items for sale'; }
+    }
+  };
+
+  // ── SELL INDIVIDUALLY ──
+  document.getElementById('_grpfs-indiv').onclick = async () => {
+    const indivBtn = document.getElementById('_grpfs-indiv');
+    if (indivBtn) { indivBtn.disabled = true; indivBtn.textContent = 'Breaking group…'; }
+    try {
+      const sheetId = state.personalSheetId;
+      // Remove groupId from ALL items in this group
+      for (const [aKey, aPd] of allItems) {
+        if (aPd.row && aPd.row !== 99999) {
+          await sheetsUpdate(sheetId, 'My Collection!V' + aPd.row, [['']]);
+        }
+        aPd.groupId = '';
+      }
+      overlay.remove();
+      showToast('Group broken up — now list your item');
+      renderBrowse();
+      // Proceed to normal For Sale wizard for just this item
+      listForSaleFromCollection(globalIdx, pdKey);
+    } catch(e) {
+      console.error('Group break error:', e);
+      showToast('❌ Error: ' + e.message, 5000, true);
+      if (indivBtn) { indivBtn.disabled = false; indivBtn.textContent = 'Sell individually'; }
+    }
+  };
 }
 
 function collectionActionSold(globalIdx, itemNum, variation, pdRow) {
