@@ -2664,7 +2664,9 @@ function _checkSetBeforeAction(pdKey, proceed) {
 
 async function removeCollectionItem(itemNum, variation, row) {
   // Check if this item is part of a group with other members
-  var pdKey = findPDKey(itemNum, variation);
+  // Use exact key with row number if available
+  var pdKey = row ? `${itemNum}|${variation||''}|${row}` : null;
+  if (!pdKey || !state.personalData[pdKey]) pdKey = findPDKey(itemNum, variation);
   var thisPd = pdKey ? state.personalData[pdKey] : null;
   var groupId = thisPd && thisPd.groupId;
   var groupSiblings = groupId
@@ -5242,8 +5244,14 @@ async function markForSaleAsSold(itemNum, variation, askingPrice) {
     await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:I${fs.row}`, [['','','','','','','','','']]);
   }
 
-  // Remove from My Collection
-  const collKey = Object.keys(state.personalData).find(k => k.split('|')[0] === itemNum && (state.personalData[k].variation || '') === variation);
+  // Remove from My Collection — match by inventoryId if available, else exact key
+  let collKey = null;
+  if (fs.inventoryId) {
+    collKey = Object.keys(state.personalData).find(k => state.personalData[k].inventoryId === fs.inventoryId);
+  }
+  if (!collKey) {
+    collKey = findPDKey(itemNum, variation);
+  }
   const collEntry = collKey ? state.personalData[collKey] : null;
   if (collEntry?.row) {
     await sheetsUpdate(state.personalSheetId, `My Collection!A${collEntry.row}:Y${collEntry.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]);
@@ -5311,15 +5319,16 @@ async function removeForSaleAndCollection(itemNum, variation, fsRow) {
   const key = `${itemNum}|${variation}`;
   // Remove from For Sale tab
   if (fsRow) {
-    await sheetsUpdate(state.personalSheetId, `For Sale!A${fsRow}:H${fsRow}`, [['','','','','','','','']]);
+    await sheetsUpdate(state.personalSheetId, `For Sale!A${fsRow}:I${fsRow}`, [['','','','','','','','','']]);
   }
   delete state.forSaleData[key];
-  // Remove from My Collection tab
-  const collEntry = state.personalData[key];
+  // Remove from My Collection tab — use findPDKey for correct 3-part key
+  const collKey = findPDKey(itemNum, variation);
+  const collEntry = collKey ? state.personalData[collKey] : null;
   if (collEntry && collEntry.row) {
     await sheetsUpdate(state.personalSheetId, `My Collection!A${collEntry.row}:Y${collEntry.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]);  // 25 cols A-Y
   }
-  delete state.personalData[key];
+  if (collKey) delete state.personalData[collKey];
   _cachePersonalData();
   buildForSalePage();
   buildDashboard();
