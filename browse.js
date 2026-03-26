@@ -535,10 +535,10 @@ function renderBrowse() {
     : state.masterData.filter(function(m) { return m._tab === 'Lionel Postwar - Items' || !m._tab; });
 
   state.filteredData = baseList.filter(item => {
-    const pd = findPD(item.itemNum, item.variation) || (item._personalOnly ? item : null);
+    const pd = findPD(_displayItemNum(item), item.variation) || (item._personalOnly ? item : null);
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const hasBox = pd?.hasBox === 'Yes';
-    const isSold = !!state.soldData[`${item.itemNum}|${item.variation}`];
+    const isSold = !!state.soldData[`${_displayItemNum(item)}|${item.variation}`] || !!state.soldData[`${item.itemNum}|${item.variation}`];
     if (isSold) return false;
     const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
     if (state.filters.wantList && !isWanted) return false;
@@ -573,8 +573,8 @@ function renderBrowse() {
   // Sort My Collection: by item number, with grouped items together
   if (state.filters.owned) {
     state.filteredData.sort((a, b) => {
-      const pdA = findPD(a.itemNum, a.variation) || {};
-      const pdB = findPD(b.itemNum, b.variation) || {};
+      const pdA = findPD(_displayItemNum(a), a.variation) || {};
+      const pdB = findPD(_displayItemNum(b), b.variation) || {};
       const gA = pdA.groupId || '';
       const gB = pdB.groupId || '';
       // If same group, sort by item number within group
@@ -780,7 +780,7 @@ function renderBrowse() {
   }
 
   const rowsHtml = pageData.map((item, i) => {
-    const pd = item._personalOnly ? item : findPD(item.itemNum, item.variation);
+    const pd = item._personalOnly ? item : findPD(_displayItemNum(item), item.variation);
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
     const cond = pd?.condition ? parseInt(pd.condition) : null;
@@ -788,7 +788,7 @@ function renderBrowse() {
     let globalIdx = state.masterData.indexOf(item);
     // For _personalOnly items not in masterData, use negative index via global array
     if (globalIdx < 0 && item._personalOnly) {
-      const poKey = findPDKey(item.itemNum, item.variation);
+      const poKey = findPDKey(_displayItemNum(item), item.variation);
       if (poKey) {
         if (!window._poKeys) window._poKeys = [];
         let poIdx = window._poKeys.indexOf(poKey);
@@ -796,8 +796,8 @@ function renderBrowse() {
         globalIdx = -(poIdx + 1000);
       }
     }
-    const isForSale = !!state.forSaleData[`${item.itemNum}|${item.variation||''}`];
-    const _isUpgradeM = !!state.upgradeData[`${item.itemNum}|${item.variation||''}`];
+    const isForSale = !!state.forSaleData[`${_displayItemNum(item)}|${item.variation||''}`] || !!state.forSaleData[`${item.itemNum}|${item.variation||''}`];
+    const _isUpgradeM = !!state.upgradeData[`${_displayItemNum(item)}|${item.variation||''}`] || !!state.upgradeData[`${item.itemNum}|${item.variation||''}`];
     const badgeClass = isOwned ? (isForSale ? 'forsale' : 'yes') : isWanted ? 'want' : 'no';
     const badgeText  = isOwned ? (isForSale ? '🏷️ For Sale' : (_isUpgradeM ? '↑ Upgrade' : '✓ Owned')) : isWanted ? '★ Want' : '—';
     const _mv = parseFloat(item.marketVal);
@@ -805,14 +805,15 @@ function renderBrowse() {
 
     if (isMobile) {
       const _escVar = (item.variation||'').replace(/'/g,"\\'");
-      const _pdKey = findPDKey(item.itemNum, item.variation);
+      const _pdKey = findPDKey(_displayItemNum(item), item.variation);
       const _pdRow = pd && pd.row ? pd.row : 0;
       const _isQE = pd && pd.quickEntry;
       const _isGrouped = pd && pd.groupId;
       const _hasPhoto = pd && pd.photoItem;
       // Per-copy For Sale / Upgrade detection
-      const _fsEntryM = state.forSaleData[`${item.itemNum}|${item.variation||''}`];
-      const _ugEntryM = state.upgradeData[`${item.itemNum}|${item.variation||''}`];
+      const _mDispNum = _displayItemNum(item);
+      const _fsEntryM = state.forSaleData[`${_mDispNum}|${item.variation||''}`] || state.forSaleData[`${item.itemNum}|${item.variation||''}`];
+      const _ugEntryM = state.upgradeData[`${_mDispNum}|${item.variation||''}`] || state.upgradeData[`${item.itemNum}|${item.variation||''}`];
       const _myInvIdM = pd && pd.inventoryId ? pd.inventoryId : '';
       const _isThisCopyFS = _fsEntryM && (_myInvIdM && _fsEntryM.inventoryId ? _fsEntryM.inventoryId === _myInvIdM : !_fsEntryM.inventoryId);
       const _isThisCopyUG = _ugEntryM && (_myInvIdM && _ugEntryM.inventoryId ? _ugEntryM.inventoryId === _myInvIdM : !_ugEntryM.inventoryId);
@@ -849,6 +850,7 @@ function renderBrowse() {
       const _isQuick = pd && pd.quickEntry;
       const _groupId = pd && pd.groupId ? pd.groupId : '';
       const _escVar = (item.variation||'').replace(/'/g,"\'");
+      const _dispNum = _displayItemNum(item);
       const _descParts = [item.roadName, item.itemType].filter(Boolean);
       const _descFull  = _descParts.join(' · ') || item.description || '—';
       const _descShort = _descFull.length > 42 ? _descFull.substring(0, 40) + '…' : _descFull;
@@ -856,8 +858,8 @@ function renderBrowse() {
       const _typeText = item.itemType || '<span style="color:var(--text-dim)">—</span>';
       const _estWorth = pd && pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : '<span style="color:var(--text-dim)">—</span>';
       // Per-copy For Sale / Upgrade detection using inventoryId
-      const _fsEntry = state.forSaleData[`${item.itemNum}|${item.variation||''}`];
-      const _ugEntry = state.upgradeData[`${item.itemNum}|${item.variation||''}`];
+      const _fsEntry = state.forSaleData[`${_dispNum}|${item.variation||''}`] || state.forSaleData[`${item.itemNum}|${item.variation||''}`];
+      const _ugEntry = state.upgradeData[`${_dispNum}|${item.variation||''}`] || state.upgradeData[`${item.itemNum}|${item.variation||''}`];
       const _myInvId = pd && pd.inventoryId ? pd.inventoryId : '';
       // This specific copy is for sale if: (a) inventoryId matches, or (b) legacy entry without inventoryId
       const _isThisCopyFS = _fsEntry && (_myInvId && _fsEntry.inventoryId ? _fsEntry.inventoryId === _myInvId : !_fsEntry.inventoryId);
@@ -875,11 +877,11 @@ function renderBrowse() {
       if (_inShareModeD) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_shareKeyD] = { itemNum: item.itemNum, variation: item.variation||'', pd: pd, master: item }; }
       // Smart buttons based on per-copy list status
       const _fsBtn = _isThisCopyFS
-        ? `<button onclick="event.stopPropagation();_removeForSaleFromCollection('${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:#e67e22;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Remove from For Sale</button>`
-        : `<button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Add to For Sale</button>`;
+        ? `<button onclick="event.stopPropagation();_removeForSaleFromCollection('${_dispNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:#e67e22;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Remove from For Sale</button>`
+        : `<button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Add to For Sale</button>`;
       const _upgBtn = _isThisCopyUG
-        ? `<button onclick="event.stopPropagation();_removeUpgradeFromCollection('${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Remove from Upgrade</button>`
-        : `<button onclick="event.stopPropagation();showAddToUpgradeModal('${item.itemNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Add to Upgrade</button>`;
+        ? `<button onclick="event.stopPropagation();_removeUpgradeFromCollection('${_dispNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Remove from Upgrade</button>`
+        : `<button onclick="event.stopPropagation();showAddToUpgradeModal('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Add to Upgrade</button>`;
       return `<tr id="share-card-${_shareKeyD}" onclick="${_inShareModeD ? 'toggleShareItem(\'' + _shareKeyD + '\')' : 'showItemDetailPage(' + globalIdx + ')'}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_isShareSelectedD ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
         <td style="white-space:nowrap">
           ${_inShareModeD ? '<input type="checkbox" id="share-cb-' + _shareKeyD + '" ' + (_isShareSelectedD ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKeyD + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}
@@ -896,9 +898,9 @@ function renderBrowse() {
         <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap">${_estWorth}</td>
         <td style="text-align:right;white-space:nowrap">
           ${!_inShareModeD ? `${_fsBtn}
-          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${item.itemNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Add to Sold</button>
+          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Add to Sold</button>
           ${_upgBtn}
-          <button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>` : ''}
+          <button onclick="event.stopPropagation();removeCollectionItem('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>` : ''}
         </td>
       </tr>`;
     } else {
@@ -951,7 +953,7 @@ function renderBrowse() {
   // Async: load thumbnails for My Collection view
   if (state.filters.owned) {
     pageData.forEach(function(item) {
-      const pd2 = item._personalOnly ? item : findPD(item.itemNum, item.variation);
+      const pd2 = item._personalOnly ? item : findPD(_displayItemNum(item), item.variation);
       if (!pd2 || !pd2.owned || !pd2.photoItem) return;
       const thumbEl = document.getElementById('thumb-' + item.itemNum + '-' + (item.variation || ''));
       if (!thumbEl) return;
@@ -976,7 +978,7 @@ function renderBrowse() {
   // Async: check which owned items have photos and reveal their camera icons
   if (state.filters.owned) {
     pageData.forEach(function(item) {
-      const pd2 = item._personalOnly ? item : findPD(item.itemNum, item.variation);
+      const pd2 = item._personalOnly ? item : findPD(_displayItemNum(item), item.variation);
       if (!pd2 || !pd2.owned) return;
       const camEl = document.getElementById('cam-' + item.itemNum + '-' + (item.variation || ''));
       if (!camEl) return;
