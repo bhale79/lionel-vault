@@ -610,7 +610,7 @@ function runDuplicateChecker() {
         '<span style="font-size:0.75rem;color:var(--accent2);font-family:var(--font-mono)">' + groupedStr + '</span>' +
         '<button onclick="event.stopPropagation();listForSaleFromCollection(' + masterIdx + ',&apos;' + pdKey + '&apos;)" ' +
           'style="padding:0.2rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;white-space:nowrap;flex-shrink:0" ' +
-          'title="List this copy for sale">🏷️ For Sale</button>' +
+          'title="Add this copy to your For Sale list">🏷️ Add to For Sale List</button>' +
       '</div>';
     });
 
