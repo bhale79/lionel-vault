@@ -31,8 +31,11 @@ const CARD_CATALOG = [
       let ephCount = 0;
       Object.values(state.ephemeraData||{}).forEach(b => { ephCount += Object.keys(b).length; });
       const isCount = Object.keys(state.isData||{}).length;
-      const total = allOwned + ephCount + isCount;
-      return { value: total.toLocaleString(), sub: (ephCount + isCount) > 0 ? 'incl. ' + (ephCount + isCount) + ' other items' : 'including variations' };
+      const sciCount = Object.keys(state.scienceData||{}).length;
+      const conCount = Object.keys(state.constructionData||{}).length;
+      const extraCount = ephCount + isCount + sciCount + conCount;
+      const total = allOwned + extraCount;
+      return { value: total.toLocaleString(), sub: extraCount > 0 ? 'incl. ' + extraCount + ' other items' : 'including variations' };
     }
   },
   {
@@ -44,6 +47,8 @@ const CARD_CATALOG = [
       });
       Object.values(state.ephemeraData||{}).forEach(b => { Object.values(b).forEach(it => { if (it.estValue) total += parseFloat(it.estValue)||0; }); });
       Object.values(state.isData||{}).forEach(is => { if (is.estValue) total += parseFloat(is.estValue)||0; });
+      Object.values(state.scienceData||{}).forEach(s => { if (s.estValue) total += parseFloat(s.estValue)||0; });
+      Object.values(state.constructionData||{}).forEach(s => { if (s.estValue) total += parseFloat(s.estValue)||0; });
       return { value: total > 0 ? '$' + Math.round(total).toLocaleString() : '—', sub: 'estimated worth' };
     }
   },
@@ -277,6 +282,18 @@ function buildDashboard() {
     isCount++;
     if (is.estValue) totalValue += parseFloat(is.estValue) || 0;
   });
+  // Add science set values
+  let sciCount = 0;
+  Object.values(state.scienceData || {}).forEach(s => {
+    sciCount++;
+    if (s.estValue) totalValue += parseFloat(s.estValue) || 0;
+  });
+  // Add construction set values
+  let conCount = 0;
+  Object.values(state.constructionData || {}).forEach(s => {
+    conCount++;
+    if (s.estValue) totalValue += parseFloat(s.estValue) || 0;
+  });
 
   allOwned.forEach(pd => {
     if (pd.condition && pd.condition !== 'N/A') { const c = parseInt(pd.condition); if (!isNaN(c)) { condSum += c; condCount++; } }
@@ -284,7 +301,7 @@ function buildDashboard() {
     if (pd.allOriginal === 'Yes') origCount++;
   });
 
-  const totalOwned = owned + ephemeraCount + isCount;
+  const totalOwned = owned + ephemeraCount + isCount + sciCount + conCount;
   // ── Render dashboard stat cards (slot-based) ─────────────────
   const _statsGrid = document.getElementById('stats-grid');
   if (_statsGrid) {
