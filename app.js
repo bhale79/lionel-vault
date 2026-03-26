@@ -60,12 +60,12 @@ const MOCKUP_HEADERS = [
   'Provenance','Lionel Verified','Price Paid','Est. Value','Photo Link','Notes','Date Acquired'
 ];
 const SCIENCE_HEADERS = [
-  'Item Number','Description','Year','Condition (1-10)','All Original',
+  'Item Number','Variation','Description','Year','Condition (1-10)','All Original',
   'Has Case/Box','Case/Box Condition','Price Paid','Est. Worth',
   'Photo Link','Notes','Date Acquired','Inventory ID','Group ID'
 ];
 const CONSTRUCTION_HEADERS = [
-  'Item Number','Description','Year','Condition (1-10)','All Original',
+  'Item Number','Variation','Description','Year','Condition (1-10)','All Original',
   'Has Case/Box','Case/Box Condition','Price Paid','Est. Worth',
   'Photo Link','Notes','Date Acquired','Inventory ID','Group ID'
 ];
@@ -1064,7 +1064,7 @@ async function ensureEphemeraSheets(sheetId) {
     });
   }
   await sheetsUpdate(sheetId, 'Science Sets!A1:A1', [['Science Sets']]);
-  await sheetsUpdate(sheetId, 'Science Sets!A2:N2', [SCIENCE_HEADERS]);
+  await sheetsUpdate(sheetId, 'Science Sets!A2:O2', [SCIENCE_HEADERS]);
   // Construction Sets tab
   if (!existingTabs.includes('Construction Sets')) {
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
@@ -1073,7 +1073,7 @@ async function ensureEphemeraSheets(sheetId) {
     });
   }
   await sheetsUpdate(sheetId, 'Construction Sets!A1:A1', [['Construction Sets']]);
-  await sheetsUpdate(sheetId, 'Construction Sets!A2:N2', [CONSTRUCTION_HEADERS]);
+  await sheetsUpdate(sheetId, 'Construction Sets!A2:O2', [CONSTRUCTION_HEADERS]);
 }
 
 
@@ -1177,7 +1177,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '19';
+  const _CACHE_VER = '20';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -1539,8 +1539,8 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     sheetsGet(sheetId, 'Mock-Ups!A3:Q').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Other Lionel!A3:N').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Instruction Sheets!A3:K').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Science Sets!A3:N').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Construction Sets!A3:N').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Science Sets!A3:O').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Construction Sets!A3:O').catch(() => ({values:[]})),
   ]);
 
   // My Collection
@@ -1621,17 +1621,17 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     };
   });
 
-  // Science Sets & Construction Sets — same 14-col layout (A-N)
+  // Science Sets & Construction Sets — 15-col layout (A-O) with Variation
   function _parseSetTab(res, bucket, tabTitle) {
     (res.values || []).forEach((r, idx) => {
       if (!r[0] || r[0] === 'Item Number' || r[0] === tabTitle) return;
       const key = idx + 3;
       bucket[key] = {
-        row: key, itemNum: r[0]||'', description: r[1]||'', year: r[2]||'',
-        condition: r[3]||'', allOriginal: r[4]||'', hasCase: r[5]||'',
-        caseCond: r[6]||'', pricePaid: r[7]||'', estValue: r[8]||'',
-        photoLink: r[9]||'', notes: r[10]||'', dateAcquired: r[11]||'',
-        inventoryId: r[12]||'', groupId: r[13]||'',
+        row: key, itemNum: String(r[0]||''), variation: String(r[1]||''), description: r[2]||'', year: r[3]||'',
+        condition: r[4]||'', allOriginal: r[5]||'', hasCase: r[6]||'',
+        caseCond: r[7]||'', pricePaid: r[8]||'', estValue: r[9]||'',
+        photoLink: r[10]||'', notes: r[11]||'', dateAcquired: r[12]||'',
+        inventoryId: r[13]||'', groupId: r[14]||'',
       };
     });
   }
@@ -3333,10 +3333,10 @@ function browseRowClick(event, idx) {
   const alreadyOwned = !!pdKey;
   // Also check Science/Construction dedicated tabs
   const _sciOwned = (item._tab === 'Lionel Postwar - Science' || item.itemType === 'Science Set')
-    ? Object.values(state.scienceData || {}).filter(s => s.itemNum === item.itemNum)
+    ? Object.values(state.scienceData || {}).filter(s => String(s.itemNum) === String(item.itemNum) && String(s.variation || '') === String(item.variation || ''))
     : [];
   const _conOwned = (item._tab === 'Lionel Postwar - Construction' || item.itemType === 'Construction Set')
-    ? Object.values(state.constructionData || {}).filter(s => s.itemNum === item.itemNum)
+    ? Object.values(state.constructionData || {}).filter(s => String(s.itemNum) === String(item.itemNum) && String(s.variation || '') === String(item.variation || ''))
     : [];
   const _specialOwned = _sciOwned.length + _conOwned.length;
   if (alreadyOwned) {
