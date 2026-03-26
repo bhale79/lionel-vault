@@ -255,6 +255,7 @@ function getSteps(tab) {
       { id: 'eph_condition', title: 'Condition (1-10)', type: 'slider', min:1, max:10 },
     );
     steps.push(
+      { id: 'eph_pricePaid', title: 'Price Paid ($)', type: 'money', placeholder: '0.00', optional: true },
       { id: 'eph_estValue', title: 'Est. Worth ($)', type: 'money', placeholder: '0.00' },
       { id: 'eph_dateAcquired', title: 'Date acquired', type: 'date', optional: true },
       { id: 'eph_notes', title: 'Notes (optional)', type: 'textarea', optional: true },
@@ -6263,7 +6264,8 @@ async function saveEphemeraItem() {
       d.eph_title||'', d.eph_itemNumRef||'', d.eph_description||'',
       d.eph_year||'', d.eph_manufacturer||'Lionel', d.eph_condition||'',
       d.eph_productionStatus||'', d.eph_material||'', d.eph_dimensions||'',
-      d.eph_provenance||'', d.eph_lionelVerified||'', d.eph_estValue||'',
+      d.eph_provenance||'', d.eph_lionelVerified||'',
+      d.eph_pricePaid||'', d.eph_estValue||'',
       photoFolderLink,
       d.eph_notes||'', d.eph_dateAcquired||'',
     ];
@@ -6280,7 +6282,7 @@ async function saveEphemeraItem() {
   }
 
   try {
-    await sheetsAppend(state.personalSheetId, sheetName + '!A:P', [row]);
+    await sheetsAppend(state.personalSheetId, sheetName + '!A:Q', [row]);
     // Add to local state
     const bucket = state.ephemeraData[tab] || {};
     const newKey = Date.now();
@@ -6291,7 +6293,8 @@ async function saveEphemeraItem() {
         manufacturer: d.eph_manufacturer||'Lionel', condition: d.eph_condition||'',
         productionStatus: d.eph_productionStatus||'', material: d.eph_material||'',
         dimensions: d.eph_dimensions||'', provenance: d.eph_provenance||'',
-        lionelVerified: d.eph_lionelVerified||'', estValue: d.eph_estValue||'',
+        lionelVerified: d.eph_lionelVerified||'',
+        pricePaid: d.eph_pricePaid||'', estValue: d.eph_estValue||'',
         photoLink: photoFolderLink, notes: d.eph_notes||'', dateAcquired: d.eph_dateAcquired||'',
       };
     } else {
