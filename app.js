@@ -2303,6 +2303,14 @@ function showOwnedItemMenu(idx, pdKey) {
     'var(--text-dim)', 'var(--surface2)',
     function() { overlay.remove(); showItemPanel(idx, pdKey, 'view'); }
   ));
+  // Add Another Copy — re-opens the wizard for the same item
+  if (idx >= 0) {
+    box.appendChild(mkBtn(
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg> Add Another Copy',
+      'var(--text-mid)', 'transparent',
+      function() { overlay.remove(); addFromBrowse(idx); }
+    ));
+  }
 
   overlay.appendChild(box);
   document.body.appendChild(overlay);
