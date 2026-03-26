@@ -3348,8 +3348,8 @@ function browseRowClick(event, idx) {
   }
   const item = state.masterData[idx];
   if (!item) return;
-  const keyPrefix = item.itemNum + '|' + item.variation + '|';
-  const pdKey = Object.keys(state.personalData).find(k => k.startsWith(keyPrefix));
+  // Use findPDKey which handles P/D suffix fallback for AA/AB units
+  const pdKey = findPDKey(item.itemNum, item.variation);
   const alreadyOwned = !!pdKey;
   // Also check Science/Construction dedicated tabs
   const _sciOwned = (item._tab === 'Lionel Postwar - Science' || item.itemType === 'Science Set')
