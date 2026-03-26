@@ -4447,6 +4447,20 @@ function renderWizardStep() {
        'priceItem','userEstWorth','datePurchased','pricePaid','location','yearMade',
        '_existingGroupId'].forEach(k => _skipKeys.add(k));
     }
+    // Ephemera/catalog items: hide ALL regular collection fields — only show cat_* or eph_* keys
+    if (_isEph) {
+      ['allOriginal','tenderAllOriginal','unit2AllOriginal','unit3AllOriginal',
+       'hasBox','tenderHasBox','unit2HasBox','unit3HasBox',
+       'condition','tenderCondition','unit2Condition','unit3Condition',
+       'boxCond','tenderBoxCond','unit2BoxCond','unit3BoxCond',
+       'isError','tenderIsError','unit2IsError','unit3IsError',
+       'errorDesc','tenderErrorDesc','unit2ErrorDesc','unit3ErrorDesc',
+       'notOriginalDesc','tenderNotOriginalDesc','unit2NotOriginalDesc','unit3NotOriginalDesc',
+       'hasIS','is_sheetNum','is_condition','is_pricePaid','is_estValue',
+       'hasMasterBox','masterBoxCond','masterBoxNotes',
+       'priceItem','userEstWorth','datePurchased','pricePaid','location','yearMade',
+       'variation','itemNum','_existingGroupId'].forEach(k => _skipKeys.add(k));
+    }
     const _summaryEntries = Object.entries(wizard.data).filter(function(e) {
       return !_skipKeys.has(e[0]) && e[1] && e[1] !== '' && !e[0].startsWith('photos') && !Array.isArray(e[1]) && typeof e[1] !== 'object';
     });
