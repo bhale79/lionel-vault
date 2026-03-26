@@ -4043,8 +4043,8 @@ function renderWizardStep() {
       let html = '<div class="cd-col" style="flex:1;min-width:' + (_isMobile ? '100%' : '200px') + ';background:var(--surface2);border-radius:10px;padding:0.85rem;border:1px solid var(--border)">';
       html += '<div style="font-weight:700;font-size:0.85rem;color:var(--accent2);margin-bottom:0.75rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border)">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.78rem\">(' + col.sublabel + ')</span>' : '') + '</div>';
       
-      // Condition slider — shown in set mode (pre-filled from set-level, editable per item)
-      if (wizard.data._setMode) {
+      // Condition slider — always shown (set mode pre-fills from set-level condition)
+      {
         html += '<div style="margin-bottom:0.65rem"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">'
           + '<span style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em">Condition</span>'
           + '<span id="cd-cond-val-' + col.id + '" style="font-family:var(--font-mono);font-size:1.1rem;color:var(--accent);font-weight:700">' + condVal + '</span></div>'
@@ -6584,7 +6584,10 @@ async function _saveScienceConstructionItem(sheetTabName, stateKey) {
   closeWizard();
   showToast('\u2713 ' + itemNum + ' ' + description + ' saved!');
   buildDashboard();
-  renderBrowse();
+  // Force re-render of current browse sub-tab so badge appears immediately
+  if (typeof renderBrowse === 'function') renderBrowse();
+  if (state._browseTab === 'science' && typeof renderMasterSubTab === 'function') renderMasterSubTab('science');
+  if (state._browseTab === 'construction' && typeof renderMasterSubTab === 'function') renderMasterSubTab('construction');
 }
 
 async function saveWizardItem() {
