@@ -2644,6 +2644,7 @@ function listForSaleFromCollection(idx, pdKey) {
     estWorth: pd.userEstWorth || '',
     _collectionPdKey: pdKey,
   }, steps: getSteps('forsale'), matchedItem: item };
+  _buildWizardModal();
   document.getElementById('wizard-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
   // Skip tab, itemNum, pickForSaleItem, condition steps (all pre-filled from collection)
