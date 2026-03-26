@@ -5807,6 +5807,22 @@ async function _wizardNextCore() {
 
   // Generic confirm — train/collection/sold/want items
   if (s.type === 'confirm') {
+    // Check if this is a Science Set or Construction Set — save to dedicated tab
+    const _scMaster = wizard.matchedItem || {};
+    const _scType = _scMaster.itemType || '';
+    const _scTab = _scMaster._tab || '';
+    if (_scType === 'Science Set' || _scTab === 'Lionel Postwar - Science') {
+      if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
+      try { await _saveScienceConstructionItem('Science Sets', 'scienceData'); } catch(e) { showToast('Error: '+e.message); }
+      if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
+      return;
+    }
+    if (_scType === 'Construction Set' || _scTab === 'Lionel Postwar - Construction') {
+      if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
+      try { await _saveScienceConstructionItem('Construction Sets', 'constructionData'); } catch(e) { showToast('Error: '+e.message); }
+      if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
+      return;
+    }
     if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
     try { await saveWizardItem(); } catch(e) { showToast('Error: '+e.message); }
     if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
@@ -6492,6 +6508,79 @@ async function _saveManualEntry() {
   _cachePersonalData();
   closeWizard();
   showToast('\u2713 ' + itemNum + ' saved (manual entry)');
+  buildDashboard();
+  renderBrowse();
+}
+
+// Save Science Set or Construction Set to dedicated personal sheet tab
+async function _saveScienceConstructionItem(sheetTabName, stateKey) {
+  const d = wizard.data;
+  const master = wizard.matchedItem || {};
+  const itemNum = (d.itemNum || '').trim();
+  const description = master.description || master.roadName || master.itemType || '';
+  const year = master.yearProd || d.yearMade || '';
+  const condition = d.condition || 7;
+  const allOriginal = d.allOriginal || '';
+  const hasCase = d.hasBox || 'No';
+  const caseCond = hasCase === 'Yes' ? (d.boxCond || '') : '';
+  const pricePaid = d.priceItem || '';
+  const estWorth = d.userEstWorth || '';
+  const notes = d.notes || '';
+  const dateAcquired = d.dateAcquired || d.datePurchased || '';
+  const invId = nextInventoryId();
+  const groupId = d._existingGroupId || '';
+
+  // Photos
+  let photoLink = '';
+  const photoObj = d.photosItem || {};
+  const hasPhotos = Object.values(photoObj).some(v => v && v.file);
+  if (hasPhotos) {
+    try {
+      await driveEnsureSetup();
+      const folderName = itemNum + ' ' + (description || sheetTabName).substring(0, 40);
+      if (!driveCache.vaultId) driveCache.vaultId = await driveFindOrCreateFolder('The Boxcar Files - My Collection');
+      const folderId = await driveFindOrCreateFolder(folderName, driveCache.vaultId);
+      photoLink = 'https://drive.google.com/drive/folders/' + folderId;
+      for (const [viewKey, fileObj] of Object.entries(photoObj)) {
+        if (!fileObj || !fileObj.file) continue;
+        const ext = fileObj.file.name.split('.').pop() || 'jpg';
+        await driveUploadPhoto(fileObj.file, folderName + ' ' + viewKey + '.' + ext, folderId).catch(e => console.warn(e));
+      }
+    } catch(e) { console.warn('Photo folder:', e); }
+  }
+
+  const row = [
+    itemNum,           // A: Item Number
+    description,       // B: Description
+    year,              // C: Year
+    String(condition), // D: Condition
+    allOriginal,       // E: All Original
+    hasCase,           // F: Has Case/Box
+    caseCond,          // G: Case/Box Condition
+    pricePaid,         // H: Price Paid
+    estWorth,          // I: Est. Worth
+    photoLink,         // J: Photo Link
+    notes,             // K: Notes
+    dateAcquired,      // L: Date Acquired
+    invId,             // M: Inventory ID
+    groupId,           // N: Group ID
+  ];
+
+  await ensureEphemeraSheets(state.personalSheetId);
+  await sheetsAppend(state.personalSheetId, sheetTabName + '!A:N', [row]);
+
+  // Update local state
+  const newKey = Date.now();
+  state[stateKey][newKey] = {
+    row: newKey, itemNum, description, year,
+    condition: String(condition), allOriginal, hasCase, caseCond,
+    pricePaid, estValue: estWorth, photoLink, notes, dateAcquired,
+    inventoryId: invId, groupId,
+  };
+
+  _cachePersonalData();
+  closeWizard();
+  showToast('\u2713 ' + itemNum + ' ' + description + ' saved!');
   buildDashboard();
   renderBrowse();
 }
