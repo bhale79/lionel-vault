@@ -43,21 +43,21 @@ const EPHEMERA_TABS = [
 ];
 const EPHEMERA_HEADERS = [
   'Item ID','Title','Description','Year','Manufacturer','Condition (1-10)',
-  'Quantity','Est. Value','Photo Link','Notes','Date Acquired',
+  'Quantity','Price Paid','Est. Value','Photo Link','Notes','Date Acquired',
   'Type','Item # Ref'
 ];
 const CATALOG_HEADERS = [
   'Item ID','Type','Year','Has Envelope/Mailer','Condition (1-10)',
-  'Est. Value','Date Acquired','Notes','Photo Link'
+  'Price Paid','Est. Value','Date Acquired','Notes','Photo Link'
 ];
 // Mock-ups get extra columns
 const IS_HEADERS = [
-  'Sheet #','Linked Item #','Year/Date Printed','Condition (1-10)','Notes','Photo Link','Inventory ID','Group ID','Form Code'
+  'Sheet #','Linked Item #','Year/Date Printed','Condition (1-10)','Notes','Photo Link','Inventory ID','Group ID','Form Code','Price Paid','Est. Value'
 ];
 const MOCKUP_HEADERS = [
-  'Title','Item Number Ref','Description','Year','Manufacturer',
+  'Item ID','Title','Item Number Ref','Description','Year','Manufacturer',
   'Condition (1-10)','Production Status','Material','Dimensions',
-  'Provenance','Lionel Verified','Est. Value','Photo Link','Notes','Date Acquired'
+  'Provenance','Lionel Verified','Price Paid','Est. Value','Photo Link','Notes','Date Acquired'
 ];
 
 // ── TENDER / LOCOMOTIVE RELATIONSHIPS ──────────────────────────
@@ -997,22 +997,22 @@ async function ensureEphemeraSheets(sheetId) {
     });
   }
   // Write headers — clear extra columns first to fix any stale headers
-  // Clear row 1 and row 2 across all ephemera tabs (A1:P covers any previous wide headers)
+  // Clear row 1 and row 2 across all ephemera tabs (A1:Q covers any previous wide headers)
   const _clearReqs = ['Catalogs','Paper Items','Mock-Ups','Other Lionel'].map(t => ({
     updateCells: {
-      range: { sheetId: 0, startRowIndex: 0, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 16 },
+      range: { sheetId: 0, startRowIndex: 0, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 17 },
       fields: 'userEnteredValue',
     }
   }));
   // Use values API to clear then rewrite cleanly
-  await sheetsUpdate(sheetId, 'Catalogs!A1:P1',    [['Catalogs','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Catalogs!A2:P2',    [CATALOG_HEADERS.concat(['','','','','','',''])]);
-  await sheetsUpdate(sheetId, 'Paper Items!A1:P1', [['Paper Items','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Paper Items!A2:M2', [EPHEMERA_HEADERS]);
-  await sheetsUpdate(sheetId, 'Mock-Ups!A1:P1',    [['Mock-Ups','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Mock-Ups!A2:P2',    [MOCKUP_HEADERS.concat([''])]);
-  await sheetsUpdate(sheetId, 'Other Lionel!A1:P1',[['Other Lionel','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Other Lionel!A2:P2',[EPHEMERA_HEADERS.concat(['','','','',''])]);
+  await sheetsUpdate(sheetId, 'Catalogs!A1:Q1',    [['Catalogs','','','','','','','','','','','','','','','','']]);
+  await sheetsUpdate(sheetId, 'Catalogs!A2:J2',    [CATALOG_HEADERS]);
+  await sheetsUpdate(sheetId, 'Paper Items!A1:Q1', [['Paper Items','','','','','','','','','','','','','','','','']]);
+  await sheetsUpdate(sheetId, 'Paper Items!A2:N2', [EPHEMERA_HEADERS]);
+  await sheetsUpdate(sheetId, 'Mock-Ups!A1:Q1',    [['Mock-Ups','','','','','','','','','','','','','','','','']]);
+  await sheetsUpdate(sheetId, 'Mock-Ups!A2:Q2',    [MOCKUP_HEADERS]);
+  await sheetsUpdate(sheetId, 'Other Lionel!A1:Q1',[['Other Lionel','','','','','','','','','','','','','','','','']]);
+  await sheetsUpdate(sheetId, 'Other Lionel!A2:N2',[EPHEMERA_HEADERS]);
   _ensureEphemDone = true;  // Don't run again this session
   // Instruction Sheets tab
   if (!existingTabs.includes('Instruction Sheets')) {
@@ -1022,7 +1022,7 @@ async function ensureEphemeraSheets(sheetId) {
     });
   }
   await sheetsUpdate(sheetId, 'Instruction Sheets!A1:A1', [['Instruction Sheets']]);
-  await sheetsUpdate(sheetId, 'Instruction Sheets!A2:H2', [IS_HEADERS]);
+  await sheetsUpdate(sheetId, 'Instruction Sheets!A2:K2', [IS_HEADERS]);
 }
 
 
@@ -1476,11 +1476,11 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     sheetsGet(sheetId, 'For Sale!A3:H').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Want List!A3:E').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Upgrade List!A3:F').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Catalogs!A3:I').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Paper Items!A3:M').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Mock-Ups!A3:O').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Other Lionel!A3:J').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Instruction Sheets!A3:I').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Catalogs!A3:J').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Paper Items!A3:N').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Mock-Ups!A3:Q').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Other Lionel!A3:N').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Instruction Sheets!A3:K').catch(() => ({values:[]})),
   ]);
 
   // My Collection
@@ -1557,6 +1557,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       row: key, sheetNum: r[0]||'', linkedItem: r[1]||'', year: r[2]||'',
       condition: r[3]||'', notes: r[4]||'', photoLink: r[5]||'',
       inventoryId: r[6]||'', groupId: r[7]||'', formCode: r[8]||'',
+      pricePaid: r[9]||'', estValue: r[10]||'',
     };
   });
 
@@ -1574,15 +1575,15 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
         bucket[key] = {
           row: key, itemNum: r[0]||'', title: r[1]||'', description: r[2]||'', year: r[3]||'',
           manufacturer: r[4]||'Lionel', condition: r[5]||'', quantity: r[6]||'1',
-          estValue: r[7]||'', photoLink: r[8]||'', notes: r[9]||'', dateAcquired: r[10]||'',
-          paperType: r[11]||'', itemNumRef: r[12]||'',
+          pricePaid: r[7]||'', estValue: r[8]||'', photoLink: r[9]||'', notes: r[10]||'', dateAcquired: r[11]||'',
+          paperType: r[12]||'', itemNumRef: r[13]||'',
         };
       } else {
-        // Legacy row without Item ID
+        // Legacy row without Item ID — predates Price Paid column
         bucket[key] = {
           row: key, itemNum: '', title: r[0]||'', description: r[1]||'', year: r[2]||'',
           manufacturer: r[3]||'Lionel', condition: r[4]||'', quantity: r[5]||'1',
-          estValue: r[6]||'', photoLink: r[7]||'', notes: r[8]||'', dateAcquired: r[9]||'',
+          pricePaid: '', estValue: r[6]||'', photoLink: r[7]||'', notes: r[8]||'', dateAcquired: r[9]||'',
           paperType: '', itemNumRef: '',
         };
       }
@@ -1593,15 +1594,15 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     // Skip header rows: first cell is 'Item ID', 'Type', or 'Catalogs'
     if (!r[0] || r[0] === 'Item ID' || r[0] === 'Type' || r[0] === 'Catalogs') return;
     const key = idx + 3;
-    // Columns: ItemID(0) Type(1) Year(2) HasMailer(3) Condition(4) EstValue(5) DateAcq(6) Notes(7) PhotoLink(8)
+    // Columns: ItemID(0) Type(1) Year(2) HasMailer(3) Condition(4) PricePaid(5) EstValue(6) DateAcq(7) Notes(8) PhotoLink(9)
     const catType = r[1]||'';
     const year = r[2]||'';
     const title = [year, catType, 'Catalog'].filter(Boolean).join(' ');
     newEphemera.catalogs[key] = {
       row: key, itemNum: r[0]||'', title,
       catType, year, hasMailer: r[3]||'No',
-      condition: r[4]||'', estValue: r[5]||'', dateAcquired: r[6]||'',
-      notes: r[7]||'', photoLink: r[8]||'',
+      condition: r[4]||'', pricePaid: r[5]||'', estValue: r[6]||'', dateAcquired: r[7]||'',
+      notes: r[8]||'', photoLink: r[9]||'',
     };
   });
   parseEphemeraRows(paperRes.values, newEphemera.paper);
@@ -1624,14 +1625,15 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
 
   // Mock-ups have extra fields
   (mockRes.values || []).forEach((r, idx) => {
-    if (!r[0] || r[0] === 'Title') return;
+    if (!r[0] || r[0] === 'Item ID' || r[0] === 'Title') return;
     const key = idx + 3;
     newEphemera.mockups[key] = {
-      row: key, title: r[0]||'', itemNumRef: r[1]||'', description: r[2]||'',
-      year: r[3]||'', manufacturer: r[4]||'Lionel', condition: r[5]||'',
-      productionStatus: r[6]||'', material: r[7]||'', dimensions: r[8]||'',
-      provenance: r[9]||'', lionelVerified: r[10]||'', estValue: r[11]||'',
-      photoLink: r[12]||'', notes: r[13]||'', dateAcquired: r[14]||'',
+      row: key, itemNum: r[0]||'', title: r[1]||'', itemNumRef: r[2]||'', description: r[3]||'',
+      year: r[4]||'', manufacturer: r[5]||'Lionel', condition: r[6]||'',
+      productionStatus: r[7]||'', material: r[8]||'', dimensions: r[9]||'',
+      provenance: r[10]||'', lionelVerified: r[11]||'',
+      pricePaid: r[12]||'', estValue: r[13]||'',
+      photoLink: r[14]||'', notes: r[15]||'', dateAcquired: r[16]||'',
     };
   });
 
