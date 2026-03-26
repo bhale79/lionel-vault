@@ -797,8 +797,9 @@ function renderBrowse() {
       }
     }
     const isForSale = !!state.forSaleData[`${item.itemNum}|${item.variation||''}`];
+    const _isUpgradeM = !!state.upgradeData[`${item.itemNum}|${item.variation||''}`];
     const badgeClass = isOwned ? (isForSale ? 'forsale' : 'yes') : isWanted ? 'want' : 'no';
-    const badgeText  = isOwned ? (isForSale ? '🏷️ For Sale' : '✓ Owned') : isWanted ? '★ Want' : '—';
+    const badgeText  = isOwned ? (isForSale ? '🏷️ For Sale' : (_isUpgradeM ? '↑ Upgrade' : '✓ Owned')) : isWanted ? '★ Want' : '—';
     const _mv = parseFloat(item.marketVal);
     const marketVal  = item.marketVal && !isNaN(_mv) ? '$' + _mv.toLocaleString() : '';
 
@@ -809,7 +810,9 @@ function renderBrowse() {
       const _isQE = pd && pd.quickEntry;
       const _isGrouped = pd && pd.groupId;
       const _hasPhoto = pd && pd.photoItem;
-      const _statusIcons = (_isGrouped ? '<span title="Grouped item" style="font-size:0.8rem">🔗</span>' : '')
+      const _statusIcons = (isForSale ? '<span title="On For Sale list" style="font-size:0.8rem">🏷️</span>' : '')
+                         + (_isUpgradeM ? '<span title="On Upgrade list" style="font-size:0.8rem;color:#8b5cf6">↑</span>' : '')
+                         + (_isGrouped ? '<span title="Grouped item" style="font-size:0.8rem">🔗</span>' : '')
                          + (_isQE ? '<span title="Quick Entry — details incomplete" style="font-size:0.8rem">⚡</span>' : '')
                          + (_hasPhoto ? '<span title="Has photo" style="font-size:0.8rem" onclick="event.stopPropagation();openPhotoFolder(\''+item.itemNum+'\',\''+(_hasPhoto||'')+'\')">📷</span>' : '');
       const _shareKey = item.itemNum + '|' + (item.variation||'') + '|' + _pdRow;
@@ -846,10 +849,21 @@ function renderBrowse() {
       const _varText   = item.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${item.variation}</span>` : '';
       const _typeText = item.itemType || '<span style="color:var(--text-dim)">—</span>';
       const _estWorth = pd && pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : '<span style="color:var(--text-dim)">—</span>';
+      const _isUpgrade = !!state.upgradeData[`${item.itemNum}|${item.variation||''}`];
+      // Status icons for lists
+      const _listIcons = (isForSale ? '<span title="On For Sale list" style="font-size:0.7rem;color:#e67e22;margin-left:4px;vertical-align:middle">🏷️</span>' : '')
+        + (_isUpgrade ? '<span title="On Upgrade list" style="font-size:0.7rem;color:#8b5cf6;margin-left:4px;vertical-align:middle">↑</span>' : '');
       const _shareKeyD = item.itemNum + '|' + (item.variation||'') + '|' + (pd && pd.row ? pd.row : 0);
       const _inShareModeD = typeof isShareMode === 'function' && isShareMode('collection');
       const _isShareSelectedD = _inShareModeD && window._shareItems && window._shareItems[_shareKeyD];
       if (_inShareModeD) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_shareKeyD] = { itemNum: item.itemNum, variation: item.variation||'', pd: pd, master: item }; }
+      // Smart buttons based on list status
+      const _fsBtn = isForSale
+        ? `<button onclick="event.stopPropagation();_removeForSaleFromCollection('${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:#e67e22;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Remove from For Sale</button>`
+        : `<button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Add to For Sale</button>`;
+      const _upgBtn = _isUpgrade
+        ? `<button onclick="event.stopPropagation();_removeUpgradeFromCollection('${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Remove from Upgrade</button>`
+        : `<button onclick="event.stopPropagation();showAddToUpgradeModal('${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Add to Upgrade</button>`;
       return `<tr id="share-card-${_shareKeyD}" onclick="${_inShareModeD ? 'toggleShareItem(\'' + _shareKeyD + '\')' : 'showItemDetailPage(' + globalIdx + ')'}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_isShareSelectedD ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
         <td style="white-space:nowrap">
           ${_inShareModeD ? '<input type="checkbox" id="share-cb-' + _shareKeyD + '" ' + (_isShareSelectedD ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKeyD + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}
@@ -858,15 +872,16 @@ function renderBrowse() {
           ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+_escVar+'\','+globalIdx+','+pd.row+')" style="margin-left:5px;font-size:0.72rem;background:#27ae60;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700;vertical-align:middle" title="Complete this Quick Entry">⚡</span>' : ''}
           ${pd && pd.photoItem ? '<span style="margin-left:4px;font-size:0.78rem;vertical-align:middle;opacity:0.75" title="Has photo">📷</span>' : ''}
           ${pd && pd.setId ? '<span class="badge-set" style="margin-left:5px;vertical-align:middle">' + pd.setId + '</span>' : ''}
+          ${_listIcons}
         </td>
         <td style="white-space:nowrap">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>
         <td style="font-size:0.78rem;color:var(--text-dim)">${_typeText}</td>
         <td style="color:var(--text-mid);font-size:0.85rem">${_descShort}</td>
         <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap">${_estWorth}</td>
         <td style="text-align:right;white-space:nowrap">
-          ${!_inShareModeD ? `<button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">${isForSale ? '🏷️ Update' : '🏷️ For Sale'}</button>
-          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">💰 Sold</button>
-          <button onclick="event.stopPropagation();showAddToUpgradeModal('${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to Upgrade List">↑ Upgrade</button>
+          ${!_inShareModeD ? `${_fsBtn}
+          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Add to Sold</button>
+          ${_upgBtn}
           <button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>` : ''}
         </td>
       </tr>`;

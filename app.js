@@ -5242,6 +5242,38 @@ async function markForSaleAsSold(itemNum, variation, askingPrice) {
   showToast('✓ Marked as sold!');
 }
 
+// Remove from For Sale list (called from My Collection row button)
+async function _removeForSaleFromCollection(itemNum, variation) {
+  const fsKey = `${itemNum}|${variation||''}`;
+  const fs = state.forSaleData[fsKey];
+  if (!fs) { showToast('Item not found on For Sale list'); return; }
+  if (fs.row) {
+    await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:H${fs.row}`, [['','','','','','','','']]);
+  }
+  delete state.forSaleData[fsKey];
+  _cachePersonalData();
+  showToast('✓ Removed from For Sale');
+  renderBrowse();
+  buildDashboard();
+}
+
+// Remove from Upgrade list (called from My Collection row button)
+async function _removeUpgradeFromCollection(itemNum, variation) {
+  const key = `${itemNum}|${variation||''}`;
+  const ug = state.upgradeData[key];
+  if (!ug) { showToast('Item not found on Upgrade list'); return; }
+  if (ug.row) {
+    await sheetsUpdate(state.personalSheetId, `Upgrade List!A${ug.row}:F${ug.row}`, [['','','','','','']]);
+  }
+  delete state.upgradeData[key];
+  _cachePersonalData();
+  showToast('✓ Removed from Upgrade List');
+  renderBrowse();
+  buildDashboard();
+  const badge = document.getElementById('nav-upgrade-count');
+  if (badge) { const c = Object.values(state.upgradeData).length; badge.textContent = c > 0 ? c : '—'; }
+}
+
 async function removeForSaleItem(itemNum, variation, row) {
   if (!confirm('Remove this item from your For Sale list?')) return;
   const fsKey = `${itemNum}|${variation}`;
