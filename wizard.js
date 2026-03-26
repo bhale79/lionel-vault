@@ -1726,6 +1726,7 @@ function renderWizardStep() {
     _qe1SaveBtn.textContent = '\u26a1 Save quick entry';
     _qe1SaveBtn.onclick = function() {
       // Disable immediately to block double-tap on mobile
+      console.log('[QE1] Save button clicked. _qeSaving:', wizard.data._qeSaving, '_wizSaveLock:', wizard.data._wizSaveLock);
       if (wizard.data._qeSaving || _qe1SaveBtn.disabled) return;
       _qe1SaveBtn.disabled = true;
       var wv = document.getElementById('qe1-worth');
@@ -1773,6 +1774,7 @@ function renderWizardStep() {
     _qe1FullBtn.textContent = 'Full entry \u2192';
     _qe1FullBtn.onclick = function() {
       // Guard: if QE save is already in progress, block Full Entry
+      console.log('[QE1] Full Entry button clicked. _wizSaveLock:', wizard.data._wizSaveLock, '_qeSaving:', wizard.data._qeSaving);
       if (wizard.data._wizSaveLock || wizard.data._qeSaving) return;
       wizard.data._wizSaveLock = true;
       _qe1FullBtn.disabled = true;
@@ -6671,6 +6673,7 @@ async function saveWizardItem() {
   const d = wizard.data;
   // Guard: prevent double-save if QE path already fired
   if (d._qeSaving) { console.warn('[Save] Blocked — QE save already in progress'); return; }
+  console.log('[Save] saveWizardItem fired. _wizSaveLock:', d._wizSaveLock, '_qeSaving:', d._qeSaving, 'setMatch:', d.setMatch, 'setType:', d.setType, 'tenderMatch:', d.tenderMatch, 'unitPower:', d.unitPower);
   const tab = wizard.tab;
   console.log('[Save] Starting save. tab:', tab, '| accessToken:', accessToken ? 'present' : 'MISSING', '| sheetId:', state.personalSheetId || 'MISSING');
   // Apply powered/dummy suffix to A units (B units ending in C are never powered)
@@ -7339,6 +7342,7 @@ async function quickEntryAdd() {
   const d = wizard.data;
   // Guard: prevent double-save if Full Entry path already fired
   if (d._wizSaveLock && !d._qeSaving) { console.warn('[QE] Blocked — save lock held by another path'); return; }
+  console.log('[QE] quickEntryAdd fired. _wizSaveLock:', d._wizSaveLock, '_qeSaving:', d._qeSaving, '_itemGrouping:', d._itemGrouping, '_qeSetType:', d._qeSetType, 'tenderMatch:', d.tenderMatch);
   const itemNum = (d.itemNum || '').trim();
   if (!itemNum) { showToast('Please enter an item number first'); return; }
   const variation = (d.variation || '').trim();
