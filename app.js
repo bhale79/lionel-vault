@@ -1275,7 +1275,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '38';
+  const _CACHE_VER = '39';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -1422,10 +1422,23 @@ async function loadISRefData() {
   if (cached && (Date.now() - cachedAt) < TTL) {
     try { state.isRefData = JSON.parse(cached); return; } catch(e) {}
   }
+  // Try multiple possible tab names (full name, Excel-truncated 31-char, legacy short name)
+  const _isTabNames = [
+    'Lionel Postwar - Instruction Sheets',
+    'Lionel Postwar - Instruction S',
+    'Instruction Sheets',
+  ];
+  let res = null;
+  for (const tabName of _isTabNames) {
+    try { res = await sheetsGet(state.masterSheetId, tabName + '!A2:F'); break; }
+    catch(_) { /* tab doesn't exist with this name, try next */ }
+  }
+  if (!res) {
+    // Tab doesn't exist yet — silently default to empty
+    state.isRefData = [];
+    return;
+  }
   try {
-    let res;
-    try { res = await sheetsGet(state.masterSheetId, 'Lionel Postwar - Instruction Sheets!A2:F'); }
-    catch(_) { res = await sheetsGet(state.masterSheetId, 'Instruction Sheets!A2:F'); }
     const rows = (res && res.values) || [];
     state.isRefData = rows
       .filter(r => r[0] && r[2] && r[0] !== 'Instruction Sheet ID')
@@ -1440,7 +1453,6 @@ async function loadISRefData() {
     localStorage.setItem(CACHE_KEY, JSON.stringify(state.isRefData));
     localStorage.setItem(CACHE_TS, Date.now().toString());
   } catch(e) {
-    console.warn('loadISRefData:', e);
     state.isRefData = [];
   }
 }
