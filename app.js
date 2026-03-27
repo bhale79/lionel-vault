@@ -130,7 +130,7 @@ function isF3AlcoUnit(itemNum) {
   const num = normalizeItemNum(itemNum).replace(/-(P|D)$/i, '').replace(/C$/i, '');
   return state.masterData.some(m =>
     normalizeItemNum(m.itemNum) === num &&
-    (m.subType || '').match(/F-?3|Alco/i)
+    ((m.subType || '').match(/F-?3|Alco|AA|AB/i) || (m.poweredDummy || '').match(/^(P|D)$/i))
   );
 }
 function nextInventoryId() {
@@ -1198,7 +1198,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '29';
+  const _CACHE_VER = '32';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -2883,30 +2883,35 @@ async function removeCollectionItem(itemNum, variation, row) {
     if (choice === 'cancel') return;
 
     if (choice === 'all') {
-      // Remove every item in the group
-      for (var sib of groupSiblings) {
+      // Remove every item in the group — delete from bottom to top to avoid row shift issues
+      var sortedSibs = groupSiblings.slice().sort(function(a, b) { return (b.row || 0) - (a.row || 0); });
+      var fsRowsToDelete = [];
+      for (var sib of sortedSibs) {
         var sibKey = findPDKey(sib.itemNum, sib.variation);
-        if (sib.row) {
+        if (sib.row && sib.row !== 99999) {
           try {
-            await sheetsUpdate(state.personalSheetId, 'My Collection!A' + sib.row + ':Y' + sib.row,
-              [['','','','','','','','','','','','','','','','','','','','','','','','','']]);
+            await sheetsDeleteRow(state.personalSheetId, 'My Collection', sib.row);
           } catch(e) { console.warn('Remove group row error:', sib.itemNum, e); }
         }
         var sibFsKey = sib.itemNum + '|' + (sib.variation || '');
         var sibFs = state.forSaleData[sibFsKey];
         if (sibFs && sibFs.row) {
-          try {
-            await sheetsUpdate(state.personalSheetId, 'For Sale!A' + sibFs.row + ':I' + sibFs.row,
-              [['','','','','','','','']]);
-          } catch(e) { console.warn('For Sale group cleanup:', e); }
+          fsRowsToDelete.push(sibFs.row);
           delete state.forSaleData[sibFsKey];
         }
         if (sibKey) delete state.personalData[sibKey];
+      }
+      // Delete For Sale rows bottom-to-top
+      fsRowsToDelete.sort(function(a, b) { return b - a; });
+      for (var fsRow of fsRowsToDelete) {
+        try { await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsRow); } catch(e) { console.warn('FS cleanup:', e); }
       }
       _cachePersonalData();
       renderBrowse();
       buildDashboard();
       showToast('✓ Removed ' + groupSiblings.length + ' grouped items');
+      // Reload data in background to fix row numbers after deletion
+      _reloadAfterDelete();
       return;
     }
     // else fall through to remove just this one item
@@ -2916,10 +2921,9 @@ async function removeCollectionItem(itemNum, variation, row) {
   }
 
   // ── Remove single item ──
-  if (row) {
+  if (row && row !== 99999) {
     try {
-      await sheetsUpdate(state.personalSheetId, 'My Collection!A' + row + ':Y' + row,
-        [['','','','','','','','','','','','','','','','','','','','','','','','','']]);
+      await sheetsDeleteRow(state.personalSheetId, 'My Collection', row);
     } catch(e) { console.error('Remove row error:', e); showToast('Error removing item — please try again', 3000, true); return; }
   }
   // Also remove from For Sale if listed
@@ -2927,8 +2931,7 @@ async function removeCollectionItem(itemNum, variation, row) {
   var fsEntry = state.forSaleData[fsKey];
   if (fsEntry && fsEntry.row) {
     try {
-      await sheetsUpdate(state.personalSheetId, 'For Sale!A' + fsEntry.row + ':I' + fsEntry.row,
-        [['','','','','','','','']]);
+      await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsEntry.row);
     } catch(e) { console.warn('For Sale cleanup:', e); }
     delete state.forSaleData[fsKey];
   }
@@ -2937,6 +2940,24 @@ async function removeCollectionItem(itemNum, variation, row) {
   renderBrowse();
   buildDashboard();
   showToast('✓ Removed from collection');
+  // Reload data in background to fix row numbers after deletion
+  _reloadAfterDelete();
+}
+
+function _reloadAfterDelete() {
+  // After deleting rows, remaining items' row numbers shift.
+  // Bust cache and reload in background so state stays accurate.
+  localStorage.removeItem('lv_personal_cache');
+  localStorage.removeItem('lv_personal_cache_ts');
+  setTimeout(async function() {
+    try {
+      await loadPersonalData();
+      buildDashboard();
+      buildSoldPage();
+      buildForSalePage();
+      renderBrowse();
+    } catch(e) { console.warn('Post-delete reload:', e); }
+  }, 1500);
 }
 
 function sellFromCollection(idx, pdKey) {

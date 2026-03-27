@@ -770,18 +770,24 @@ function _updateGroupingButtons() {
   const isF3Alco = isF3AlcoUnit(_baseNum);
   const isBUnit = _baseNum.endsWith('C');
 
-  // For F3/Alco: derive valid set configs from sub-type in master data
+  // For diesel A/B units: derive valid set configs from sub-type, poweredDummy, and B-unit existence
   let _f3SubTypes = new Set();
+  let _hasPoweredDummy = false;
   if (isF3Alco) {
     state.masterData.forEach(function(m) {
-      if (normalizeItemNum(m.itemNum) === normalizeItemNum(_baseNum) && m.subType) {
-        _f3SubTypes.add((m.subType || '').toUpperCase());
+      if (normalizeItemNum(m.itemNum) === normalizeItemNum(_baseNum)) {
+        if (m.subType) _f3SubTypes.add((m.subType || '').toUpperCase());
+        if ((m.poweredDummy || '').match(/^(P|D)$/i)) _hasPoweredDummy = true;
       }
     });
   }
-  const _hasAA  = Array.from(_f3SubTypes).some(s => s.includes('AA'));
-  const _hasAB  = Array.from(_f3SubTypes).some(s => s.includes('AB') && !s.includes('ABA'));
-  const _hasABA = Array.from(_f3SubTypes).some(s => s.includes('ABA'));
+  const _hasBUnit = getBUnit(_baseNum) !== null;
+  // AA: always available for diesel A-units (same item# as powered + dummy)
+  const _hasAA  = _hasPoweredDummy || Array.from(_f3SubTypes).some(s => s.includes('AA'));
+  // AB: available if a B-unit (item + 'C') exists in master data
+  const _hasAB  = _hasBUnit || Array.from(_f3SubTypes).some(s => s.includes('AB') && !s.includes('ABA'));
+  // ABA: available if AB is available
+  const _hasABA = _hasBUnit || Array.from(_f3SubTypes).some(s => s.includes('ABA'));
 
   let buttons = [];
 
