@@ -488,7 +488,7 @@ function renderMasterSubTab(tabKey) {
 function renderBrowse() {
   const { type, road, owned, unowned, boxed, search } = state.filters;
   // Base list: masterData + any personal-only items (e.g. 2343-P not in master)
-  const masterNums = new Set(state.masterData.map(m => m.itemNum + '|' + (m.variation||'')));
+  const masterNums = new Set(state.masterData.map(m => _displayItemNum(m) + '|' + (m.variation||'')));
   const personalOnlyItems = Object.values(state.personalData)
     .filter(pd => pd.owned && !masterNums.has(pd.itemNum + '|' + (pd.variation||'')))
     .map(pd => {
@@ -535,7 +535,12 @@ function renderBrowse() {
     : state.masterData.filter(function(m) { return m._tab === 'Lionel Postwar - Items' || !m._tab; });
 
   state.filteredData = baseList.filter(item => {
-    const pd = findPD(_displayItemNum(item), item.variation) || (item._personalOnly ? item : null);
+    const _dispNum = _displayItemNum(item);
+    let pd = findPD(_dispNum, item.variation);
+    // Verify exact match — don't let findPD's -P/-D fallback match unrelated items
+    // (e.g. master "205" Science Set should not match personal "205-P" diesel)
+    if (pd && pd.itemNum !== _dispNum) pd = null;
+    pd = pd || (item._personalOnly ? item : null);
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const hasBox = pd?.hasBox === 'Yes';
     const isSold = !!state.soldData[`${_displayItemNum(item)}|${item.variation}`] || !!state.soldData[`${item.itemNum}|${item.variation}`];
