@@ -476,7 +476,7 @@ function getSteps(tab) {
     // If user chose 'set', show set number input with set suggestions
     const _wantSetMode = wizard.data.itemCategory === 'set';
     const _wantSteps = _wantSetMode ? [
-      { id: 'set_num', title: 'What set number are you looking for?', type: 'text', placeholder: 'e.g. 1775, 2544W' },
+      { id: 'set_num', title: 'What set are you looking for?', type: 'text', placeholder: 'Search by set # or item # (e.g. 1775, 736)' },
     ] : base;
     return [
       { id: 'itemCategory', title: 'What would you like to add?', type: 'itemCategory',
@@ -5244,10 +5244,12 @@ function updateSetSuggestions(query) {
   const q = (query || '').trim().toUpperCase();
   if (q.length < 1) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
-  // Show every matching row (one per variant), limit to 12
+  // Match by set number OR by item numbers within the set OR by set name
   const candidates = state.setData
-    .filter(s => s.setNum.toUpperCase().includes(q))
-    .slice(0, 12);
+    .filter(s => s.setNum.toUpperCase().includes(q)
+      || (s.setName || '').toUpperCase().includes(q)
+      || s.items.some(item => item.toUpperCase().startsWith(q)))
+    .slice(0, 15);
 
   if (!candidates.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
@@ -5258,10 +5260,11 @@ function updateSetSuggestions(query) {
     row.onmouseenter = () => row.style.background = 'var(--surface2)';
     row.onmouseleave = () => row.style.background = 'none';
 
-    // Item number chips
-    const chips = s.items.map(n =>
-      `<span style="font-family:var(--font-mono);font-size:0.68rem;padding:1px 5px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim)">${n}</span>`
-    ).join('');
+    // Item number chips — highlight items that match the search query
+    const chips = s.items.map(n => {
+      const isMatch = n.toUpperCase().startsWith(q);
+      return `<span style="font-family:var(--font-mono);font-size:0.68rem;padding:1px 5px;border-radius:4px;border:1px solid ${isMatch ? 'var(--accent)' : 'var(--border)'};background:${isMatch ? 'rgba(240,80,8,0.15)' : 'var(--surface)'};color:${isMatch ? 'var(--accent)' : 'var(--text-dim)'};font-weight:${isMatch ? '700' : '400'}">${n}</span>`;
+    }).join('');
     const altChips = s.alts.length ? s.alts.map(n =>
       `<span style="font-family:var(--font-mono);font-size:0.68rem;padding:1px 5px;border-radius:4px;border:1px solid rgba(230,126,34,0.4);background:var(--surface);color:#e67e22;font-style:italic" title="Alternate">${n}</span>`
     ).join('') : '';
