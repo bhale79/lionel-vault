@@ -291,12 +291,18 @@ function renderSetsTab() {
   if (!tbody) return;
   const inColl = !!state.filters.owned;
   const q = (document.getElementById('sets-search')?.value || '').trim().toLowerCase();
-  const ownedSetIds = new Set();
-  Object.values(state.personalData || {}).forEach(pd => {
-    if (pd.setId) ownedSetIds.add((pd.setId || '').replace(/^SET-/i, '').toLowerCase());
+
+  // Build owned set lookup from My Sets personal tab
+  const ownedSets = {};  // keyed by setNum lowercase
+  Object.values(state.mySetsData || {}).forEach(ms => {
+    const k = (ms.setNum || '').toLowerCase();
+    if (!ownedSets[k]) ownedSets[k] = [];
+    ownedSets[k].push(ms);
   });
+
   const sets = (state.setData || []).filter(s => {
-    if (inColl && !ownedSetIds.has(s.setNum.toLowerCase())) return false;
+    const k = s.setNum.toLowerCase();
+    if (inColl && !ownedSets[k]) return false;
     if (!q) return true;
     return (s.setNum + ' ' + s.setName + ' ' + s.year + ' ' + s.gauge).toLowerCase().includes(q);
   });
@@ -305,17 +311,27 @@ function renderSetsTab() {
   if (!sets.length) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">${emptyMsg}</td></tr>`; return; }
   window._browseFilteredSets = sets;
   tbody.innerHTML = sets.map((s, si) => {
-    const owned = ownedSetIds.has(s.setNum.toLowerCase());
+    const k = s.setNum.toLowerCase();
+    const mySet = ownedSets[k] ? ownedSets[k].find(ms => ms.year === s.year) || ownedSets[k][0] : null;
+    const owned = !!mySet;
+    const isQE = mySet && mySet.quickEntry;
+    const worthStr = mySet && mySet.estWorth ? '$' + parseFloat(mySet.estWorth).toLocaleString() : '';
+    const condStr = mySet && mySet.condition ? mySet.condition : '';
     const itemChips = s.items.slice(0, 6).map(n =>
       `<span style="font-family:var(--font-mono);font-size:0.67rem;padding:1px 5px;border-radius:3px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim)">${n}</span>`
     ).join(' ') + (s.items.length > 6 ? `<span style="font-size:0.67rem;color:var(--text-dim)"> +${s.items.length - 6}</span>` : '');
-    return `<tr onclick="showRefItemPopup(&apos;set&apos;,${si})" style="cursor:pointer">
+    const ownedBadge = owned
+      ? `<span style="color:var(--green);font-size:0.75rem;font-weight:700">✓ Owned</span>`
+        + (isQE ? ' <span style="color:#e67e22;font-size:0.68rem;font-weight:700" title="Quick Entry">⚡</span>' : '')
+        + (worthStr ? `<div style="font-size:0.72rem;color:var(--text-mid);margin-top:2px">${worthStr}</div>` : '')
+      : '<span style="color:var(--text-dim);font-size:0.75rem">—</span>';
+    return `<tr onclick="showRefItemPopup(&apos;set&apos;,${si})" style="cursor:pointer${owned ? ';background:rgba(46,204,113,0.04)' : ''}">
       <td><span style="font-family:var(--font-mono);color:var(--accent2)">${s.setNum}</span></td>
       <td style="font-size:0.88rem">${s.setName || '—'}</td>
       <td style="font-size:0.85rem;color:var(--text-mid)">${s.year || '—'}</td>
       <td style="font-size:0.85rem;color:var(--text-mid)">${s.gauge || '—'}</td>
       <td style="font-size:0.82rem">${itemChips || '—'}</td>
-      <td style="text-align:center">${owned ? '<span style="color:var(--green);font-size:0.75rem;font-weight:700">✓ Owned</span>' : '<span style="color:var(--text-dim);font-size:0.75rem">—</span>'}</td>
+      <td style="text-align:center">${ownedBadge}</td>
     </tr>`;
   }).join('');
 }
