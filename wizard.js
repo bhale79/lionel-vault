@@ -450,7 +450,6 @@ function getSteps(tab) {
         skipIf: (d) => !!d.selectedForSaleKey && d.selectedForSaleKey !== '__new__' },
       { id: 'askingPrice',  title: 'What is your asking price?',          type: 'money',       placeholder: '0.00' },
       { id: 'dateListed',   title: 'Date listed',                         type: 'date',        optional: true },
-      { id: 'notes',        title: 'Any notes about the listing?',        type: 'textarea',    optional: true },
       { id: 'confirm',      title: 'Ready to list for sale!',             type: 'confirm' },
     ];
   } else if (tab === 'sold') {
@@ -459,7 +458,8 @@ function getSteps(tab) {
       { id: 'itemNum',      title: 'What is the item number?',      type: 'text',        placeholder: 'e.g. 726, 2046, 6464-1' },
       { id: 'pickSoldItem', title: 'Which item are you selling?',          type: 'pickSoldItem',
         skipIf: (d) => {
-          const matches = Object.keys(state.personalData).filter(k => k.split('|')[0] === (d.itemNum||'').trim());
+          const _num = (d.itemNum||'').trim();
+          const matches = Object.values(state.personalData).filter(p => p.itemNum === _num && p.owned);
           return matches.length === 0; // not in collection — skip picker
         }
       },
@@ -469,7 +469,6 @@ function getSteps(tab) {
         skipIf: (d) => !!d.selectedSoldKey },
       { id: 'salePrice',    title: 'What did you sell it for?',            type: 'money',       placeholder: '0.00' },
       { id: 'dateSold',     title: 'When did you sell it?',                type: 'date',        optional: true },
-      { id: 'notes',        title: 'Any notes about the sale?',            type: 'textarea',    optional: true },
       { id: 'confirm',      title: 'Ready to save!',                       type: 'confirm' },
     ];
   } else { // want
@@ -484,7 +483,6 @@ function getSteps(tab) {
       ..._wantSteps,
       { id: 'priority',      title: 'How high is your priority for this item?', type: 'choice3', choices: ['High','Medium','Low'] },
       { id: 'expectedPrice', title: 'What do you expect to pay?',               type: 'money',   placeholder: '0.00', optional: true },
-      { id: 'notes',         title: "Any notes about what you're looking for?", type: 'textarea', optional: true },
       { id: 'confirm',       title: 'Ready to add to Want List!',               type: 'confirm' },
     ];
   }
@@ -4227,23 +4225,24 @@ function renderWizardStep() {
       const boxVal = wizard.data[boxKey] || '';
       const boxCondVal = wizard.data[boxCondKey] || 7;
 
-      // Compact button builder: small inline Yes/No or Yes/No/Unknown
+      // Compact button builder: tiny inline Yes/No or Yes/No/Unk
       const _smallBtn = (dataKey, val, choices, toggleFn) => {
-        let h = '<div style="display:flex;gap:2px">';
+        let h = '<div style="display:flex;gap:2px;flex-shrink:0">';
         choices.forEach(c => {
           const sel = val === c;
           const isErr = c === 'Yes' && dataKey.includes('Error');
           const selColor = isErr ? '#e74c3c' : 'var(--accent)';
           const selBg = isErr ? 'rgba(231,76,60,0.15)' : 'rgba(232,64,28,0.12)';
-          h += '<button onclick="' + toggleFn(c) + '" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (sel ? selColor : 'var(--border)') + ';background:' + (sel ? selBg : 'var(--bg)') + ';color:' + (sel ? selColor : 'var(--text-mid)') + ';font-family:var(--font-body);line-height:1">' + c + '</button>';
+          const label = c === 'Unknown' ? 'Unk' : c;
+          h += '<button onclick="' + toggleFn(c) + '" style="padding:0.2rem 0.35rem;border-radius:4px;font-size:0.65rem;cursor:pointer;border:1px solid ' + (sel ? selColor : 'var(--border)') + ';background:' + (sel ? selBg : 'var(--bg)') + ';color:' + (sel ? selColor : 'var(--text-mid)') + ';font-family:var(--font-body);line-height:1">' + label + '</button>';
         });
         h += '</div>';
         return h;
       };
-      // Inline row: label left, buttons right
+      // Inline row: label left, buttons right, forced single line
       const _inlineRow = (label, buttons, mb) => {
-        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.4rem;margin-bottom:' + (mb || '0.4rem') + '">'
-          + '<span style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap">' + label + '</span>'
+        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.3rem;margin-bottom:' + (mb || '0.35rem') + ';flex-wrap:nowrap">'
+          + '<span style="font-size:0.65rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;white-space:nowrap;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis">' + label + '</span>'
           + buttons + '</div>';
       };
       
@@ -4765,7 +4764,14 @@ function renderWizardStep() {
         + '<button onclick="_confirmEdit(\'' + k + '\')" id="confirm-edit-btn-' + k + '" title="Edit" style="flex-shrink:0;background:none;border:1px solid var(--border);border-radius:5px;padding:0.2rem 0.45rem;cursor:pointer;color:var(--text-dim);font-size:0.72rem;font-family:var(--font-body)">✏️</button>'
         + '</div>';
     });
-    confirmHtml += '</div></div>';
+    confirmHtml += '</div>';
+    // Inline notes for want/forsale/sold confirm — no separate notes step needed
+    if (['want','forsale','sold'].includes(wizard.tab)) {
+      const _cfNotes = wizard.data.notes || '';
+      confirmHtml += '<div style="margin-top:0.6rem"><div style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.25rem">Notes (optional)</div>'
+        + '<textarea placeholder="Any notes..." style="width:100%;min-height:50px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.82rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + _cfNotes + '</textarea></div>';
+    }
+    confirmHtml += '</div>';
     body.innerHTML = confirmHtml;
   }
 
