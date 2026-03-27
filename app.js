@@ -1294,7 +1294,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '41';
+  const _CACHE_VER = '42';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -1452,8 +1452,10 @@ async function loadISRefData() {
     catch(_) { /* tab doesn't exist with this name, try next */ }
   }
   if (!res) {
-    // Tab doesn't exist yet — silently default to empty
+    // Tab doesn't exist yet — cache empty result so we don't retry for 24h
     state.isRefData = [];
+    localStorage.setItem(CACHE_KEY, JSON.stringify([]));
+    localStorage.setItem(CACHE_TS, Date.now().toString());
     return;
   }
   try {
