@@ -3190,7 +3190,7 @@ function renderWizardStep() {
           card.onclick = () => {
             wizard.data._resolvedSet = sg;
             wizard.data.set_num = sg.setNum;
-            renderWizardStep();
+            window._resolveSetAndAdvance();
           };
           card.innerHTML = `
             <div style="display:flex;align-items:flex-start;gap:0.5rem">
@@ -3223,6 +3223,26 @@ function renderWizardStep() {
           body.appendChild(noMatch);
         }
       }
+
+      // Auto-advance helper: build final items and advance when set is resolved
+      window._resolveSetAndAdvance = () => {
+        const _rs = wizard.data._resolvedSet;
+        const _nums = wizard.data._enteredNums || [];
+        let _finalItems;
+        if (_rs) {
+          const _knownAll = [..._rs.items, ..._rs.alts];
+          const _manuals = _nums.filter(n => !_knownAll.some(k => normalizeItemNum(k) === normalizeItemNum(n) || baseItemNum(k) === baseItemNum(n)));
+          const _altsToInclude = _rs.alts.filter(a => _nums.some(e => normalizeItemNum(e) === normalizeItemNum(a) || baseItemNum(e) === baseItemNum(a)));
+          _finalItems = [...new Map([..._rs.items, ..._altsToInclude, ..._manuals].map(x=>[normalizeItemNum(x),x])).values()];
+        } else {
+          _finalItems = [..._nums];
+        }
+        wizard.data._setFinalItems = _finalItems;
+        wizard.data._setItemIndex = 0;
+        wizard.data._setGroupId = 'SET-' + ((wizard.data._resolvedSet && wizard.data._resolvedSet.setNum) || 'UNK') + '-' + Date.now();
+        wizard.data._setItemsSaved = [];
+        wizardAdvance();
+      };
 
       // Continue button — shown once set identified OR user has ≥1 item and no suggestions
       const canContinue = _resolvedSet || (_enteredNums.length >= 1);
@@ -3278,13 +3298,13 @@ function renderWizardStep() {
           const v = allVariants[variantIdx];
           wizard.data._resolvedSet = v;
           wizard.data.set_num = v.setNum;
-          renderWizardStep();
+          window._resolveSetAndAdvance();
           return;
         }
         if (allVariants.length === 1) {
           wizard.data._resolvedSet = allVariants[0];
           wizard.data.set_num = allVariants[0].setNum;
-          renderWizardStep();
+          window._resolveSetAndAdvance();
           return;
         }
 
