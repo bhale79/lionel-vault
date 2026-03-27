@@ -473,10 +473,15 @@ function getSteps(tab) {
       { id: 'confirm',      title: 'Ready to save!',                       type: 'confirm' },
     ];
   } else { // want
+    // If user chose 'set', show set number input with set suggestions
+    const _wantSetMode = wizard.data.itemCategory === 'set';
+    const _wantSteps = _wantSetMode ? [
+      { id: 'set_num', title: 'What set number are you looking for?', type: 'text', placeholder: 'e.g. 1775, 2544W' },
+    ] : base;
     return [
       { id: 'itemCategory', title: 'What would you like to add?', type: 'itemCategory',
         skipIf: (d) => !!d.itemCategory },
-      ...base,
+      ..._wantSteps,
       { id: 'priority',      title: 'How high is your priority for this item?', type: 'choice3', choices: ['High','Medium','Low'] },
       { id: 'expectedPrice', title: 'What do you expect to pay?',               type: 'money',   placeholder: '0.00', optional: true },
       { id: 'notes',         title: "Any notes about what you're looking for?", type: 'textarea', optional: true },
@@ -4764,7 +4769,11 @@ function wizardChooseCategory(catId) {
     wizard.step = 0;
     renderWizardStep();
   } else {
-    // 'lionel' or want-list non-lionel: just advance past itemCategory
+    // 'lionel' or want-list non-lionel: rebuild steps (set vs item input may differ) then advance
+    if (wizard.tab === 'want' && catId !== 'lionel') {
+      wizard.steps = getSteps('want');
+      wizard.step = 0;
+    }
     setTimeout(() => wizardNext(), 150);
   }
 }
@@ -6796,7 +6805,7 @@ async function saveWizardItem() {
   const tab = wizard.tab;
   console.log('[Save] Starting save. tab:', tab, '| accessToken:', accessToken ? 'present' : 'MISSING', '| sheetId:', state.personalSheetId || 'MISSING');
   // Apply powered/dummy suffix to A units (B units ending in C are never powered)
-  const _rawItemNum = (d.itemNum || '').trim();
+  const _rawItemNum = (d.itemNum || d.set_num || '').trim();
   const _pdSuffix = (raw, power) => {
     if (!power || raw.endsWith('C')) return raw;
     return raw + (power === 'Powered' ? '-P' : '-D');
