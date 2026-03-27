@@ -3202,11 +3202,11 @@ function renderWizardStep() {
                 </div>
                 <div style="margin-top:0.35rem;display:flex;flex-wrap:wrap;gap:0.25rem">
                   ${sg.items.map(n => {
-                    const isEntered = _enteredNums.some(e => normalizeItemNum(e) === normalizeItemNum(n));
+                    const isEntered = _enteredNums.some(e => normalizeItemNum(e) === normalizeItemNum(n) || baseItemNum(e) === baseItemNum(n));
                     return `<span style="font-family:var(--font-mono);font-size:0.72rem;padding:1px 6px;border-radius:4px;border:1px solid ${isEntered?'#27ae60':'var(--border)'};background:${isEntered?'rgba(39,174,96,0.15)':'var(--surface)'};color:${isEntered?'#27ae60':'var(--text-dim)'};font-weight:${isEntered?'700':'400'}">${n}</span>`;
                   }).join('')}
                   ${sg.alts.length ? sg.alts.map(n => {
-                    const isEntered = _enteredNums.some(e => normalizeItemNum(e) === normalizeItemNum(n));
+                    const isEntered = _enteredNums.some(e => normalizeItemNum(e) === normalizeItemNum(n) || baseItemNum(e) === baseItemNum(n));
                     return `<span style="font-family:var(--font-mono);font-size:0.72rem;padding:1px 6px;border-radius:4px;border:1px solid ${isEntered?'#e67e22':'var(--border)'};background:${isEntered?'rgba(230,126,34,0.12)':'var(--surface)'};color:${isEntered?'#e67e22':'var(--text-dim)'};font-style:italic" title="Alternate">${n}</span>`;
                   }).join('') : ''}
                 </div>
@@ -3239,9 +3239,9 @@ function renderWizardStep() {
           if (_rs) {
             // Deduped set items + alts that were entered + manual items not in set
             const _knownAll = [..._rs.items, ..._rs.alts];
-            const _manuals = _enteredNums.filter(n => !_knownAll.some(k => normalizeItemNum(k) === normalizeItemNum(n)));
+            const _manuals = _enteredNums.filter(n => !_knownAll.some(k => normalizeItemNum(k) === normalizeItemNum(n) || baseItemNum(k) === baseItemNum(n)));
             // Include alts only if user explicitly entered them
-            const _altsToInclude = _rs.alts.filter(a => _enteredNums.some(e => normalizeItemNum(e) === normalizeItemNum(a)));
+            const _altsToInclude = _rs.alts.filter(a => _enteredNums.some(e => normalizeItemNum(e) === normalizeItemNum(a) || baseItemNum(e) === baseItemNum(a)));
             _finalItems = [...new Map([..._rs.items, ..._altsToInclude, ..._manuals].map(x=>[normalizeItemNum(x),x])).values()];
           } else {
             _finalItems = [..._enteredNums];
