@@ -6229,6 +6229,34 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
   d._setItemsSaved = savedItems;
   d._setEntryMode = 'quick';
 
+  // Write My Sets record
+  try {
+    const mySetsRow = [
+      setNum,                              // A: Set Number
+      resolvedSet ? (resolvedSet.setName || '') : '', // B: Set Name
+      year,                                // C: Year
+      String(condition),                   // D: Condition
+      worth,                               // E: Est Worth
+      '',                                  // F: Date Purchased
+      groupId,                             // G: Group ID
+      setId,                               // H: Set ID
+      d.set_hasBox || 'No',                // I: Has Set Box
+      '',                                  // J: Box Condition
+      photoLink,                           // K: Photo Link
+      '',                                  // L: Notes
+      'Yes',                               // M: Quick Entry
+      nextInventoryId(),                   // N: Inventory ID
+    ];
+    await sheetsAppend(state.personalSheetId, 'My Sets!A:A', [mySetsRow]);
+    const msKey = `${setNum}|${year}`;
+    state.mySetsData[msKey] = {
+      row: 99999, setNum, setName: resolvedSet ? (resolvedSet.setName || '') : '',
+      year, condition: String(condition), estWorth: worth, datePurchased: '',
+      groupId, setId, hasSetBox: d.set_hasBox || 'No', boxCondition: '',
+      photoLink, notes: '', quickEntry: true, inventoryId: mySetsRow[13],
+    };
+  } catch(e) { console.warn('My Sets row save error:', e); }
+
   // Quick Entry always closes — no follow-up questions
   localStorage.removeItem('lv_personal_cache');
   localStorage.removeItem('lv_personal_cache_ts');
@@ -6370,6 +6398,37 @@ async function saveSet() {
       } catch(e) { console.warn('Set box photo upload:', e); }
     }
   }
+
+  // Write My Sets record
+  try {
+    const _resolvedSet = d._resolvedSet;
+    const year = _resolvedSet ? (_resolvedSet.year || '') : '';
+    const setId = d._setGroupId ? 'SET-' + setNum : '';
+    const mySetsRow = [
+      setNum,                              // A: Set Number
+      _resolvedSet ? (_resolvedSet.setName || '') : '', // B: Set Name
+      year,                                // C: Year
+      d._setCondition ? String(d._setCondition) : '', // D: Condition
+      d._setWorth || '',                   // E: Est Worth
+      '',                                  // F: Date Purchased
+      groupId,                             // G: Group ID
+      setId,                               // H: Set ID
+      d.set_hasBox || 'No',                // I: Has Set Box
+      d.set_boxCond || '',                 // J: Box Condition
+      '',                                  // K: Photo Link
+      d.set_notes || '',                   // L: Notes
+      'No',                                // M: Quick Entry
+      nextInventoryId(),                   // N: Inventory ID
+    ];
+    await sheetsAppend(state.personalSheetId, 'My Sets!A:A', [mySetsRow]);
+    const msKey = `${setNum}|${year}`;
+    state.mySetsData[msKey] = {
+      row: 99999, setNum, setName: _resolvedSet ? (_resolvedSet.setName || '') : '',
+      year, condition: mySetsRow[3], estWorth: d._setWorth || '', datePurchased: '',
+      groupId, setId, hasSetBox: d.set_hasBox || 'No', boxCondition: d.set_boxCond || '',
+      photoLink: '', notes: d.set_notes || '', quickEntry: false, inventoryId: mySetsRow[13],
+    };
+  } catch(e) { console.warn('My Sets row save error:', e); }
 
   localStorage.removeItem('lv_personal_cache');
   localStorage.removeItem('lv_personal_cache_ts');
