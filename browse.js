@@ -302,7 +302,13 @@ function renderSetsTab() {
 
   const sets = (state.setData || []).filter(s => {
     const k = s.setNum.toLowerCase();
-    if (inColl && !ownedSets[k]) return false;
+    if (inColl) {
+      // Only show the specific year variant the user owns
+      if (!ownedSets[k]) return false;
+      const hasExactYear = ownedSets[k].some(ms => ms.year === s.year);
+      const hasAnyYear = ownedSets[k].some(ms => !ms.year);
+      if (!hasExactYear && !hasAnyYear) return false;
+    }
     if (!q) return true;
     return (s.setNum + ' ' + s.setName + ' ' + s.year + ' ' + s.gauge).toLowerCase().includes(q);
   });
