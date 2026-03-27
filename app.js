@@ -1,4 +1,6 @@
 // ── CONFIG ─────────────────────────────────────────────────────
+const APP_VERSION = 'v0.9.77';
+const APP_DATE = 'March 2026';
 // Replace with your actual Google OAuth Client ID after setup
 const CLIENT_ID = '161569968813-vrhet7p68vkthkunare60nqr34li5uuh.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
@@ -1346,7 +1348,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '58';
+  const _CACHE_VER = '59';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
