@@ -230,14 +230,17 @@ function baseItemNum(n) {
 }
 function nextInventoryId() {
   let max = 0;
-  Object.values(state.personalData).forEach(pd => {
-    const id = parseInt(pd.inventoryId);
-    if (!isNaN(id) && id > max) max = id;
-  });
-  Object.values(state.isData || {}).forEach(is => {
-    const id = parseInt(is.inventoryId);
-    if (!isNaN(id) && id > max) max = id;
-  });
+  const _scanMax = (obj) => {
+    Object.values(obj || {}).forEach(rec => {
+      const id = parseInt(rec.inventoryId);
+      if (!isNaN(id) && id > max) max = id;
+    });
+  };
+  _scanMax(state.personalData);
+  _scanMax(state.isData);
+  _scanMax(state.scienceData);
+  _scanMax(state.constructionData);
+  _scanMax(state.mySetsData);
   return String(max + 1);
 }
 function _buildGroupBoxRow(unitNum, boxCond, boxPhotoLink, groupId, datePurchased, leadItemNum) {
@@ -1343,7 +1346,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '57';
+  const _CACHE_VER = '58';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
