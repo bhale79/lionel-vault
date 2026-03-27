@@ -1275,7 +1275,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '33';
+  const _CACHE_VER = '34';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -3949,7 +3949,10 @@ function showRefItemPopup(type, idx) {
       };
       document.getElementById('wizard-modal').classList.add('open');
       document.body.style.overflow = 'hidden';
-      var autoSkip = new Set(['tab', 'itemNum', 'itemNumGrouping', 'variation', 'itemPicker', 'itemCategory', 'entryMode']);
+      var _baseNum2 = (_itemNum || '').replace(/-(P|D)$/i, '');
+      var _hasGrouping2 = getMatchingTenders(_baseNum2).length > 0 || isF3AlcoUnit(_baseNum2);
+      var autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemPicker', 'itemCategory', 'entryMode']);
+      if (!_hasGrouping2) autoSkip.add('itemNumGrouping');
       while (wizard.step < wizard.steps.length - 1) {
         var ws = wizard.steps[wizard.step];
         if (autoSkip.has(ws.id) || (ws.skipIf && ws.skipIf(wizard.data))) {
@@ -3973,7 +3976,11 @@ function addFromBrowse(idx) {
   document.getElementById('wizard-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
   // Skip all steps before condition — item number, variation, and entry mode are already known
-  const autoSkip = new Set(['tab', 'itemNum', 'itemNumGrouping', 'variation', 'itemPicker', 'itemCategory', 'entryMode']);
+  // But DON'T skip itemNumGrouping if item has grouping options (engine+tender, diesel AA/AB)
+  const _baseNum = (item.itemNum || '').replace(/-(P|D)$/i, '');
+  const _hasGrouping = getMatchingTenders(_baseNum).length > 0 || isF3AlcoUnit(_baseNum);
+  const autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemPicker', 'itemCategory', 'entryMode']);
+  if (!_hasGrouping) autoSkip.add('itemNumGrouping');
   while (wizard.step < wizard.steps.length - 1) {
     const s = wizard.steps[wizard.step];
     if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) {
