@@ -662,24 +662,17 @@ async function _confirmSetCancel() {
   };
 }
 
-function completeQuickEntry(itemNum, variation, globalIdx, pdRow) {
+function completeQuickEntry(itemNum, variation, globalIdx, pdInvId) {
   // Ensure wizard modal exists — it's built lazily on first openWizard() call
   if (typeof _buildWizardModal === 'function') _buildWizardModal();
   var _activePg = document.querySelector('.page.active');
   var _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'browse';
 
-  // Use the specific row number passed in to pin to the right copy —
+  // Use inventoryId to pin to the right copy —
   // avoids picking the wrong item when multiple copies share the same item number
-  var pdKey = pdRow
-    ? (itemNum + '|' + (variation||'') + '|' + pdRow)
+  var pdKey = pdInvId && state.personalData[pdInvId]
+    ? pdInvId
     : findPDKey(itemNum, variation);
-  // Fallback: if constructed key not found, search manually
-  if (pdRow && !state.personalData[pdKey]) {
-    pdKey = Object.keys(state.personalData).find(function(k) {
-      var pd = state.personalData[k];
-      return pd.itemNum === itemNum && (pd.variation||'') === (variation||'') && pd.row == pdRow;
-    }) || findPDKey(itemNum, variation);
-  }
   var pd = pdKey ? state.personalData[pdKey] : null;
 
   // Strip powered/dummy suffix to get base item number for master lookup and wizard
@@ -4925,14 +4918,21 @@ function wizardPickIS(idx) {
 
 // Find personalData entry by itemNum|variation prefix (key includes row number)
 function findPD(itemNum, variation) {
-  const prefix = `${itemNum}|${variation || ''}|`;
-  const k = Object.keys(state.personalData).find(k => k.startsWith(prefix));
-  if (k) return state.personalData[k];
+  // Scan personalData by itemNum + variation values (key-format-agnostic)
+  const norm = (variation || '');
+  let match = Object.values(state.personalData).find(pd =>
+    pd.itemNum === itemNum && (pd.variation || '') === norm
+  );
+  if (match) return match;
   // Fallback: try with -P and -D suffixes (AA/AB units stored as 210-P, 210-D)
-  const kP = Object.keys(state.personalData).find(k => k.startsWith(`${itemNum}-P|${variation || ''}|`));
-  if (kP) return state.personalData[kP];
-  const kD = Object.keys(state.personalData).find(k => k.startsWith(`${itemNum}-D|${variation || ''}|`));
-  return kD ? state.personalData[kD] : null;
+  match = Object.values(state.personalData).find(pd =>
+    pd.itemNum === (itemNum + '-P') && (pd.variation || '') === norm
+  );
+  if (match) return match;
+  match = Object.values(state.personalData).find(pd =>
+    pd.itemNum === (itemNum + '-D') && (pd.variation || '') === norm
+  );
+  return match || null;
 }
 // Find a collection item by item number (for IS grouping logic)
 function _findCollectionItemByNum(itemNum) {
@@ -4944,14 +4944,35 @@ function _findCollectionItemByNum(itemNum) {
 }
 
 function findPDKey(itemNum, variation) {
-  const prefix = `${itemNum}|${variation || ''}|`;
-  const k = Object.keys(state.personalData).find(k => k.startsWith(prefix));
+  // Scan personalData by itemNum + variation values, return the state key (inventoryId)
+  const norm = (variation || '');
+  let k = Object.keys(state.personalData).find(k => {
+    const pd = state.personalData[k];
+    return pd.itemNum === itemNum && (pd.variation || '') === norm;
+  });
   if (k) return k;
   // Fallback: try with -P and -D suffixes
-  const kP = Object.keys(state.personalData).find(k => k.startsWith(`${itemNum}-P|${variation || ''}|`));
-  if (kP) return kP;
-  const kD = Object.keys(state.personalData).find(k => k.startsWith(`${itemNum}-D|${variation || ''}|`));
-  return kD || null;
+  k = Object.keys(state.personalData).find(k => {
+    const pd = state.personalData[k];
+    return pd.itemNum === (itemNum + '-P') && (pd.variation || '') === norm;
+  });
+  if (k) return k;
+  k = Object.keys(state.personalData).find(k => {
+    const pd = state.personalData[k];
+    return pd.itemNum === (itemNum + '-D') && (pd.variation || '') === norm;
+  });
+  return k || null;
+}
+
+// Find personalData key by row number — used to disambiguate multiple copies
+function findPDKeyByRow(itemNum, variation, row) {
+  if (!row) return findPDKey(itemNum, variation);
+  const norm = (variation || '');
+  const k = Object.keys(state.personalData).find(k => {
+    const pd = state.personalData[k];
+    return pd.itemNum === itemNum && (pd.variation || '') === norm && pd.row == row;
+  });
+  return k || findPDKey(itemNum, variation);
 }
 
 // ── PHOTO UPLOAD HANDLERS ───────────────────────────────────────
@@ -5658,7 +5679,10 @@ function lookupItem(num) {
     }
   } else if (wizard.data.boxOnly) {
     // Box-only mode: show collection status
-    const collectionKey = Object.keys(state.personalData).find(k => k.startsWith(trimmed + '|'));
+    const collectionKey = Object.keys(state.personalData).find(k => {
+      const p = state.personalData[k];
+      return p.itemNum === trimmed && p.owned;
+    });
     const inCollection = !!collectionKey;
     const pd = inCollection ? state.personalData[collectionKey] : null;
     if (match) {
@@ -6210,8 +6234,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
 
     try {
       const actualRow = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
-      const pdKey = itemNum + '|' + variation + '|' + actualRow;
-      state.personalData[pdKey] = {
+      state.personalData[invId] = {
         row: actualRow, itemNum, variation, condition: String(condition),
         allOriginal: '', priceItem: isEngine ? worth : '', priceBox: '',
         priceComplete: '', hasBox: 'No', boxCondition: '', itemPhoto: photoLink,
@@ -6248,12 +6271,12 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
       nextInventoryId(),                   // N: Inventory ID
     ];
     await sheetsAppend(state.personalSheetId, 'My Sets!A:A', [mySetsRow]);
-    const msKey = `${setNum}|${year}|temp_${Date.now()}`;
-    state.mySetsData[msKey] = {
+    const _msInvId = mySetsRow[13];
+    state.mySetsData[_msInvId] = {
       row: 99999, setNum, setName: resolvedSet ? (resolvedSet.setName || '') : '',
       year, condition: String(condition), estWorth: worth, datePurchased: '',
       groupId, setId, hasSetBox: d.set_hasBox || 'No', boxCondition: '',
-      photoLink, notes: '', quickEntry: true, inventoryId: mySetsRow[13],
+      photoLink, notes: '', quickEntry: true, inventoryId: _msInvId,
     };
   } catch(e) { console.warn('My Sets row save error:', e); }
 
@@ -6421,12 +6444,12 @@ async function saveSet() {
       nextInventoryId(),                   // N: Inventory ID
     ];
     await sheetsAppend(state.personalSheetId, 'My Sets!A:A', [mySetsRow]);
-    const msKey = `${setNum}|${year}|temp_${Date.now()}`;
-    state.mySetsData[msKey] = {
+    const _msInvId2 = mySetsRow[13];
+    state.mySetsData[_msInvId2] = {
       row: 99999, setNum, setName: _resolvedSet ? (_resolvedSet.setName || '') : '',
       year, condition: mySetsRow[3], estWorth: d._setWorth || '', datePurchased: '',
       groupId, setId, hasSetBox: d.set_hasBox || 'No', boxCondition: d.set_boxCond || '',
-      photoLink: '', notes: d.set_notes || '', quickEntry: false, inventoryId: mySetsRow[13],
+      photoLink: '', notes: d.set_notes || '', quickEntry: false, inventoryId: _msInvId2,
     };
   } catch(e) { console.warn('My Sets row save error:', e); }
 
@@ -6788,8 +6811,7 @@ async function _saveManualEntry() {
   await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
 
   // Optimistic state update
-  const tempKey = itemNum + '||temp_' + Date.now();
-  state.personalData[tempKey] = {
+  state.personalData[invId] = {
     row: 99999, itemNum, variation: '',
     status: 'Owned', owned: true,
     condition, allOriginal: '',
@@ -6997,8 +7019,7 @@ async function saveWizardItem() {
         }
 
         // Optimistic state update
-        const boxKey = `${boxItemNum}|${variation}|temp_${Date.now()}`;
-        state.personalData[boxKey] = {
+        state.personalData[boxInvId] = {
           row: 99999, itemNum: boxItemNum, variation,
           status: 'Owned', owned: true,
           itemType: 'Box',
@@ -7314,8 +7335,7 @@ async function saveWizardItem() {
         if (d.hasBox === 'Yes') {
           const u1BoxRow = _buildGroupBoxRow(itemNum, d.boxCond || row[8], boxPhotos[0] || row[10] || '', groupId, d.datePurchased, itemNum);
           await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u1BoxRow]);
-          const u1bKey = `${itemNum}-BOX||temp_${Date.now()}`;
-          state.personalData[u1bKey] = {
+          state.personalData[u1BoxRow[20]] = {
             row: 99999, itemNum: itemNum + '-BOX', variation: '',
             status: 'Owned', owned: true,
             condition: d.boxCond || row[8] || '', hasBox: 'Yes', boxCond: d.boxCond || row[8] || '',
@@ -7328,8 +7348,7 @@ async function saveWizardItem() {
           const u2Num = (d.unit2ItemNum || '').trim();
           const u2BoxRow = _buildGroupBoxRow(u2Num, d.unit2BoxCond || '', '', groupId, d.datePurchased, itemNum);
           await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u2BoxRow]);
-          const u2bKey = `${u2Num}-BOX||temp_${Date.now()}`;
-          state.personalData[u2bKey] = {
+          state.personalData[u2BoxRow[20]] = {
             row: 99999, itemNum: u2Num + '-BOX', variation: '',
             status: 'Owned', owned: true,
             condition: d.unit2BoxCond || '', hasBox: 'Yes', boxCond: d.unit2BoxCond || '',
@@ -7342,8 +7361,7 @@ async function saveWizardItem() {
           const u3Num = _pdSuffix((d.unit3ItemNum || _rawItemNum).trim(), d.unit3Power);
           const u3BoxRow = _buildGroupBoxRow(u3Num, d.unit3BoxCond || '', '', groupId, d.datePurchased, itemNum);
           await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u3BoxRow]);
-          const u3bKey = `${u3Num}-BOX||temp_${Date.now()}`;
-          state.personalData[u3bKey] = {
+          state.personalData[u3BoxRow[20]] = {
             row: 99999, itemNum: u3Num + '-BOX', variation: '',
             status: 'Owned', owned: true,
             condition: d.unit3BoxCond || '', hasBox: 'Yes', boxCond: d.unit3BoxCond || '',
@@ -7356,8 +7374,7 @@ async function saveWizardItem() {
           const tNum = d.tenderMatch.trim();
           const tBoxRow = _buildGroupBoxRow(tNum, d.tenderBoxCond || '', '', groupId, d.datePurchased, itemNum);
           await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [tBoxRow]);
-          const tbKey = `${tNum}-BOX||temp_${Date.now()}`;
-          state.personalData[tbKey] = {
+          state.personalData[tBoxRow[20]] = {
             row: 99999, itemNum: tNum + '-BOX', variation: '',
             status: 'Owned', owned: true,
             condition: d.tenderBoxCond || '', hasBox: 'Yes', boxCond: d.tenderBoxCond || '',
@@ -7439,8 +7456,7 @@ async function saveWizardItem() {
         ];
         await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [mbRow]);
         // Add to local state
-        const mbKey = `${mbItemNum}||temp_${Date.now()}`;
-        state.personalData[mbKey] = {
+        state.personalData[mbInvId] = {
           row: 99999, itemNum: mbItemNum, variation: '',
           status: 'Owned', owned: true,
           itemType: 'Master Carton',
@@ -7491,9 +7507,13 @@ async function saveWizardItem() {
 
     // ── Optimistic update: inject directly into state so item appears immediately ──
     // Don't wait for Sheets to propagate — add it to state right now
-    const _tempKey = `${itemNum}|${variation}|temp_${Date.now()}`;
+    const _optInvId = row && row[20] ? row[20] : ('temp_' + Date.now());
+    // For updates (completing QE), remove old key first then insert under inventoryId
+    if (d._fillTargetKey && d._fillTargetKey !== _optInvId && state.personalData[d._fillTargetKey]) {
+      delete state.personalData[d._fillTargetKey];
+    }
     if (tab === 'collection') {
-      state.personalData[_tempKey] = {
+      state.personalData[_optInvId] = {
         row: 99999, itemNum, variation,
         status: 'Owned', owned: true,
         condition: d.condition || '',
@@ -7505,7 +7525,7 @@ async function saveWizardItem() {
         boxCond: d.boxCondition || '',
         notes: d.notes || '',
         datePurchased: d.datePurchased || '',
-        inventoryId: row[20] || '', groupId: groupId || '',
+        inventoryId: _optInvId, groupId: groupId || '',
         location: d.location || '',
         era: '', manufacturer: '',
       };
@@ -7656,8 +7676,7 @@ async function quickEntryAdd() {
       const row = [r.itemNum, r.variation, r.condition||'','','','','','','',(isLead ? _qePhotoLink : ''),'', r.notes,'',(isLead ? _qeEstWorth : ''),r.matchedTo,r.setId,'','','','Yes', invId, r.groupId||'', '', '', ''];
       console.log('[QE] Saving', r.itemNum);
       const actualRow = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
-      const key = r.itemNum + '|' + r.variation + '|' + actualRow;
-      state.personalData[key] = {
+      state.personalData[invId] = {
         row: actualRow, itemNum: r.itemNum, variation: r.variation,
         status: 'Owned', owned: true,
         condition: r.condition||'', allOriginal: '', priceItem: '', priceBox: '', priceComplete: '',
