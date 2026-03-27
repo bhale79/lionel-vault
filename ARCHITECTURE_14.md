@@ -3,7 +3,7 @@
 **Updated:** Session 77 (March 27, 2026)  
 **Live:** therailroster.com  
 **Repo:** github.com/bhale79/my-collection-app  
-**Cache:** `_CACHE_VER = '52'` / `CACHE_NAME = 'mca-v57'`
+**Cache:** `_CACHE_VER = '60'` / `CACHE_NAME = 'mca-v65'`
 
 ---
 
@@ -12,12 +12,12 @@
 | File | Lines | Purpose |
 |------|-------|---------|
 | `index.html` | ~650 | SPA shell, nav, page containers, table wrappers |
-| `app.js` | ~6,664 | Core: auth, state, data loading, SHEET_TABS config, _patchMasterData, buildPartnerMap, baseItemNum, _adjustRowsAfterDelete, suggestSets, item detail, For Sale/Sold/Want flows, dashboard, row deletion |
-| `wizard.js` | ~8,125 | All wizard flows: collection, set (with My Sets write), want, sold, for sale, ephemera, IS, manual entry, custom tender pairing. findPD/findPDKey/findPDKeyByRow. |
+| `app.js` | ~6,680 | Core: auth, state, data loading, SHEET_TABS config, _patchMasterData, buildPartnerMap, baseItemNum, _adjustRowsAfterDelete, suggestSets, item detail, For Sale/Sold/Want flows, dashboard, row deletion |
+| `wizard.js` | ~8,160 | All wizard flows: collection, set (with My Sets write), want, sold, for sale, ephemera, IS, manual entry, custom tender pairing. findPD/findPDKey/findPDKeyByRow. |
 | `browse.js` | ~1,035 | Master list rendering, collection views (card + list), My Sets ownership display, ephemera tabs |
 | `drive.js` | 515 | Google Drive vault: folder setup, photo upload, per-copy subfolders, config read/write |
 | `sheets.js` | ~200 | Sheets API helpers: sheetsGet, sheetsUpdate, sheetsAppend, sheetsDeleteRow, sheetsBatchGet |
-| `prefs.js` | 706 | Preferences page, health check, admin tools (backfill IDs, rebuild dashboard) |
+| `prefs.js` | ~790 | Preferences page, health check, admin tools (backfill IDs, backfill all collection IDs, rebuild dashboard) |
 | `sheet-builder.js` | ~442 | Sheet creation, formatting, dashboard tab, warningOnly protection |
 | `vault.js` | ~350 | Collectors Market opt-in/data sharing (optional) |
 | `tutorial.js` | ~180 | First-run tutorial overlay |
@@ -166,6 +166,7 @@ Built by `buildPartnerMap()` after all data loads, before `buildApp()`.
 - **`findPD(itemNum, variation)`** — finds personalData entry by scanning `.itemNum` and `.variation` values (key-format-agnostic); has -P/-D fallback
 - **`findPDKey(itemNum, variation)`** — returns the state key (inventoryId) for the matching entry
 - **`findPDKeyByRow(itemNum, variation, row)`** — disambiguation when multiple copies share the same item number; finds by row, falls back to findPDKey
+- **`_pdIndex`** — O(1) lookup index mapping `itemNum|variation` → state key; auto-rebuilds when personalData size changes; used by findPD/findPDKey
 - **`suggestSets(enteredItems)`** — matches entered items against set data using baseItemNum comparison
 - **`_patchMasterData()`** — runs before buildPartnerMap(); corrects known data errors at load time (6017 type, 2046W tender, 12 set component fixes)
 - **`_adjustRowsAfterDelete(dataObj, deletedRow)`** — decrements `.row` on all records above a deleted row; eliminates need for background reload
@@ -229,8 +230,8 @@ The Rail Roster - My Collection/
 | Admin email | bhale@ipd-llc.com |
 | Beta invite code | BETA2026 |
 | EPN campid | 5339145351 |
-| Data cache ver | `'52'` |
-| SW cache name | `'mca-v57'` |
+| Data cache ver | `'60'` |
+| SW cache name | `'mca-v65'` |
 | Vault folder | "The Rail Roster - My Collection" |
 | Config file | "rail-roster-config.json" |
 
