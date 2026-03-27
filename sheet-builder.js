@@ -395,7 +395,7 @@ async function lockSheetTabs(sheetId) {
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     const meta = await metaRes.json();
-    const DATA_TABS = ['My Collection','Sold','For Sale','Want List','Upgrade List','Catalogs','Paper Items','Mock-Ups','Other Lionel','Instruction Sheets','Science Sets','Construction Sets'];
+    const DATA_TABS = ['My Collection','Sold','For Sale','Want List','Upgrade List','Catalogs','Paper Items','Mock-Ups','Other Lionel','Instruction Sheets','Science Sets','Construction Sets','My Sets'];
     const tabMap = {};
     (meta.sheets || []).forEach(s => { tabMap[s.properties.title] = s.properties.sheetId; });
 
