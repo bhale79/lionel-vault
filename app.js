@@ -1263,19 +1263,33 @@ async function loadAllData() {
   }
 }
 
-// ── Multi-tab master sheet tab names ──────────────────────────
+// ── Master sheet tab name config (single source of truth) ────
+// To rename a tab or add new ones, update this object only.
+const SHEET_TABS = {
+  items:        'Lionel PW - Items',
+  science:      'Lionel PW - Science',
+  construction: 'Lionel PW - Construction',
+  paper:        'Lionel PW - Paper',
+  other:        'Lionel PW - Other',
+  serviceTools: 'Lionel PW - Service Tools',
+  catalogs:     'Lionel PW - Catalogs',
+  companions:   'Lionel PW - Companions',
+  sets:         'Lionel PW - Sets',
+  instrSheets:  'Lionel PW - Instr Sheets',
+};
+// Tabs that contain master inventory data (loaded via batchGet)
 const MASTER_TABS = [
-  'Lionel Postwar - Items',
-  'Lionel Postwar - Science',
-  'Lionel Postwar - Construction',
-  'Lionel Postwar - Paper',
-  'Lionel Postwar - Other',
-  'Lionel Postwar - Service Tools',
+  SHEET_TABS.items,
+  SHEET_TABS.science,
+  SHEET_TABS.construction,
+  SHEET_TABS.paper,
+  SHEET_TABS.other,
+  SHEET_TABS.serviceTools,
 ];
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '39';
+  const _CACHE_VER = '40';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -1332,7 +1346,7 @@ async function _fetchMasterTabs() {
   try {
     let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:O');
     if (!res.values) res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:O');
-    return (res.values || []).map(r => parseMasterRow(r, 'Lionel Postwar - Items'));
+    return (res.values || []).map(r => parseMasterRow(r, SHEET_TABS.items));
   } catch(e2) {
     console.warn('[Master] Legacy fallback also failed:', e2.message);
     return [];
@@ -1375,7 +1389,7 @@ function _deduplicateMaster(rows) {
 // Keep parseMasterRows for any external callers (backwards compat)
 function parseMasterRows(rows) {
   state.masterData = _deduplicateMaster(
-    rows.map(r => parseMasterRow(r, 'Lionel Postwar - Items'))
+    rows.map(r => parseMasterRow(r, SHEET_TABS.items))
   );
 }
 
@@ -1392,7 +1406,7 @@ async function loadCatalogRefData() {
   }
   try {
     let res;
-    try { res = await sheetsGet(state.masterSheetId, 'Lionel Postwar - Catalogs!A2:D'); }
+    try { res = await sheetsGet(state.masterSheetId, SHEET_TABS.catalogs + '!A2:D'); }
     catch(_) { res = await sheetsGet(state.masterSheetId, 'catalogs!A2:D'); }
     const rows = (res && res.values) || [];
     state.catalogRefData = rows
@@ -1424,8 +1438,7 @@ async function loadISRefData() {
   }
   // Try multiple possible tab names (full name, Excel-truncated 31-char, legacy short name)
   const _isTabNames = [
-    'Lionel Postwar - Instruction Sheets',
-    'Lionel Postwar - Instruction S',
+    SHEET_TABS.instrSheets,
     'Instruction Sheets',
   ];
   let res = null;
@@ -1464,7 +1477,7 @@ async function loadSetData() {
     if (cached && (Date.now() - cachedAt) < 24*60*60*1000) {
       state.setData = JSON.parse(cached);
       // Background refresh
-      sheetsGet(state.masterSheetId, 'Lionel Postwar - Sets!A2:U').catch(() => sheetsGet(state.masterSheetId, 'Master Set list!A2:U')).then(res => {
+      sheetsGet(state.masterSheetId, SHEET_TABS.sets + '!A2:U').catch(() => sheetsGet(state.masterSheetId, 'Master Set list!A2:U')).then(res => {
         if (res && res.values) {
           parseSetRows(res.values);
           localStorage.setItem('lv_set_cache', JSON.stringify(state.setData));
@@ -1474,7 +1487,7 @@ async function loadSetData() {
       return;
     }
     let res;
-    try { res = await sheetsGet(state.masterSheetId, 'Lionel Postwar - Sets!A2:U'); }
+    try { res = await sheetsGet(state.masterSheetId, SHEET_TABS.sets + '!A2:U'); }
     catch(_) { res = await sheetsGet(state.masterSheetId, 'Master Set list!A2:U'); }
     parseSetRows((res && res.values) || []);
     localStorage.setItem('lv_set_cache', JSON.stringify(state.setData));
@@ -1488,7 +1501,7 @@ async function loadCompanionData() {
     const cachedAt = parseInt(localStorage.getItem('lv_companion_cache_ts') || '0');
     if (cached && (Date.now() - cachedAt) < 24*60*60*1000) {
       state.companionData = JSON.parse(cached);
-      sheetsGet(state.masterSheetId, 'Lionel Postwar - Companions!A2:E').catch(() => sheetsGet(state.masterSheetId, 'Companions!A2:E')).then(res => {
+      sheetsGet(state.masterSheetId, SHEET_TABS.companions + '!A2:E').catch(() => sheetsGet(state.masterSheetId, 'Companions!A2:E')).then(res => {
         if (res && res.values) {
           parseCompanionRows(res.values);
           localStorage.setItem('lv_companion_cache', JSON.stringify(state.companionData));
@@ -1498,7 +1511,7 @@ async function loadCompanionData() {
       return;
     }
     let res;
-    try { res = await sheetsGet(state.masterSheetId, 'Lionel Postwar - Companions!A2:E'); }
+    try { res = await sheetsGet(state.masterSheetId, SHEET_TABS.companions + '!A2:E'); }
     catch(_) { res = await sheetsGet(state.masterSheetId, 'Companions!A2:E'); }
     parseCompanionRows((res && res.values) || []);
     localStorage.setItem('lv_companion_cache', JSON.stringify(state.companionData));
@@ -3688,10 +3701,10 @@ function browseRowClick(event, idx) {
   const pdKey = findPDKey(item.itemNum, item.variation);
   const alreadyOwned = !!pdKey;
   // Also check Science/Construction dedicated tabs
-  const _sciOwned = (item._tab === 'Lionel Postwar - Science' || item.itemType === 'Science Set')
+  const _sciOwned = (item._tab === SHEET_TABS.science || item.itemType === 'Science Set')
     ? Object.values(state.scienceData || {}).filter(s => String(s.itemNum) === String(item.itemNum) && String(s.variation || '') === String(item.variation || ''))
     : [];
-  const _conOwned = (item._tab === 'Lionel Postwar - Construction' || item.itemType === 'Construction Set')
+  const _conOwned = (item._tab === SHEET_TABS.construction || item.itemType === 'Construction Set')
     ? Object.values(state.constructionData || {}).filter(s => String(s.itemNum) === String(item.itemNum) && String(s.variation || '') === String(item.variation || ''))
     : [];
   const _specialOwned = _sciOwned.length + _conOwned.length;
