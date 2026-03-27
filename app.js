@@ -218,6 +218,11 @@ function normalizeItemNum(n) {
   const s = (n || '').toString().trim();
   return s.match(/^\d+\.0$/) ? s.slice(0, -2) : s;
 }
+// Strip powered/dummy/trailing suffixes for base-number comparison
+// Handles Lionel catalog style (2343P, 2343T, 2343C) and app style (2343-P, 2343-D)
+function baseItemNum(n) {
+  return normalizeItemNum(n).replace(/[-]?[PDTC]$/i, '');
+}
 function nextInventoryId() {
   let max = 0;
   Object.values(state.personalData).forEach(pd => {
@@ -1289,7 +1294,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '40';
+  const _CACHE_VER = '41';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -1564,9 +1569,10 @@ function suggestSets(enteredItems) {
       let primaryMatches = 0, altMatches = 0, matchedAlts = [];
       enteredItems.forEach(ei => {
         const en = norm(ei);
-        if (allItems.some(si => norm(si) === en)) {
+        const eb = baseItemNum(ei);
+        if (allItems.some(si => norm(si) === en || baseItemNum(si) === eb)) {
           primaryMatches++;
-        } else if (allAlts.some(ai => norm(ai) === en)) {
+        } else if (allAlts.some(ai => norm(ai) === en || baseItemNum(ai) === eb)) {
           altMatches++;
           matchedAlts.push(ei);
         }
