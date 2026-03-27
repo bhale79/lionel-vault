@@ -1255,12 +1255,26 @@ function saveUserDefinedTabs() {
   localStorage.setItem('lv_user_tabs', JSON.stringify(state.userDefinedTabs));
 }
 
+// ── Post-load data patches (correct known errors in master sheet) ──
+function _patchMasterData() {
+  // Fix 6017: itemType should be 'Caboose' not 'Accessory'
+  (state.masterData || []).forEach(m => {
+    if (m.itemNum === '6017' && m.itemType === 'Accessory') m.itemType = 'Caboose';
+  });
+  // Fix 2046 → 2046W in set component lists (it's a tender, not an engine)
+  (state.setData || []).forEach(s => {
+    if (s.tender === '2046') s.tender = '2046W';
+    s.items = s.items.map(i => i === '2046' ? '2046W' : i);
+  });
+}
+
 async function loadAllData() {
   showLoading();
   try {
     loadUserDefinedTabs();
     // Load master data (uses cache if fresh) and personal data in parallel
     await Promise.all([loadMasterData(), loadPersonalData(), loadSetData(), loadCompanionData(), loadCatalogRefData(), loadISRefData()]);
+    _patchMasterData();
     buildPartnerMap();
     buildApp();
     showOnboarding();
@@ -1309,7 +1323,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '49';
+  const _CACHE_VER = '50';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
