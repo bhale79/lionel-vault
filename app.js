@@ -1,6 +1,5 @@
 // ── CONFIG ─────────────────────────────────────────────────────
-const APP_VERSION = 'v0.9.78';
-const APP_DATE = 'March 2026';
+// APP_VERSION, APP_DATE defined in config.js
 // Replace with your actual Google OAuth Client ID after setup
 const CLIENT_ID = '161569968813-vrhet7p68vkthkunare60nqr34li5uuh.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
